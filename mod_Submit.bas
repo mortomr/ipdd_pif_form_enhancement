@@ -366,8 +366,7 @@ Private Function CreateBackupTables() As Boolean
     
     backupDate = Format(Now, "YYYYMMDD_HHMMSS")
     
-    ' Backup projects table
-    If Not ExecuteSQLSecure(Nothing, sql) Then
+    If Not ExecuteSQL(sql) Then
         CreateBackupTables = False
         Exit Function
     End If
@@ -376,7 +375,7 @@ Private Function CreateBackupTables() As Boolean
     sql = "SELECT * INTO dbo.tbl_pif_cost_inflight_backup_" & backupDate & _
           " FROM dbo.tbl_pif_cost_inflight"
     
-    If Not ExecuteSQLSecure(Nothing, sql) Then
+    If Not ExecuteSQL(sql) Then
         CreateBackupTables = False
         Exit Function
     End If
@@ -459,7 +458,7 @@ Private Function CommitToInflight() As Boolean
           "SELECT * FROM dbo.tbl_pif_cost_staging; " & _
           "COMMIT TRANSACTION;"
     
-    CommitToInflight = ExecuteSQLSecure(Nothing, sql)
+    CommitToInflight = ExecuteSQL(sql)
     
     Exit Function
     
@@ -480,14 +479,13 @@ Private Function ArchiveApprovedPIFs() As Boolean
     
     Dim sql As String
     
-    ' Insert approved projects
-    If Not ExecuteSQLSecure(Nothing, sql) Then
+    If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
     
     ' Insert approved costs
-        If Not ExecuteSQLSecure(Nothing, sql) Then
+        If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
@@ -498,9 +496,7 @@ Private Function ArchiveApprovedPIFs() As Boolean
           "    ON c.pif_id = p.pif_id AND c.project_id = p.project_id " & _
           "WHERE p.status IN ('Approved', 'Dispositioned'); " & _
           "DELETE FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE status IN ('Approved', 'Dispositioned')"
-    
-    If Not ExecuteSQLSecure(Nothing, sql) Then
+    If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
@@ -532,7 +528,7 @@ Private Function LogSubmission() As Boolean
           "(GETDATE(), SYSTEM_USER, '" & SQLSafe(ThisWorkbook.Name) & "', " & _
           recordCount & ", 'Submitted via VBA')"
     
-    LogSubmission = ExecuteSQLSecure(Nothing, sql)
+    LogSubmission = ExecuteSQL(sql)
     
     Exit Function
     
