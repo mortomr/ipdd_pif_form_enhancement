@@ -363,7 +363,7 @@ Private Function CreateBackupTables() As Boolean
     Dim backupDate As String
     Dim sql As String
     
-    backupDate = Format(Date, "YYYYMMDD")
+    backupDate = Format(Now, "YYYYMMDD_HHMMSS")
     
     ' Backup projects table
     sql = "SELECT * INTO dbo.tbl_pif_projects_inflight_backup_" & backupDate & _
