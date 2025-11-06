@@ -422,12 +422,15 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
     dbCommand.CommandType = adCmdStoredProc  ' CRITICAL: Prevents SQL injection
     dbCommand.CommandTimeout = COMMAND_TIMEOUT
 
+    ' CRITICAL IMPROVEMENT: Refresh parameters to ensure correct mapping by name
+    dbCommand.Parameters.Refresh
+
     Debug.Print "\n--- Executing Stored Procedure ---"
     Debug.Print "CommandText: " & dbCommand.CommandText
     Debug.Print "CommandType: " & dbCommand.CommandType & " (adCmdStoredProc)"
-    Debug.Print "Parameters Collection (before execute):"
+    Debug.Print "Parameters Collection (after Refresh and before value assignment):"
 
-    ' Add parameters (groups of 5: name, type, direction, size, value)
+    ' Assign values to existing parameters in the refreshed collection
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params) Step 5
             Dim paramName As String
@@ -442,29 +445,26 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
             paramSize = params(i + 3)
             paramValue = params(i + 4)
 
-            ' IMPROVEMENT: Auto-calculate size for strings if size = 0
-            If (paramType = adVarWChar Or paramType = adVarChar) And paramSize = 0 Then
-                If Not IsNull(paramValue) And Not IsEmpty(paramValue) Then
-                    paramSize = Len(CStr(paramValue))
-                    If paramSize < 255 Then paramSize = 255  ' Minimum buffer
-                    If paramSize > 4000 Then paramSize = 4000  ' Max without NVARCHAR(MAX)
-                Else
-                    paramSize = 255  ' Default for NULL
-                End If
-            End If
+            ' Find the parameter by name and assign its value
+            On Error Resume Next  ' Handle case where parameter name might not be found (shouldn't happen with Refresh)
+            With dbCommand.Parameters(paramName)
+                .Value = paramValue
+                ' Optionally, you can also set Type, Direction, Size if they were not correctly inferred by Refresh
+                ' .Type = paramType
+                ' .Direction = paramDirection
+                ' .Size = paramSize ' Only set size for string/binary types if not correctly inferred
+            End With
+            On Error GoTo ErrHandler  ' Resume normal error handling
 
-            Dim parameter As ADODB.Parameter
-
-            Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
-            dbCommand.Parameters.Append parameter
-
-            ' Log parameter details after appending to collection
-            Debug.Print "  Param Name: " & parameter.Name
-            Debug.Print "  Param Type: " & parameter.Type & " (" & TypeName(parameter.Value) & ")"
-            Debug.Print "  Param Direction: " & parameter.Direction
-            Debug.Print "  Param Size: " & parameter.Size
-            Debug.Print "  Param Value: " & CStr(parameter.Value)
-            Debug.Print "  -------------------------"
+            ' Log parameter details after assigning value
+            With dbCommand.Parameters(paramName)
+                Debug.Print "  Param Name: " & .Name
+                Debug.Print "  Param Type: " & .Type & " (" & TypeName(.Value) & ")"
+                Debug.Print "  Param Direction: " & .Direction
+                Debug.Print "  Param Size: " & .Size
+                Debug.Print "  Param Value: " & CStr(.Value)
+                Debug.Print "  -------------------------"
+            End With
         Next i
     End If
 
