@@ -511,61 +511,70 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                     ByVal tableName As String, _
                                     Optional ByVal schemaName As String = "dbo") As Boolean
     On Error GoTo ErrHandler
-    
+
     Dim conn As ADODB.Connection
     Dim i As Long, j As Long
     Dim rowCount As Long
     Dim startTime As Double
     Dim params() As Variant
     Dim colCount As Integer
-    
+    Dim wsData As Worksheet
+    Dim actualRow As Long
+
     startTime = Timer
-    
+
+    ' Get the worksheet reference for absolute column access
+    Set wsData = dataRange.Worksheet
+
     Set conn = GetDBConnection()
     If conn Is Nothing Then
         BulkInsertToStaging = False
         Exit Function
     End If
-    
+
     ' Truncate staging table first
     Application.StatusBar = "Truncating " & tableName & "..."
     If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
         BulkInsertToStaging = False
         Exit Function
     End If
-    
+
     ' Loop through Excel range and add records
     Application.StatusBar = "Uploading to " & tableName & "..."
     Application.ScreenUpdating = False
     rowCount = 0
-    
+
     conn.BeginTrans
-    
+
     For i = 1 To dataRange.Rows.Count
-        ' Check if row has data (skip empty rows)
-        If Not IsEmpty(dataRange.Cells(i, 1).Value) Then
+        ' Calculate actual worksheet row
+        actualRow = dataRange.Row + i - 1
+
+        ' Check if row has data (skip empty rows) - use PIF_ID column (G=7)
+        If Not IsEmpty(wsData.Cells(actualRow, 7).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
-                ReDim params(0 To 20) ' Adjust size based on usp_insert_project_staging parameters
-                params(0) = dataRange.Cells(i, 7).Value  ' pif_id
-                params(1) = dataRange.Cells(i, 13).Value ' project_id
-                params(2) = dataRange.Cells(i, 18).Value ' status
-                params(3) = dataRange.Cells(i, 6).Value  ' change_type
-                params(4) = dataRange.Cells(i, 5).Value  ' accounting_treatment
-                params(5) = dataRange.Cells(i, 19).Value ' category
-                params(6) = dataRange.Cells(i, 8).Value  ' seg
-                params(7) = dataRange.Cells(i, 9).Value  ' opco
-                params(8) = dataRange.Cells(i, 10).Value ' site
-                params(9) = dataRange.Cells(i, 11).Value ' strategic_rank
-                params(10) = dataRange.Cells(i, 13).Value ' funding_project
-                params(11) = dataRange.Cells(i, 14).Value ' project_name
-                params(12) = dataRange.Cells(i, 15).Value ' original_fp_isd
-                params(13) = dataRange.Cells(i, 16).Value ' revised_fp_isd
-                params(14) = dataRange.Cells(i, 17).Value ' moving_isd_year
-                params(15) = dataRange.Cells(i, 17).Value ' lcm_issue (assuming same column as moving_isd_year for now)
-                params(16) = dataRange.Cells(i, 20).Value ' justification
-                params(17) = dataRange.Cells(i, 20).Value ' prior_year_spend (assuming same column as justification for now)
-                params(18) = dataRange.Cells(i, 3).Value  ' archive_flag
-                params(19) = dataRange.Cells(i, 4).Value  ' include_flag
+                ReDim params(0 To 19) ' 20 parameters for usp_insert_project_staging
+                ' Use absolute column references from mod_SharedConstants
+                params(0) = wsData.Cells(actualRow, 7).Value   ' pif_id (G)
+                params(1) = wsData.Cells(actualRow, 13).Value  ' project_id (M - same as funding_project)
+                params(2) = wsData.Cells(actualRow, 18).Value  ' status (R)
+                params(3) = wsData.Cells(actualRow, 6).Value   ' change_type (F)
+                params(4) = wsData.Cells(actualRow, 5).Value   ' accounting_treatment (E)
+                params(5) = wsData.Cells(actualRow, 19).Value  ' category (S)
+                params(6) = wsData.Cells(actualRow, 8).Value   ' seg (H)
+                params(7) = wsData.Cells(actualRow, 9).Value   ' opco (I)
+                params(8) = wsData.Cells(actualRow, 10).Value  ' site (J)
+                params(9) = wsData.Cells(actualRow, 11).Value  ' strategic_rank (K)
+                params(10) = wsData.Cells(actualRow, 13).Value ' funding_project (M)
+                params(11) = wsData.Cells(actualRow, 14).Value ' project_name (N)
+                params(12) = wsData.Cells(actualRow, 15).Value ' original_fp_isd (O)
+                params(13) = wsData.Cells(actualRow, 16).Value ' revised_fp_isd (P)
+                params(14) = wsData.Cells(actualRow, 39).Value ' moving_isd_year (AM) - FIXED!
+                params(15) = wsData.Cells(actualRow, 17).Value ' lcm_issue (Q)
+                params(16) = wsData.Cells(actualRow, 20).Value ' justification (T)
+                params(17) = wsData.Cells(actualRow, 40).Value ' prior_year_spend (AN) - FIXED!
+                params(18) = wsData.Cells(actualRow, 3).Value  ' archive_flag (C)
+                params(19) = wsData.Cells(actualRow, 4).Value  ' include_flag (D)
                 
                 If Not ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
@@ -593,14 +602,15 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     Exit Function
                 End If
             ElseIf tableName = "tbl_pif_cost_staging" Then
-                ReDim params(0 To 6) ' Adjust size based on usp_insert_cost_staging parameters
-                params(0) = dataRange.Cells(i, 1).Value  ' pif_id
-                params(1) = dataRange.Cells(i, 2).Value  ' project_id
-                params(2) = dataRange.Cells(i, 3).Value  ' scenario
-                params(3) = dataRange.Cells(i, 4).Value  ' year
-                params(4) = dataRange.Cells(i, 5).Value  ' requested_value
-                params(5) = dataRange.Cells(i, 6).Value  ' current_value
-                params(6) = dataRange.Cells(i, 7).Value  ' variance_value
+                ReDim params(0 To 6) ' 7 parameters for usp_insert_cost_staging
+                ' Cost_Unpivoted sheet has columns A-G (relative positions work here)
+                params(0) = wsData.Cells(actualRow, 1).Value  ' pif_id (A in Cost_Unpivoted)
+                params(1) = wsData.Cells(actualRow, 2).Value  ' project_id (B)
+                params(2) = wsData.Cells(actualRow, 3).Value  ' scenario (C)
+                params(3) = wsData.Cells(actualRow, 4).Value  ' year (D)
+                params(4) = wsData.Cells(actualRow, 5).Value  ' requested_value (E)
+                params(5) = wsData.Cells(actualRow, 6).Value  ' current_value (F)
+                params(6) = wsData.Cells(actualRow, 7).Value  ' variance_value (G)
                 
                 If Not ExecuteStoredProcedure(conn, "usp_insert_cost_staging", False, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
