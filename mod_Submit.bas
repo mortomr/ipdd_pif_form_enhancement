@@ -366,6 +366,10 @@ Private Function CreateBackupTables() As Boolean
     
     backupDate = Format(Now, "YYYYMMDD_HHMMSS")
     
+    ' Backup projects table
+    sql = "SELECT * INTO dbo.tbl_pif_projects_inflight_backup_" & backupDate & _
+          " FROM dbo.tbl_pif_projects_inflight"
+    
     If Not ExecuteSQL(sql) Then
         CreateBackupTables = False
         Exit Function
