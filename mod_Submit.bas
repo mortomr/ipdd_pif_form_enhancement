@@ -20,7 +20,7 @@ Attribute VB_Name = "mod_Submit"
 Option Explicit
 
 ' Sheet name constants - UPDATE IF YOUR SHEETS HAVE DIFFERENT NAMES
-Private Const SHEET_DATA As String = "PIF_Data"
+Private Const SHEET_DATA As String = "PIF"
 Private Const SHEET_COST_UNPIVOTED As String = "Cost_Unpivoted"
 Private Const SHEET_VALIDATION_REPORT As String = "Validation_Report"
 
@@ -221,10 +221,15 @@ Private Function UnpivotCostData() As Boolean
         If pifId <> "" And projectId <> "" Then
             ' TARGET SCENARIO - Years 2025-2030
             ' CY (2025): Columns U, AA, AG
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", currentYear & "-12-31", _
-                           wsData.Cells(dataRow, 21).Value, _  ' U = requested
-                           wsData.Cells(dataRow, 27).Value, _  ' AA = current
-                           wsData.Cells(dataRow, 33).Value     ' AG = variance
+            Dim reqVal As Variant
+            Dim curVal As Variant
+            Dim varVal As Variant
+            
+            reqVal = wsData.Cells(dataRow, 21).Value
+            curVal = wsData.Cells(dataRow, 27).Value
+            varVal = wsData.Cells(dataRow, 33).Value
+            
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", currentYear & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
             
             ' CY+1 (2026): Columns V, AB, AH
