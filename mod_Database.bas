@@ -598,7 +598,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@change_type", adVarChar, adParamInput, 12, params(3), _
                                             "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
                                             "@category", adVarChar, adParamInput, 26, params(5), _
-                                            "@seg", adInteger, adParamInput, , params(6), _
+                                            "@seg", adInteger, adParamInput, 0, params(6), _
                                             "@opco", adVarChar, adParamInput, 4, params(7), _
                                             "@site", adVarChar, adParamInput, 4, params(8), _
                                             "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
@@ -609,9 +609,9 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@moving_isd_year", adChar, adParamInput, 1, params(14), _
                                             "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
                                             "@justification", adVarChar, adParamInput, 192, params(16), _
-                                            "@prior_year_spend", adNumeric, adParamInput, , params(17), _
-                                            "@archive_flag", adBoolean, adParamInput, , params(18), _
-                                            "@include_flag", adBoolean, adParamInput, , params(19)) Then
+                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
+                                            "@archive_flag", adBoolean, adParamInput, 0, params(18), _
+                                            "@include_flag", adBoolean, adParamInput, 0, params(19)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
