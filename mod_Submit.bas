@@ -407,7 +407,7 @@ Private Function UploadProjectData() As Boolean
     Set dataRange = wsData.Range("C1").CurrentRegion  ' Starting from column C (archive flag)
     
     ' NOTE: You may need to adjust the range to match your exact layout
-    UploadProjectData = BulkInsertToStaging(dataRange, "tbl_pif_projects_staging")
+    UploadProjectData = BulkInsertToStaging(dataRange, "tbl_pif_projects_staging", "dbo")
     
     Exit Function
     
@@ -431,7 +431,7 @@ Private Function UploadCostData() As Boolean
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
     Set dataRange = wsCost.Range("A1").CurrentRegion
     
-    UploadCostData = BulkInsertToStaging(dataRange, "tbl_pif_cost_staging")
+    UploadCostData = BulkInsertToStaging(dataRange, "tbl_pif_cost_staging", "dbo")
     
     Exit Function
     
