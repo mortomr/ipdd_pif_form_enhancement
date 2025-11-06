@@ -22,7 +22,7 @@
 --   7. SECURE STORED PROCEDURES (NEW)
 -- ============================================================================
 
-USE [YOUR_DATABASE_NAME];
+USE [IPDD];
 GO
 
 -- ============================================================================
@@ -35,40 +35,41 @@ IF OBJECT_ID('dbo.tbl_pif_projects_staging', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_projects_staging;
 GO
 
-CREATE TABLE dbo.tbl_pif_projects_staging (
-    pif_project_id     INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
+CREATE TABLE dbo.tbl_pif_projects_staging
+(
+    pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
 
     -- Status & classification
-    status             VARCHAR(58) NULL,
-    change_type        VARCHAR(12) NULL,
+    status VARCHAR(58) NULL,
+    change_type VARCHAR(12) NULL,
     accounting_treatment VARCHAR(14) NULL,
-    category           VARCHAR(26) NULL,
+    category VARCHAR(26) NULL,
 
     -- Organizational
-    seg                INT NULL,
-    opco               VARCHAR(4) NULL,
-    site               VARCHAR(4) NULL,
-    strategic_rank     VARCHAR(26) NULL,
+    seg INT NULL,
+    opco VARCHAR(4) NULL,
+    site VARCHAR(4) NULL,
+    strategic_rank VARCHAR(26) NULL,
 
     -- Project linkage
-    funding_project    VARCHAR(10) NULL,
-    project_name       VARCHAR(35) NULL,
+    funding_project VARCHAR(10) NULL,
+    project_name VARCHAR(35) NULL,
 
     -- Scheduling
-    original_fp_isd    VARCHAR(8) NULL,
-    revised_fp_isd     VARCHAR(5) NULL,
-    moving_isd_year    CHAR(1) NULL,
+    original_fp_isd VARCHAR(8) NULL,
+    revised_fp_isd VARCHAR(5) NULL,
+    moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue          VARCHAR(11) NULL,
-    justification      VARCHAR(192) NULL,
-    prior_year_spend   DECIMAL(18,2) NULL,
+    lcm_issue VARCHAR(11) NULL,
+    justification VARCHAR(192) NULL,
+    prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
-    archive_flag       BIT NULL,
-    include_flag       BIT NULL
+    archive_flag BIT NULL,
+    include_flag BIT NULL
 );
 GO
 
@@ -76,17 +77,23 @@ IF OBJECT_ID('dbo.tbl_pif_cost_staging', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_cost_staging;
 GO
 
-CREATE TABLE dbo.tbl_pif_cost_staging (
-    pif_cost_id        INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
-    scenario           VARCHAR(12) NOT NULL,  -- 'Target' or 'Closings'
-    year               DATE NOT NULL,         -- Fiscal year end: 12/31/YYYY
+CREATE TABLE dbo.tbl_pif_cost_staging
+(
+    pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
+    scenario VARCHAR(12) NOT NULL,
+    -- 'Target' or 'Closings'
+    year DATE NOT NULL,
+    -- Fiscal year end: 12/31/YYYY
 
     -- Financial data
-    requested_value    DECIMAL(18,2) NULL,    -- User-entered proposal
-    current_value      DECIMAL(18,2) NULL,    -- System of record baseline
-    variance_value     DECIMAL(18,2) NULL     -- Difference (calculated)
+    requested_value DECIMAL(18,2) NULL,
+    -- User-entered proposal
+    current_value DECIMAL(18,2) NULL,
+    -- System of record baseline
+    variance_value DECIMAL(18,2) NULL
+    -- Difference (calculated)
 );
 GO
 
@@ -100,41 +107,43 @@ IF OBJECT_ID('dbo.tbl_pif_projects_inflight', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_projects_inflight;
 GO
 
-CREATE TABLE dbo.tbl_pif_projects_inflight (
-    pif_project_id     INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
-    submission_date    DATE NOT NULL,         -- When this batch was submitted
+CREATE TABLE dbo.tbl_pif_projects_inflight
+(
+    pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
+    submission_date DATE NOT NULL,
+    -- When this batch was submitted
 
     -- Status & classification
-    status             VARCHAR(58) NULL,
-    change_type        VARCHAR(12) NULL,
+    status VARCHAR(58) NULL,
+    change_type VARCHAR(12) NULL,
     accounting_treatment VARCHAR(14) NULL,
-    category           VARCHAR(26) NULL,
+    category VARCHAR(26) NULL,
 
     -- Organizational
-    seg                INT NULL,
-    opco               VARCHAR(4) NULL,
-    site               VARCHAR(4) NULL,
-    strategic_rank     VARCHAR(26) NULL,
+    seg INT NULL,
+    opco VARCHAR(4) NULL,
+    site VARCHAR(4) NULL,
+    strategic_rank VARCHAR(26) NULL,
 
     -- Project linkage
-    funding_project    VARCHAR(10) NULL,
-    project_name       VARCHAR(35) NULL,
+    funding_project VARCHAR(10) NULL,
+    project_name VARCHAR(35) NULL,
 
     -- Scheduling
-    original_fp_isd    VARCHAR(8) NULL,
-    revised_fp_isd     VARCHAR(5) NULL,
-    moving_isd_year    CHAR(1) NULL,
+    original_fp_isd VARCHAR(8) NULL,
+    revised_fp_isd VARCHAR(5) NULL,
+    moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue          VARCHAR(11) NULL,
-    justification      VARCHAR(192) NULL,
-    prior_year_spend   DECIMAL(18,2) NULL,
+    lcm_issue VARCHAR(11) NULL,
+    justification VARCHAR(192) NULL,
+    prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
-    archive_flag       BIT NULL,
-    include_flag       BIT NULL,
+    archive_flag BIT NULL,
+    include_flag BIT NULL,
 
     -- Constraints
     CONSTRAINT UQ_inflight_pif_project UNIQUE (pif_id, project_id)
@@ -145,17 +154,18 @@ IF OBJECT_ID('dbo.tbl_pif_cost_inflight', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_cost_inflight;
 GO
 
-CREATE TABLE dbo.tbl_pif_cost_inflight (
-    pif_cost_id        INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
-    scenario           VARCHAR(12) NOT NULL,
-    year               DATE NOT NULL,
+CREATE TABLE dbo.tbl_pif_cost_inflight
+(
+    pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
+    scenario VARCHAR(12) NOT NULL,
+    year DATE NOT NULL,
 
     -- Financial data
-    requested_value    DECIMAL(18,2) NULL,
-    current_value      DECIMAL(18,2) NULL,
-    variance_value     DECIMAL(18,2) NULL
+    requested_value DECIMAL(18,2) NULL,
+    current_value DECIMAL(18,2) NULL,
+    variance_value DECIMAL(18,2) NULL
 );
 GO
 
@@ -174,42 +184,44 @@ IF OBJECT_ID('dbo.tbl_pif_projects_approved', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_projects_approved;
 GO
 
-CREATE TABLE dbo.tbl_pif_projects_approved (
-    pif_project_id     INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
-    submission_date    DATE NOT NULL,
-    approval_date      DATE NOT NULL,         -- When archived to approved
+CREATE TABLE dbo.tbl_pif_projects_approved
+(
+    pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
+    submission_date DATE NOT NULL,
+    approval_date DATE NOT NULL,
+    -- When archived to approved
 
     -- Status & classification
-    status             VARCHAR(58) NULL,
-    change_type        VARCHAR(12) NULL,
+    status VARCHAR(58) NULL,
+    change_type VARCHAR(12) NULL,
     accounting_treatment VARCHAR(14) NULL,
-    category           VARCHAR(26) NULL,
+    category VARCHAR(26) NULL,
 
     -- Organizational
-    seg                INT NULL,
-    opco               VARCHAR(4) NULL,
-    site               VARCHAR(4) NULL,
-    strategic_rank     VARCHAR(26) NULL,
+    seg INT NULL,
+    opco VARCHAR(4) NULL,
+    site VARCHAR(4) NULL,
+    strategic_rank VARCHAR(26) NULL,
 
     -- Project linkage
-    funding_project    VARCHAR(10) NULL,
-    project_name       VARCHAR(35) NULL,
+    funding_project VARCHAR(10) NULL,
+    project_name VARCHAR(35) NULL,
 
     -- Scheduling
-    original_fp_isd    VARCHAR(8) NULL,
-    revised_fp_isd     VARCHAR(5) NULL,
-    moving_isd_year    CHAR(1) NULL,
+    original_fp_isd VARCHAR(8) NULL,
+    revised_fp_isd VARCHAR(5) NULL,
+    moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue          VARCHAR(11) NULL,
-    justification      VARCHAR(192) NULL,
-    prior_year_spend   DECIMAL(18,2) NULL,
+    lcm_issue VARCHAR(11) NULL,
+    justification VARCHAR(192) NULL,
+    prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
-    archive_flag       BIT NULL,
-    include_flag       BIT NULL
+    archive_flag BIT NULL,
+    include_flag BIT NULL
 );
 GO
 
@@ -226,18 +238,19 @@ IF OBJECT_ID('dbo.tbl_pif_cost_approved', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_pif_cost_approved;
 GO
 
-CREATE TABLE dbo.tbl_pif_cost_approved (
-    pif_cost_id        INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    pif_id             VARCHAR(16) NOT NULL,
-    project_id         VARCHAR(10) NOT NULL,
-    scenario           VARCHAR(12) NOT NULL,
-    year               DATE NOT NULL,
-    approval_date      DATE NOT NULL,
+CREATE TABLE dbo.tbl_pif_cost_approved
+(
+    pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    pif_id VARCHAR(16) NOT NULL,
+    project_id VARCHAR(10) NOT NULL,
+    scenario VARCHAR(12) NOT NULL,
+    year DATE NOT NULL,
+    approval_date DATE NOT NULL,
 
     -- Financial data
-    requested_value    DECIMAL(18,2) NULL,
-    current_value      DECIMAL(18,2) NULL,
-    variance_value     DECIMAL(18,2) NULL
+    requested_value DECIMAL(18,2) NULL,
+    current_value DECIMAL(18,2) NULL,
+    variance_value DECIMAL(18,2) NULL
 );
 GO
 
@@ -259,13 +272,14 @@ IF OBJECT_ID('dbo.tbl_submission_log', 'U') IS NOT NULL
     DROP TABLE dbo.tbl_submission_log;
 GO
 
-CREATE TABLE dbo.tbl_submission_log (
-    submission_id      INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
-    submission_date    DATETIME NOT NULL DEFAULT GETDATE(),
-    submitted_by       VARCHAR(128) NOT NULL,
-    source_file        VARCHAR(255) NULL,
-    record_count       INT NULL,
-    notes              VARCHAR(500) NULL
+CREATE TABLE dbo.tbl_submission_log
+(
+    submission_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
+    submission_date DATETIME NOT NULL DEFAULT GETDATE(),
+    submitted_by VARCHAR(128) NOT NULL,
+    source_file VARCHAR(255) NULL,
+    record_count INT NULL,
+    notes VARCHAR(500) NULL
 );
 GO
 
@@ -277,68 +291,70 @@ IF OBJECT_ID('dbo.vw_pif_current_working', 'V') IS NOT NULL
     DROP VIEW dbo.vw_pif_current_working;
 GO
 
-CREATE VIEW dbo.vw_pif_current_working AS
-SELECT
-    p.*,
-    c.scenario,
-    c.year,
-    c.requested_value,
-    c.current_value,
-    c.variance_value
-FROM dbo.tbl_pif_projects_inflight p
-LEFT JOIN dbo.tbl_pif_cost_inflight c
-    ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+CREATE VIEW dbo.vw_pif_current_working
+AS
+    SELECT
+        p.*,
+        c.scenario,
+        c.year,
+        c.requested_value,
+        c.current_value,
+        c.variance_value
+    FROM dbo.tbl_pif_projects_inflight p
+        LEFT JOIN dbo.tbl_pif_cost_inflight c
+        ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
 GO
 
 IF OBJECT_ID('dbo.vw_pif_all_history', 'V') IS NOT NULL
     DROP VIEW dbo.vw_pif_all_history;
 GO
 
-CREATE VIEW dbo.vw_pif_all_history AS
-SELECT
-    'Inflight' AS source,
-    p.*,
-    c.scenario,
-    c.year,
-    c.requested_value,
-    c.current_value,
-    c.variance_value
-FROM dbo.tbl_pif_projects_inflight p
-LEFT JOIN dbo.tbl_pif_cost_inflight c
-    ON p.pif_id = c.pif_id AND p.project_id = c.project_id
-UNION ALL
-SELECT
-    'Approved' AS source,
-    p.pif_project_id,
-    p.pif_id,
-    p.project_id,
-    p.submission_date,
-    p.status,
-    p.change_type,
-    p.accounting_treatment,
-    p.category,
-    p.seg,
-    p.opco,
-    p.site,
-    p.strategic_rank,
-    p.funding_project,
-    p.project_name,
-    p.original_fp_isd,
-    p.revised_fp_isd,
-    p.moving_isd_year,
-    p.lcm_issue,
-    p.justification,
-    p.prior_year_spend,
-    p.archive_flag,
-    p.include_flag,
-    c.scenario,
-    c.year,
-    c.requested_value,
-    c.current_value,
-    c.variance_value
-FROM dbo.tbl_pif_projects_approved p
-LEFT JOIN dbo.tbl_pif_cost_approved c
-    ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+CREATE VIEW dbo.vw_pif_all_history
+AS
+            SELECT
+            'Inflight' AS source,
+            p.*,
+            c.scenario,
+            c.year,
+            c.requested_value,
+            c.current_value,
+            c.variance_value
+        FROM dbo.tbl_pif_projects_inflight p
+            LEFT JOIN dbo.tbl_pif_cost_inflight c
+            ON p.pif_id = c.pif_id AND p.project_id = c.project_id
+    UNION ALL
+        SELECT
+            'Approved' AS source,
+            p.pif_project_id,
+            p.pif_id,
+            p.project_id,
+            p.submission_date,
+            p.status,
+            p.change_type,
+            p.accounting_treatment,
+            p.category,
+            p.seg,
+            p.opco,
+            p.site,
+            p.strategic_rank,
+            p.funding_project,
+            p.project_name,
+            p.original_fp_isd,
+            p.revised_fp_isd,
+            p.moving_isd_year,
+            p.lcm_issue,
+            p.justification,
+            p.prior_year_spend,
+            p.archive_flag,
+            p.include_flag,
+            c.scenario,
+            c.year,
+            c.requested_value,
+            c.current_value,
+            c.variance_value
+        FROM dbo.tbl_pif_projects_approved p
+            LEFT JOIN dbo.tbl_pif_cost_approved c
+            ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
 GO
 
 -- ============================================================================
@@ -361,18 +377,21 @@ CREATE PROCEDURE dbo.usp_validate_staging_data_secure
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;  -- IMPROVEMENT: Ensures transaction rollback on error
+    SET XACT_ABORT ON;
+    -- IMPROVEMENT: Ensures transaction rollback on error
 
     DECLARE @Errors TABLE (
         error_id INT IDENTITY(1,1),
-        error_severity VARCHAR(10),  -- 'CRITICAL', 'WARNING', 'INFO'
+        error_severity VARCHAR(10),
+        -- 'CRITICAL', 'WARNING', 'INFO'
         error_type VARCHAR(50),
         error_message VARCHAR(500),
         record_identifier VARCHAR(100)
     );
 
     -- Check 1: Missing required fields (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Missing PIF ID',
@@ -381,7 +400,8 @@ BEGIN
     FROM dbo.tbl_pif_projects_staging
     WHERE pif_id IS NULL OR LTRIM(RTRIM(pif_id)) = '';
 
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Missing Project ID',
@@ -390,7 +410,8 @@ BEGIN
     FROM dbo.tbl_pif_projects_staging
     WHERE project_id IS NULL OR LTRIM(RTRIM(project_id)) = '';
 
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Missing Change Type',
@@ -398,11 +419,12 @@ BEGIN
         'PIF ' + pif_id + ', Project ' + project_id
     FROM dbo.tbl_pif_projects_staging
     WHERE pif_id IS NOT NULL
-      AND project_id IS NOT NULL
-      AND (change_type IS NULL OR LTRIM(RTRIM(change_type)) = '');
+        AND project_id IS NOT NULL
+        AND (change_type IS NULL OR LTRIM(RTRIM(change_type)) = '');
 
     -- Check 2: Data type validation (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Invalid Data Type',
@@ -410,10 +432,12 @@ BEGIN
         'PIF ' + pif_id + ', Project ' + project_id
     FROM dbo.tbl_pif_projects_staging
     WHERE seg IS NOT NULL
-      AND (seg < 0 OR seg > 99999);  -- IMPROVEMENT: Range validation
+        AND (seg < 0 OR seg > 99999);
+    -- IMPROVEMENT: Range validation
 
     -- Check 3: Duplicate detection (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Duplicate',
@@ -428,7 +452,8 @@ BEGIN
     ) dups;
 
     -- Check 4: Business rule - Approved PIFs require justification (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Missing Justification',
@@ -436,22 +461,24 @@ BEGIN
         'PIF ' + pif_id + ', Project ' + project_id
     FROM dbo.tbl_pif_projects_staging
     WHERE status IN ('Approved', 'Dispositioned')
-      AND (justification IS NULL OR LTRIM(RTRIM(justification)) = '');
+        AND (justification IS NULL OR LTRIM(RTRIM(justification)) = '');
 
     -- Check 5: Orphan cost records (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Orphan Cost Record',
         'Cost record exists without matching project record',
         'PIF ' + c.pif_id + ', Project ' + c.project_id
     FROM dbo.tbl_pif_cost_staging c
-    LEFT JOIN dbo.tbl_pif_projects_staging p
+        LEFT JOIN dbo.tbl_pif_projects_staging p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id
     WHERE p.pif_id IS NULL;
 
     -- Check 6: Invalid scenario values (CRITICAL)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Invalid Scenario',
@@ -461,18 +488,24 @@ BEGIN
     WHERE scenario NOT IN ('Target', 'Closings');
 
     -- Check 7: Variance threshold warning (WARNING - does not block submission)
-    INSERT INTO @Errors (error_severity, error_type, error_message, record_identifier)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
     SELECT
         'WARNING',
         'Variance Threshold Exceeded',
         'Variance exceeds -$1M threshold: ' + FORMAT(variance_value, 'C', 'en-US'),
         'PIF ' + pif_id + ', Project ' + project_id + ', Year ' + CAST(YEAR(year) AS VARCHAR(4))
     FROM dbo.tbl_pif_cost_staging
-    WHERE variance_value < -1000000;  -- $1M threshold
+    WHERE variance_value < -1000000;
+    -- $1M threshold
 
     -- Return separate counts for critical errors and warnings
-    SELECT @ErrorCount = COUNT(*) FROM @Errors WHERE error_severity = 'CRITICAL';
-    SELECT @WarningCount = COUNT(*) FROM @Errors WHERE error_severity = 'WARNING';
+    SELECT @ErrorCount = COUNT(*)
+    FROM @Errors
+    WHERE error_severity = 'CRITICAL';
+    SELECT @WarningCount = COUNT(*)
+    FROM @Errors
+    WHERE error_severity = 'WARNING';
 
     -- Return error details (ordered by severity)
     SELECT
@@ -510,13 +543,19 @@ BEGIN
     SET NOCOUNT ON;
 
     -- Drop existing indexes if they exist
-    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_staging_pif_proj')
+    IF EXISTS (SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_staging_pif_proj')
         DROP INDEX IX_staging_pif_proj ON dbo.tbl_pif_projects_staging;
 
-    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_staging_status')
+    IF EXISTS (SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_staging_status')
         DROP INDEX IX_staging_status ON dbo.tbl_pif_projects_staging;
 
-    IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_staging_cost_lookup')
+    IF EXISTS (SELECT 1
+    FROM sys.indexes
+    WHERE name = 'IX_staging_cost_lookup')
         DROP INDEX IX_staging_cost_lookup ON dbo.tbl_pif_cost_staging;
 
     -- Create indexes for validation queries
@@ -561,31 +600,33 @@ BEGIN
         TRUNCATE TABLE dbo.tbl_pif_projects_inflight;
 
         -- Step 2: Move validated data from staging to inflight
-        INSERT INTO dbo.tbl_pif_projects_inflight (
-            pif_id, project_id, submission_date, status, change_type,
-            accounting_treatment, category, seg, opco, site, strategic_rank,
-            funding_project, project_name, original_fp_isd, revised_fp_isd,
-            moving_isd_year, lcm_issue, justification, prior_year_spend,
-            archive_flag, include_flag
+        INSERT INTO dbo.tbl_pif_projects_inflight
+        (
+        pif_id, project_id, submission_date, status, change_type,
+        accounting_treatment, category, seg, opco, site, strategic_rank,
+        funding_project, project_name, original_fp_isd, revised_fp_isd,
+        moving_isd_year, lcm_issue, justification, prior_year_spend,
+        archive_flag, include_flag
         )
-        SELECT
-            pif_id, project_id, GETDATE(), status, change_type,
-            accounting_treatment, category, seg, opco, site, strategic_rank,
-            funding_project, project_name, original_fp_isd, revised_fp_isd,
-            moving_isd_year, lcm_issue, justification, prior_year_spend,
-            archive_flag, include_flag
-        FROM dbo.tbl_pif_projects_staging;
+    SELECT
+        pif_id, project_id, GETDATE(), status, change_type,
+        accounting_treatment, category, seg, opco, site, strategic_rank,
+        funding_project, project_name, original_fp_isd, revised_fp_isd,
+        moving_isd_year, lcm_issue, justification, prior_year_spend,
+        archive_flag, include_flag
+    FROM dbo.tbl_pif_projects_staging;
 
         SET @ProjectCount = @@ROWCOUNT;
 
-        INSERT INTO dbo.tbl_pif_cost_inflight (
-            pif_id, project_id, scenario, year,
-            requested_value, current_value, variance_value
+        INSERT INTO dbo.tbl_pif_cost_inflight
+        (
+        pif_id, project_id, scenario, year,
+        requested_value, current_value, variance_value
         )
-        SELECT
-            pif_id, project_id, scenario, year,
-            requested_value, current_value, variance_value
-        FROM dbo.tbl_pif_cost_staging;
+    SELECT
+        pif_id, project_id, scenario, year,
+        requested_value, current_value, variance_value
+    FROM dbo.tbl_pif_cost_staging;
 
         SET @CostCount = @@ROWCOUNT;
 
@@ -593,9 +634,9 @@ BEGIN
 
         -- Return success message
         SELECT
-            'SUCCESS' AS Status,
-            @ProjectCount AS ProjectsCommitted,
-            @CostCount AS CostRecordsCommitted;
+        'SUCCESS' AS Status,
+        @ProjectCount AS ProjectsCommitted,
+        @CostCount AS CostRecordsCommitted;
 
         RETURN 0;
 
@@ -610,10 +651,10 @@ BEGIN
         DECLARE @ErrorState INT = ERROR_STATE();
 
         SELECT
-            'ERROR' AS Status,
-            @ErrorMessage AS ErrorMessage,
-            @ErrorSeverity AS ErrorSeverity,
-            @ErrorState AS ErrorState;
+        'ERROR' AS Status,
+        @ErrorMessage AS ErrorMessage,
+        @ErrorSeverity AS ErrorSeverity,
+        @ErrorState AS ErrorState;
 
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
         RETURN -1;
@@ -644,36 +685,38 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- Step 1: Archive approved projects
-        INSERT INTO dbo.tbl_pif_projects_approved (
-            pif_id, project_id, submission_date, approval_date, status,
-            change_type, accounting_treatment, category, seg, opco, site,
-            strategic_rank, funding_project, project_name, original_fp_isd,
-            revised_fp_isd, moving_isd_year, lcm_issue, justification,
-            prior_year_spend, archive_flag, include_flag
+        INSERT INTO dbo.tbl_pif_projects_approved
+        (
+        pif_id, project_id, submission_date, approval_date, status,
+        change_type, accounting_treatment, category, seg, opco, site,
+        strategic_rank, funding_project, project_name, original_fp_isd,
+        revised_fp_isd, moving_isd_year, lcm_issue, justification,
+        prior_year_spend, archive_flag, include_flag
         )
-        SELECT
-            pif_id, project_id, submission_date, GETDATE(), status,
-            change_type, accounting_treatment, category, seg, opco, site,
-            strategic_rank, funding_project, project_name, original_fp_isd,
-            revised_fp_isd, moving_isd_year, lcm_issue, justification,
-            prior_year_spend, archive_flag, include_flag
-        FROM dbo.tbl_pif_projects_inflight
-        WHERE status IN ('Approved', 'Dispositioned');
+    SELECT
+        pif_id, project_id, submission_date, GETDATE(), status,
+        change_type, accounting_treatment, category, seg, opco, site,
+        strategic_rank, funding_project, project_name, original_fp_isd,
+        revised_fp_isd, moving_isd_year, lcm_issue, justification,
+        prior_year_spend, archive_flag, include_flag
+    FROM dbo.tbl_pif_projects_inflight
+    WHERE status IN ('Approved', 'Dispositioned');
 
         SET @ApprovedCount = @@ROWCOUNT;
 
         -- Step 2: Archive approved costs
-        INSERT INTO dbo.tbl_pif_cost_approved (
-            pif_id, project_id, scenario, year,
-            requested_value, current_value, variance_value, approval_date
+        INSERT INTO dbo.tbl_pif_cost_approved
+        (
+        pif_id, project_id, scenario, year,
+        requested_value, current_value, variance_value, approval_date
         )
-        SELECT
-            c.pif_id, c.project_id, c.scenario, c.year,
-            c.requested_value, c.current_value, c.variance_value, GETDATE()
-        FROM dbo.tbl_pif_cost_inflight c
+    SELECT
+        c.pif_id, c.project_id, c.scenario, c.year,
+        c.requested_value, c.current_value, c.variance_value, GETDATE()
+    FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-            ON c.pif_id = p.pif_id AND c.project_id = p.project_id
-        WHERE p.status IN ('Approved', 'Dispositioned');
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+    WHERE p.status IN ('Approved', 'Dispositioned');
 
         SET @CostCount = @@ROWCOUNT;
 
@@ -681,7 +724,7 @@ BEGIN
         DELETE c
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-            ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
         WHERE p.status IN ('Approved', 'Dispositioned');
 
         DELETE FROM dbo.tbl_pif_projects_inflight
@@ -691,9 +734,9 @@ BEGIN
 
         -- Return success message
         SELECT
-            'SUCCESS' AS Status,
-            @ApprovedCount AS ProjectsArchived,
-            @CostCount AS CostRecordsArchived;
+        'SUCCESS' AS Status,
+        @ApprovedCount AS ProjectsArchived,
+        @CostCount AS CostRecordsArchived;
 
         RETURN @ApprovedCount;
 
@@ -707,8 +750,8 @@ BEGIN
         DECLARE @ErrorState INT = ERROR_STATE();
 
         SELECT
-            'ERROR' AS Status,
-            @ErrorMessage AS ErrorMessage;
+        'ERROR' AS Status,
+        @ErrorMessage AS ErrorMessage;
 
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
         RETURN -1;
@@ -736,14 +779,16 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
-        INSERT INTO dbo.tbl_submission_log (
-            submission_date,
-            submitted_by,
-            source_file,
-            record_count,
-            notes
+        INSERT INTO dbo.tbl_submission_log
+        (
+        submission_date,
+        submitted_by,
+        source_file,
+        record_count,
+        notes
         )
-        VALUES (
+    VALUES
+        (
             GETDATE(),
             SYSTEM_USER,
             @SourceFile,
@@ -752,8 +797,8 @@ BEGIN
         );
 
         SELECT
-            'SUCCESS' AS Status,
-            SCOPE_IDENTITY() AS SubmissionID;
+        'SUCCESS' AS Status,
+        SCOPE_IDENTITY() AS SubmissionID;
 
         RETURN 0;
 
@@ -762,8 +807,8 @@ BEGIN
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
 
         SELECT
-            'ERROR' AS Status,
-            @ErrorMessage AS ErrorMessage;
+        'ERROR' AS Status,
+        @ErrorMessage AS ErrorMessage;
 
         -- Don't fail submission if logging fails
         RETURN 0;
