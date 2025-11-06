@@ -58,8 +58,8 @@ CREATE TABLE dbo.tbl_pif_projects_staging
     project_name VARCHAR(35) NULL,
 
     -- Scheduling
-    original_fp_isd VARCHAR(8) NULL,
-    revised_fp_isd VARCHAR(5) NULL,
+    original_fp_isd VARCHAR(20) NULL,
+    revised_fp_isd VARCHAR(20) NULL,
     moving_isd_year CHAR(1) NULL,
 
     -- Context
@@ -112,28 +112,8 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    submission_date DATE NOT NULL,
-    -- When this batch was submitted
-
-    -- Status & classification
-    status VARCHAR(58) NULL,
-    change_type VARCHAR(12) NULL,
-    accounting_treatment VARCHAR(14) NULL,
-    category VARCHAR(26) NULL,
-
-    -- Organizational
-    seg INT NULL,
-    opco VARCHAR(4) NULL,
-    site VARCHAR(4) NULL,
-    strategic_rank VARCHAR(26) NULL,
-
-    -- Project linkage
-    funding_project VARCHAR(10) NULL,
-    project_name VARCHAR(35) NULL,
-
-    -- Scheduling
-    original_fp_isd VARCHAR(8) NULL,
-    revised_fp_isd VARCHAR(5) NULL,
+    original_fp_isd VARCHAR(20) NULL,
+    revised_fp_isd VARCHAR(20) NULL,
     moving_isd_year CHAR(1) NULL,
 
     -- Context
@@ -210,8 +190,8 @@ CREATE TABLE dbo.tbl_pif_projects_approved
     project_name VARCHAR(35) NULL,
 
     -- Scheduling
-    original_fp_isd VARCHAR(8) NULL,
-    revised_fp_isd VARCHAR(5) NULL,
+    original_fp_isd VARCHAR(20) NULL,
+    revised_fp_isd VARCHAR(20) NULL,
     moving_isd_year CHAR(1) NULL,
 
     -- Context
