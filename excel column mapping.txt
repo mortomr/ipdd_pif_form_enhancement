@@ -1,0 +1,37 @@
+Cost data:
+Year	Scenario	REQUESTED	APPROVED	VARIANCE	(Location Note Above header row))
+CY	target	U	AA	AG	U2 = 2025
+CY+1	target	V	AB	AH	V2 = 2026
+CY+2	target	W	AC	AI	W2 = 2027
+CY+3	target	X	AD	AJ	X2 = 2028
+CY+4	target	Y	AE	AK	Y2 = 2029
+CY+5	target	Z	AF	AL	Z2 =2030
+CY	closings	AO	AU	BA	AO2 = 2025
+CY+1	closings	AP	AV	BB	AP2 = 2026
+CY+2	closings	AQ	AW	BC	AQ2 = 2027
+CY+3	closings	AR	AX	BD	AR2 = 2028
+CY+4	closings	AS	AY	BE	AS2 = 2029
+CY+5	closings	AT	AZ	BF	AT2 = 2030
+
+Project & PIF metadata locations:
+Excel col	field	TYPE	max current LENGTH
+C	archive	t/f	
+D	include	t/f	
+E	accounting_treatment	VARCHAR	14
+F	change_type	VARCHAR	12
+G	pif_id	VARCHAR	16
+H	seg	INT	3
+I	opco	VARCHAR	4
+J	site	VARCHAR	4
+K	strategic_rank	VARCHAR	26
+L	from_blanket	VARCHAR	1
+M	funding_project	VARCHAR	10
+N	project_name	VARCHAR	35
+O	original_fp isd	VARCHAR	8
+P	revised_fp isd	VARCHAR	5
+Q	lcm_issue	VARCHAR	11
+R	status	VARCHAR	58
+S	category	VARCHAR	26
+T	justification	VARCHAR	192
+AM	moving_isd_year	VARCHAR	1
+AN	prior_year_spend	DECIMAL(18,2)	
