@@ -610,8 +610,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
                                             "@justification", adVarChar, adParamInput, 192, params(16), _
                                             "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
-                                            "@archive_flag", adSmallInt, adParamInput, 0, params(18), _
-                                            "@include_flag", adSmallInt, adParamInput, 0, params(19)) Then
+                                            "@archive_flag", adTinyInt, adParamInput, 0, params(18), _
+                                            "@include_flag", adTinyInt, adParamInput, 0, params(19)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
