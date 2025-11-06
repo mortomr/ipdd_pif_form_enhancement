@@ -19,6 +19,14 @@ Option Base 0
 Private Const MODULE_VERSION As String = "2.0.0"
 
 ' ============================================================================
+' ADODB CONSTANTS (in case they're missing from your ADODB library)
+' ============================================================================
+' If you get "Variable not defined" errors for these, uncomment the ones you need
+' Public Const adBit As Integer = 128
+' Public Const adTinyInt As Integer = 16
+' Public Const adUnsignedTinyInt As Integer = 17
+
+' ============================================================================
 ' SHEET NAMES
 ' ============================================================================
 ' NOTE: Update these if your Excel workbook uses different sheet names
