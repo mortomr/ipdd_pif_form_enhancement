@@ -34,8 +34,8 @@ Private Const MODULE_VERSION As String = "2.0.0"
 ' ============================================================================
 ' CONFIGURATION - UPDATE THESE VALUES
 ' ============================================================================
-Private Const SQL_SERVER As String = "YOUR_SQL_SERVER_NAME"
-Private Const SQL_DATABASE As String = "YOUR_DATABASE_NAME"
+Private Const SQL_SERVER As String = "LITDBETST012\TVNN160002"
+Private Const SQL_DATABASE As String = "IPDD"
 Private Const SQL_TRUSTED As Boolean = True  ' True = Windows Auth only
 
 ' Connection timeout settings
