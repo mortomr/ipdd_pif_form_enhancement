@@ -332,25 +332,25 @@ Private Sub AddCostRow(ByVal ws As Worksheet, ByVal rowNum As Long, _
     ws.Cells(rowNum, 1).Value = pifId
     ws.Cells(rowNum, 2).Value = projectId
     ws.Cells(rowNum, 3).Value = scenario
-    ws.Cells(rowNum, 4).Value = year
+    ws.Cells(rowNum, 4).Value = CDate(year)
     
-    ' Handle empty cells
+    ' Handle empty cells and convert to Double
     If IsEmpty(requested) Or requested = "" Then
-        ws.Cells(rowNum, 5).Value = 0
+        ws.Cells(rowNum, 5).Value = CDbl(0)
     Else
-        ws.Cells(rowNum, 5).Value = requested
+        ws.Cells(rowNum, 5).Value = CDbl(requested)
     End If
     
     If IsEmpty(current) Or current = "" Then
-        ws.Cells(rowNum, 6).Value = 0
+        ws.Cells(rowNum, 6).Value = CDbl(0)
     Else
-        ws.Cells(rowNum, 6).Value = current
+        ws.Cells(rowNum, 6).Value = CDbl(current)
     End If
     
     If IsEmpty(variance) Or variance = "" Then
-        ws.Cells(rowNum, 7).Value = 0
+        ws.Cells(rowNum, 7).Value = CDbl(0)
     Else
-        ws.Cells(rowNum, 7).Value = variance
+        ws.Cells(rowNum, 7).Value = CDbl(variance)
     End If
 End Sub
 
@@ -403,11 +403,18 @@ Private Function UploadProjectData() As Boolean
     
     Dim wsData As Worksheet
     Dim dataRange As Range
+    Dim lastRow As Long
+    Dim lastCol As Long
     
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-    Set dataRange = wsData.Range("C1").CurrentRegion  ' Starting from column C (archive flag)
     
-    ' NOTE: You may need to adjust the range to match your exact layout
+    ' Determine the last row and column with data in the PIF sheet
+    lastRow = wsData.Cells.Find(What:="*", SearchOrder:=xlRows, SearchDirection:=xlPrevious, LookIn:=xlValues).Row
+    lastCol = wsData.Cells.Find(What:="*", SearchOrder:=xlColumns, SearchDirection:=xlPrevious, LookIn:=xlValues).Column
+    
+    ' Set dataRange to start from row 4 (after 3 header rows)
+    Set dataRange = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, lastCol))
+    
     UploadProjectData = BulkInsertProjects(dataRange)
     
     Exit Function
@@ -428,9 +435,17 @@ Private Function UploadCostData() As Boolean
     
     Dim wsCost As Worksheet
     Dim dataRange As Range
+    Dim lastRow As Long
+    Dim lastCol As Long
     
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
-    Set dataRange = wsCost.Range("A1").CurrentRegion
+    
+    ' Determine the last row and column with data in the Cost_Unpivoted sheet
+    lastRow = wsCost.Cells.Find(What:="*", SearchOrder:=xlRows, SearchDirection:=xlPrevious, LookIn:=xlValues).Row
+    lastCol = wsCost.Cells.Find(What:="*", SearchOrder:=xlColumns, SearchDirection:=xlPrevious, LookIn:=xlValues).Column
+    
+    ' Set dataRange to start from row 2 (after 1 header row)
+    Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastRow, lastCol))
     
     UploadCostData = BulkInsertCosts(dataRange)
     
