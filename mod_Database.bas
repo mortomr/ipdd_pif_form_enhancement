@@ -595,8 +595,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
                                             "@funding_project", adVarChar, adParamInput, 10, params(10), _
                                             "@project_name", adVarChar, adParamInput, 35, params(11), _
-                                            "@original_fp_isd", adVarChar, adParamInput, 8, params(12), _
-                                            "@revised_fp_isd", adVarChar, adParamInput, 5, params(13), _
+                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(12), _
+                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(13), _
                                             "@moving_isd_year", adChar, adParamInput, 1, params(14), _
                                             "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
                                             "@justification", adVarChar, adParamInput, 192, params(16), _
