@@ -171,7 +171,7 @@ End Sub
 '          into rows in the Cost_Unpivoted sheet
 ' ----------------------------------------------------------------------------
 Private Function UnpivotCostData() As Boolean
-    On Error GoTo ErrHandler
+    On Error GoTo UnpivotCostData_Err
     
     Dim wsData As Worksheet
     Dim wsCost As Worksheet
@@ -191,13 +191,14 @@ Private Function UnpivotCostData() As Boolean
     ' Create or clear Cost_Unpivoted sheet
     On Error Resume Next
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
+    On Error GoTo UnpivotCostData_Err
+    
     If wsCost Is Nothing Then
         Set wsCost = ThisWorkbook.Sheets.Add(After:=wsData)
         wsCost.Name = SHEET_COST_UNPIVOTED
+    Else
+        wsCost.Cells.Clear
     End If
-    On Error GoTo ErrHandler
-    
-    wsCost.Cells.Clear
     
     ' Headers for unpivoted data
     wsCost.Range("A1").Value = "pif_id"
@@ -310,9 +311,9 @@ Private Function UnpivotCostData() As Boolean
     
     UnpivotCostData = True
     Exit Function
-    
-ErrHandler:
-    MsgBox "Failed to unpivot cost data:" & vbCrLf & vbCrLf & _
+
+UnpivotCostData_Err:
+    MsgBox "Failed to unpivot cost data on row " & dataRow & ":" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical
     UnpivotCostData = False
@@ -366,10 +367,7 @@ Private Function CreateBackupTables() As Boolean
     backupDate = Format(Now, "YYYYMMDD_HHMMSS")
     
     ' Backup projects table
-    sql = "SELECT * INTO dbo.tbl_pif_projects_inflight_backup_" & backupDate & _
-          " FROM dbo.tbl_pif_projects_inflight"
-    
-    If Not ExecuteSQL(sql) Then
+    If Not ExecuteSQLSecure(Nothing, sql) Then
         CreateBackupTables = False
         Exit Function
     End If
@@ -378,7 +376,7 @@ Private Function CreateBackupTables() As Boolean
     sql = "SELECT * INTO dbo.tbl_pif_cost_inflight_backup_" & backupDate & _
           " FROM dbo.tbl_pif_cost_inflight"
     
-    If Not ExecuteSQL(sql) Then
+    If Not ExecuteSQLSecure(Nothing, sql) Then
         CreateBackupTables = False
         Exit Function
     End If
@@ -461,7 +459,7 @@ Private Function CommitToInflight() As Boolean
           "SELECT * FROM dbo.tbl_pif_cost_staging; " & _
           "COMMIT TRANSACTION;"
     
-    CommitToInflight = ExecuteSQL(sql)
+    CommitToInflight = ExecuteSQLSecure(Nothing, sql)
     
     Exit Function
     
@@ -483,24 +481,13 @@ Private Function ArchiveApprovedPIFs() As Boolean
     Dim sql As String
     
     ' Insert approved projects
-    sql = "INSERT INTO dbo.tbl_pif_projects_approved " & _
-          "SELECT *, GETDATE() AS approval_date FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE status IN ('Approved', 'Dispositioned')"
-    
-    If Not ExecuteSQL(sql) Then
+    If Not ExecuteSQLSecure(Nothing, sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
     
     ' Insert approved costs
-    sql = "INSERT INTO dbo.tbl_pif_cost_approved " & _
-          "SELECT c.*, GETDATE() AS approval_date " & _
-          "FROM dbo.tbl_pif_cost_inflight c " & _
-          "INNER JOIN dbo.tbl_pif_projects_inflight p " & _
-          "    ON c.pif_id = p.pif_id AND c.project_id = p.project_id " & _
-          "WHERE p.status IN ('Approved', 'Dispositioned')"
-    
-    If Not ExecuteSQL(sql) Then
+        If Not ExecuteSQLSecure(Nothing, sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
@@ -513,7 +500,7 @@ Private Function ArchiveApprovedPIFs() As Boolean
           "DELETE FROM dbo.tbl_pif_projects_inflight " & _
           "WHERE status IN ('Approved', 'Dispositioned')"
     
-    If Not ExecuteSQL(sql) Then
+    If Not ExecuteSQLSecure(Nothing, sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
@@ -545,7 +532,7 @@ Private Function LogSubmission() As Boolean
           "(GETDATE(), SYSTEM_USER, '" & SQLSafe(ThisWorkbook.Name) & "', " & _
           recordCount & ", 'Submitted via VBA')"
     
-    LogSubmission = ExecuteSQL(sql)
+    LogSubmission = ExecuteSQLSecure(Nothing, sql)
     
     Exit Function
     
