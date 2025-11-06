@@ -351,6 +351,7 @@ AS
             p.pif_id,
             p.project_id,
             p.submission_date,
+            p.approval_date, -- This column exists in approved table
             p.status,
             p.change_type,
             p.accounting_treatment,
@@ -631,12 +632,28 @@ BEGIN
         archive_flag, include_flag
         )
     SELECT
-        pif_id, project_id, GETDATE(), status, change_type,
-        accounting_treatment, category, seg, opco, site, strategic_rank,
-        funding_project, project_name, original_fp_isd, revised_fp_isd,
-        moving_isd_year, lcm_issue, justification, prior_year_spend,
-        archive_flag, include_flag
-    FROM dbo.tbl_pif_projects_staging;
+        s.pif_id,
+        s.project_id,
+        GETDATE(), -- This is the value for submission_date
+        s.status,
+        s.change_type,
+        s.accounting_treatment,
+        s.category,
+        s.seg,
+        s.opco,
+        s.site,
+        s.strategic_rank,
+        s.funding_project,
+        s.project_name,
+        s.original_fp_isd,
+        s.revised_fp_isd,
+        s.moving_isd_year,
+        s.lcm_issue,
+        s.justification,
+        s.prior_year_spend,
+        s.archive_flag,
+        s.include_flag
+    FROM dbo.tbl_pif_projects_staging s;
 
         SET @ProjectCount = @@ROWCOUNT;
 
@@ -716,13 +733,30 @@ BEGIN
         prior_year_spend, archive_flag, include_flag
         )
     SELECT
-        pif_id, project_id, submission_date, GETDATE(), status,
-        change_type, accounting_treatment, category, seg, opco, site,
-        strategic_rank, funding_project, project_name, original_fp_isd,
-        revised_fp_isd, moving_isd_year, lcm_issue, justification,
-        prior_year_spend, archive_flag, include_flag
-    FROM dbo.tbl_pif_projects_inflight
-    WHERE status IN ('Approved', 'Dispositioned');
+        p.pif_id,
+        p.project_id,
+        p.submission_date,
+        GETDATE(), -- This is the value for approval_date
+        p.status,
+        p.change_type,
+        p.accounting_treatment,
+        p.category,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.moving_isd_year,
+        p.lcm_issue,
+        p.justification,
+        p.prior_year_spend,
+        p.archive_flag,
+        p.include_flag
+    FROM dbo.tbl_pif_projects_inflight p
+    WHERE p.status IN ('Approved', 'Dispositioned');
 
         SET @ApprovedCount = @@ROWCOUNT;
 
