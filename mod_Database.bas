@@ -1012,7 +1012,7 @@ End Function
 ' Purpose: Convert cell value to string, handling NULL/Empty
 ' Returns: String value or NULL for SQL
 ' ----------------------------------------------------------------------------
-Private Function SafeString(ByVal cellValue As Variant) As Variant
+Public Function SafeString(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeString = Null
     ElseIf Trim(CStr(cellValue)) = "" Then
@@ -1027,7 +1027,7 @@ End Function
 ' Purpose: Convert cell value to Integer, handling NULL/Empty
 ' Returns: Integer value or NULL for SQL
 ' ----------------------------------------------------------------------------
-Private Function SafeInteger(ByVal cellValue As Variant) As Variant
+Public Function SafeInteger(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeInteger = Null
     ElseIf Trim(CStr(cellValue)) = "" Then
@@ -1044,7 +1044,7 @@ End Function
 ' Purpose: Convert cell value to Decimal, handling NULL/Empty
 ' Returns: Decimal value or NULL for SQL
 ' ----------------------------------------------------------------------------
-Private Function SafeDecimal(ByVal cellValue As Variant) As Variant
+Public Function SafeDecimal(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeDecimal = Null
     ElseIf Trim(CStr(cellValue)) = "" Then
@@ -1062,7 +1062,7 @@ End Function
 ' Returns: 1 (True), 0 (False), or NULL for SQL
 ' Notes: Accepts TRUE/FALSE, 1/0, Y/N, Yes/No, T/F
 ' ----------------------------------------------------------------------------
-Private Function SafeBoolean(ByVal cellValue As Variant) As Variant
+Public Function SafeBoolean(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeBoolean = Null
         Exit Function
@@ -1093,7 +1093,7 @@ End Function
 ' Purpose: Convert cell value to Date, handling NULL/Empty
 ' Returns: Date value or NULL for SQL
 ' ----------------------------------------------------------------------------
-Private Function SafeDate(ByVal cellValue As Variant) As Variant
+Public Function SafeDate(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeDate = Null
     ElseIf Trim(CStr(cellValue)) = "" Then
