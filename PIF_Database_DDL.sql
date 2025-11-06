@@ -112,21 +112,11 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    original_fp_isd VARCHAR(20) NULL,
-    revised_fp_isd VARCHAR(20) NULL,
-    moving_isd_year CHAR(1) NULL,
+    submission_date DATE NOT NULL,
+    -- When this batch was submitted
 
-    -- Context
-    lcm_issue VARCHAR(11) NULL,
-    justification VARCHAR(192) NULL,
-    prior_year_spend DECIMAL(18,2) NULL,
-
-    -- Flags
-    archive_flag BIT NULL,
-    include_flag BIT NULL,
-
-    -- Constraints
-    CONSTRAINT UQ_inflight_pif_project UNIQUE (pif_id, project_id)
+    -- Status & classification
+    status VARCHAR(58) NULL,
 );
 GO
 
@@ -293,7 +283,29 @@ CREATE VIEW dbo.vw_pif_all_history
 AS
             SELECT
             'Inflight' AS source,
-            p.*,
+            p.pif_project_id,
+            p.pif_id,
+            p.project_id,
+            p.submission_date,
+            NULL AS approval_date, -- Added for UNION ALL compatibility
+            p.status,
+            p.change_type,
+            p.accounting_treatment,
+            p.category,
+            p.seg,
+            p.opco,
+            p.site,
+            p.strategic_rank,
+            p.funding_project,
+            p.project_name,
+            p.original_fp_isd,
+            p.revised_fp_isd,
+            p.moving_isd_year,
+            p.lcm_issue,
+            p.justification,
+            p.prior_year_spend,
+            p.archive_flag,
+            p.include_flag,
             c.scenario,
             c.year,
             c.requested_value,
