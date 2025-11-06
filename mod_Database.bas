@@ -513,13 +513,10 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     On Error GoTo ErrHandler
     
     Dim conn As ADODB.Connection
-    Dim cmd As ADODB.Command
     Dim i As Long, j As Long
-    Dim sql As String
     Dim rowCount As Long
     Dim startTime As Double
     Dim params() As Variant
-    Dim fieldNames() As String
     Dim colCount As Integer
     
     startTime = Timer
@@ -532,33 +529,10 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     
     ' Truncate staging table first
     Application.StatusBar = "Truncating " & tableName & "..."
-    sql = "TRUNCATE TABLE " & schemaName & "." & tableName
-    conn.Execute sql
-    
-    ' Get field names from table
-    Dim rs As ADODB.Recordset
-    Set rs = conn.OpenSchema(adSchemaColumns, Array(Empty, schemaName, tableName))
-    ReDim fieldNames(0 To rs.RecordCount - 1)
-    i = 0
-    While Not rs.EOF
-        fieldNames(i) = rs!COLUMN_NAME
-        i = i + 1
-        rs.MoveNext
-    Wend
-    rs.Close
-    Set rs = Nothing
-    
-    colCount = UBound(fieldNames) + 1
-    
-    ' Prepare INSERT statement
-    sql = "INSERT INTO " & schemaName & "." & tableName & " (" & Join(fieldNames, ",") & ") VALUES ("
-    For i = 1 To colCount
-        sql = sql & "?"
-        If i < colCount Then
-            sql = sql & ","
-        End If
-    Next i
-    sql = sql & ")"
+    If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
+        BulkInsertToStaging = False
+        Exit Function
+    End If
     
     ' Loop through Excel range and add records
     Application.StatusBar = "Uploading to " & tableName & "..."
@@ -570,15 +544,76 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     For i = 2 To dataRange.Rows.Count
         ' Check if row has data (skip empty rows)
         If Not IsEmpty(dataRange.Cells(i, 1).Value) Then
-            ReDim params(0 To colCount - 1)
-            For j = 1 To colCount
-                params(j - 1) = dataRange.Cells(i, j).Value
-            Next j
-            
-            If Not ExecuteSQLSecure(conn, sql, params) Then
-                conn.RollbackTrans
-                BulkInsertToStaging = False
-                Exit Function
+            If tableName = "tbl_pif_projects_staging" Then
+                ReDim params(0 To 20) ' Adjust size based on usp_insert_project_staging parameters
+                params(0) = dataRange.Cells(i, 7).Value  ' pif_id
+                params(1) = dataRange.Cells(i, 13).Value ' project_id
+                params(2) = dataRange.Cells(i, 18).Value ' status
+                params(3) = dataRange.Cells(i, 6).Value  ' change_type
+                params(4) = dataRange.Cells(i, 5).Value  ' accounting_treatment
+                params(5) = dataRange.Cells(i, 19).Value ' category
+                params(6) = dataRange.Cells(i, 8).Value  ' seg
+                params(7) = dataRange.Cells(i, 9).Value  ' opco
+                params(8) = dataRange.Cells(i, 10).Value ' site
+                params(9) = dataRange.Cells(i, 11).Value ' strategic_rank
+                params(10) = dataRange.Cells(i, 13).Value ' funding_project
+                params(11) = dataRange.Cells(i, 14).Value ' project_name
+                params(12) = dataRange.Cells(i, 15).Value ' original_fp_isd
+                params(13) = dataRange.Cells(i, 16).Value ' revised_fp_isd
+                params(14) = dataRange.Cells(i, 17).Value ' moving_isd_year
+                params(15) = dataRange.Cells(i, 17).Value ' lcm_issue (assuming same column as moving_isd_year for now)
+                params(16) = dataRange.Cells(i, 20).Value ' justification
+                params(17) = dataRange.Cells(i, 20).Value ' prior_year_spend (assuming same column as justification for now)
+                params(18) = dataRange.Cells(i, 3).Value  ' archive_flag
+                params(19) = dataRange.Cells(i, 4).Value  ' include_flag
+                
+                If Not ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
+                                            "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                                            "@project_id", adVarChar, adParamInput, 10, params(1), _
+                                            "@status", adVarChar, adParamInput, 58, params(2), _
+                                            "@change_type", adVarChar, adParamInput, 12, params(3), _
+                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
+                                            "@category", adVarChar, adParamInput, 26, params(5), _
+                                            "@seg", adInteger, adParamInput, , params(6), _
+                                            "@opco", adVarChar, adParamInput, 4, params(7), _
+                                            "@site", adVarChar, adParamInput, 4, params(8), _
+                                            "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
+                                            "@funding_project", adVarChar, adParamInput, 10, params(10), _
+                                            "@project_name", adVarChar, adParamInput, 35, params(11), _
+                                            "@original_fp_isd", adVarChar, adParamInput, 8, params(12), _
+                                            "@revised_fp_isd", adVarChar, adParamInput, 5, params(13), _
+                                            "@moving_isd_year", adChar, adParamInput, 1, params(14), _
+                                            "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
+                                            "@justification", adVarChar, adParamInput, 192, params(16), _
+                                            "@prior_year_spend", adNumeric, adParamInput, , params(17), _
+                                            "@archive_flag", adBoolean, adParamInput, , params(18), _
+                                            "@include_flag", adBoolean, adParamInput, , params(19)) Then
+                    conn.RollbackTrans
+                    BulkInsertToStaging = False
+                    Exit Function
+                End If
+            ElseIf tableName = "tbl_pif_cost_staging" Then
+                ReDim params(0 To 6) ' Adjust size based on usp_insert_cost_staging parameters
+                params(0) = dataRange.Cells(i, 1).Value  ' pif_id
+                params(1) = dataRange.Cells(i, 2).Value  ' project_id
+                params(2) = dataRange.Cells(i, 3).Value  ' scenario
+                params(3) = dataRange.Cells(i, 4).Value  ' year
+                params(4) = dataRange.Cells(i, 5).Value  ' requested_value
+                params(5) = dataRange.Cells(i, 6).Value  ' current_value
+                params(6) = dataRange.Cells(i, 7).Value  ' variance_value
+                
+                If Not ExecuteStoredProcedure(conn, "usp_insert_cost_staging", False, _
+                                            "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                                            "@project_id", adVarChar, adParamInput, 10, params(1), _
+                                            "@scenario", adVarChar, adParamInput, 12, params(2), _
+                                            "@year", adDate, adParamInput, , params(3), _
+                                            "@requested_value", adNumeric, adParamInput, , params(4), _
+                                            "@current_value", adNumeric, adParamInput, , params(5), _
+                                            "@variance_value", adNumeric, adParamInput, , params(6)) Then
+                    conn.RollbackTrans
+                    BulkInsertToStaging = False
+                    Exit Function
+                End If
             End If
             
             rowCount = rowCount + 1

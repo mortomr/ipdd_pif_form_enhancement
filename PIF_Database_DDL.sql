@@ -544,3 +544,120 @@ PRINT '  - vw_pif_all_history';
 PRINT 'Stored Procedures:';
 PRINT '  - usp_validate_staging_data';
 GO
+
+-- ============================================================================
+-- SECTION 8: STAGING STORED PROCEDURES
+-- ============================================================================
+
+IF OBJECT_ID('dbo.usp_insert_project_staging', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_insert_project_staging;
+GO
+
+CREATE PROCEDURE dbo.usp_insert_project_staging
+    @pif_id             VARCHAR(16),
+    @project_id         VARCHAR(10),
+    @status             VARCHAR(58),
+    @change_type        VARCHAR(12),
+    @accounting_treatment VARCHAR(14),
+    @category           VARCHAR(26),
+    @seg                INT,
+    @opco               VARCHAR(4),
+    @site               VARCHAR(4),
+    @strategic_rank     VARCHAR(26),
+    @funding_project    VARCHAR(10),
+    @project_name       VARCHAR(35),
+    @original_fp_isd    VARCHAR(8),
+    @revised_fp_isd     VARCHAR(5),
+    @moving_isd_year    CHAR(1),
+    @lcm_issue          VARCHAR(11),
+    @justification      VARCHAR(192),
+    @prior_year_spend   DECIMAL(18,2),
+    @archive_flag       BIT,
+    @include_flag       BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO dbo.tbl_pif_projects_staging (
+        pif_id,
+        project_id,
+        status,
+        change_type,
+        accounting_treatment,
+        category,
+        seg,
+        opco,
+        site,
+        strategic_rank,
+        funding_project,
+        project_name,
+        original_fp_isd,
+        revised_fp_isd,
+        moving_isd_year,
+        lcm_issue,
+        justification,
+        prior_year_spend,
+        archive_flag,
+        include_flag
+    )
+    VALUES (
+        @pif_id,
+        @project_id,
+        @status,
+        @change_type,
+        @accounting_treatment,
+        @category,
+        @seg,
+        @opco,
+        @site,
+        @strategic_rank,
+        @funding_project,
+        @project_name,
+        @original_fp_isd,
+        @revised_fp_isd,
+        @moving_isd_year,
+        @lcm_issue,
+        @justification,
+        @prior_year_spend,
+        @archive_flag,
+        @include_flag
+    );
+END;
+GO
+
+IF OBJECT_ID('dbo.usp_insert_cost_staging', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.usp_insert_cost_staging;
+GO
+
+CREATE PROCEDURE dbo.usp_insert_cost_staging
+    @pif_id             VARCHAR(16),
+    @project_id         VARCHAR(10),
+    @scenario           VARCHAR(12),
+    @year               DATE,
+    @requested_value    DECIMAL(18,2),
+    @current_value      DECIMAL(18,2),
+    @variance_value     DECIMAL(18,2)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    INSERT INTO dbo.tbl_pif_cost_staging (
+        pif_id,
+        project_id,
+        scenario,
+        year,
+        requested_value,
+        current_value,
+        variance_value
+    )
+    VALUES (
+        @pif_id,
+        @project_id,
+        @scenario,
+        @year,
+        @requested_value,
+        @current_value,
+        @variance_value
+    );
+END;
+GO
