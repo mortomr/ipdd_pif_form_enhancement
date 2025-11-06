@@ -449,10 +449,10 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
             On Error Resume Next  ' Handle case where parameter name might not be found (shouldn't happen with Refresh)
             With dbCommand.Parameters(paramName)
                 .Value = paramValue
-                ' Optionally, you can also set Type, Direction, Size if they were not correctly inferred by Refresh
-                ' .Type = paramType
-                ' .Direction = paramDirection
-                ' .Size = paramSize ' Only set size for string/binary types if not correctly inferred
+                ' Explicitly set type for BIT fields to ensure 0/1 is sent as TinyInt
+                If paramName = "@archive_flag" Or paramName = "@include_flag" Then
+                    .Type = adTinyInt
+                End If
             End With
             On Error GoTo ErrHandler  ' Resume normal error handling
 
