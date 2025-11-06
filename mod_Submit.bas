@@ -181,6 +181,10 @@ Private Function UnpivotCostData() As Boolean
     Dim scenario As String
     Dim year As String
     Dim requestedVal As Variant, currentVal As Variant, varianceVal As Variant
+    Dim currentYear As Integer
+    Dim yearStr As String
+    
+    currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.Value
     
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
     
@@ -217,42 +221,42 @@ Private Function UnpivotCostData() As Boolean
         If pifId <> "" And projectId <> "" Then
             ' TARGET SCENARIO - Years 2025-2030
             ' CY (2025): Columns U, AA, AG
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2025-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", currentYear & "-12-31", _
                            wsData.Cells(dataRow, 21).Value, _  ' U = requested
                            wsData.Cells(dataRow, 27).Value, _  ' AA = current
                            wsData.Cells(dataRow, 33).Value     ' AG = variance
             outputRow = outputRow + 1
             
             ' CY+1 (2026): Columns V, AB, AH
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2026-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 1) & "-12-31", _
                            wsData.Cells(dataRow, 22).Value, _  ' V
                            wsData.Cells(dataRow, 28).Value, _  ' AB
                            wsData.Cells(dataRow, 34).Value     ' AH
             outputRow = outputRow + 1
             
             ' CY+2 (2027): Columns W, AC, AI
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2027-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 2) & "-12-31", _
                            wsData.Cells(dataRow, 23).Value, _  ' W
                            wsData.Cells(dataRow, 29).Value, _  ' AC
                            wsData.Cells(dataRow, 35).Value     ' AI
             outputRow = outputRow + 1
             
             ' CY+3 (2028): Columns X, AD, AJ
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2028-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 3) & "-12-31", _
                            wsData.Cells(dataRow, 24).Value, _  ' X
                            wsData.Cells(dataRow, 30).Value, _  ' AD
                            wsData.Cells(dataRow, 36).Value     ' AJ
             outputRow = outputRow + 1
             
             ' CY+4 (2029): Columns Y, AE, AK
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2029-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 4) & "-12-31", _
                            wsData.Cells(dataRow, 25).Value, _  ' Y
                            wsData.Cells(dataRow, 31).Value, _  ' AE
                            wsData.Cells(dataRow, 37).Value     ' AK
             outputRow = outputRow + 1
             
             ' CY+5 (2030): Columns Z, AF, AL
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Target", "2030-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 5) & "-12-31", _
                            wsData.Cells(dataRow, 26).Value, _  ' Z
                            wsData.Cells(dataRow, 32).Value, _  ' AF
                            wsData.Cells(dataRow, 38).Value     ' AL
@@ -260,42 +264,42 @@ Private Function UnpivotCostData() As Boolean
             
             ' CLOSINGS SCENARIO - Years 2025-2030
             ' CY (2025): Columns AO, AU, BA
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2025-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", currentYear & "-12-31", _
                            wsData.Cells(dataRow, 41).Value, _  ' AO
                            wsData.Cells(dataRow, 47).Value, _  ' AU
                            wsData.Cells(dataRow, 53).Value     ' BA
             outputRow = outputRow + 1
             
             ' CY+1 (2026): Columns AP, AV, BB
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2026-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 1) & "-12-31", _
                            wsData.Cells(dataRow, 42).Value, _  ' AP
                            wsData.Cells(dataRow, 48).Value, _  ' AV
                            wsData.Cells(dataRow, 54).Value     ' BB
             outputRow = outputRow + 1
             
             ' CY+2 (2027): Columns AQ, AW, BC
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2027-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 2) & "-12-31", _
                            wsData.Cells(dataRow, 43).Value, _  ' AQ
                            wsData.Cells(dataRow, 49).Value, _  ' AW
                            wsData.Cells(dataRow, 55).Value     ' BC
             outputRow = outputRow + 1
             
             ' CY+3 (2028): Columns AR, AX, BD
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2028-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 3) & "-12-31", _
                            wsData.Cells(dataRow, 44).Value, _  ' AR
                            wsData.Cells(dataRow, 50).Value, _  ' AX
                            wsData.Cells(dataRow, 56).Value     ' BD
             outputRow = outputRow + 1
             
             ' CY+4 (2029): Columns AS, AY, BE
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2029-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 4) & "-12-31", _
                            wsData.Cells(dataRow, 45).Value, _  ' AS
                            wsData.Cells(dataRow, 51).Value, _  ' AY
                            wsData.Cells(dataRow, 57).Value     ' BE
             outputRow = outputRow + 1
             
             ' CY+5 (2030): Columns AT, AZ, BF
-            Call AddCostRow wsCost, outputRow, pifId, projectId, "Closings", "2030-12-31", _
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 5) & "-12-31", _
                            wsData.Cells(dataRow, 46).Value, _  ' AT
                            wsData.Cells(dataRow, 52).Value, _  ' AZ
                            wsData.Cells(dataRow, 58).Value     ' BF
