@@ -105,26 +105,26 @@ Public Sub TestSingleRowInsert()
     On Error Resume Next
     Dim result As ADODB.Recordset
     Set result = ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
-        "@pif_id", adVarChar, adParamInput, 16, params(0), _
-        "@project_id", adVarChar, adParamInput, 10, params(1), _
-        "@status", adVarChar, adParamInput, 58, params(2), _
-        "@change_type", adVarChar, adParamInput, 12, params(3), _
-        "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
-        "@category", adVarChar, adParamInput, 26, params(5), _
-        "@seg", adInteger, adParamInput, 0, params(6), _
-        "@opco", adVarChar, adParamInput, 4, params(7), _
-        "@site", adVarChar, adParamInput, 4, params(8), _
-        "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
-        "@funding_project", adVarChar, adParamInput, 10, params(10), _
-        "@project_name", adVarChar, adParamInput, 35, params(11), _
-        "@original_fp_isd", adVarChar, adParamInput, 8, params(12), _
-        "@revised_fp_isd", adVarChar, adParamInput, 5, params(13), _
-        "@moving_isd_year", adChar, adParamInput, 1, params(14), _
-        "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
-        "@justification", adVarChar, adParamInput, 192, params(16), _
-        "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
-        "@archive_flag", adBit, adParamInput, 0, params(18), _
-        "@include_flag", adBit, adParamInput, 0, params(19))
+        "@pif_id", 200, 1, 16, params(0), _
+        "@project_id", 200, 1, 10, params(1), _
+        "@status", 200, 1, 58, params(2), _
+        "@change_type", 200, 1, 12, params(3), _
+        "@accounting_treatment", 200, 1, 14, params(4), _
+        "@category", 200, 1, 26, params(5), _
+        "@seg", 3, 1, 0, params(6), _
+        "@opco", 200, 1, 4, params(7), _
+        "@site", 200, 1, 4, params(8), _
+        "@strategic_rank", 200, 1, 26, params(9), _
+        "@funding_project", 200, 1, 10, params(10), _
+        "@project_name", 200, 1, 35, params(11), _
+        "@original_fp_isd", 200, 1, 8, params(12), _
+        "@revised_fp_isd", 200, 1, 5, params(13), _
+        "@moving_isd_year", 129, 1, 1, params(14), _
+        "@lcm_issue", 200, 1, 11, params(15), _
+        "@justification", 200, 1, 192, params(16), _
+        "@prior_year_spend", 131, 1, 0, params(17), _
+        "@archive_flag", 11, 1, 0, params(18), _
+        "@include_flag", 11, 1, 0, params(19))
 
     If Err.Number <> 0 Then
         MsgBox "STORED PROCEDURE FAILED!" & vbCrLf & vbCrLf & _
