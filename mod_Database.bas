@@ -422,6 +422,11 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
     dbCommand.CommandType = adCmdStoredProc  ' CRITICAL: Prevents SQL injection
     dbCommand.CommandTimeout = COMMAND_TIMEOUT
 
+    Debug.Print "\n--- Executing Stored Procedure ---"
+    Debug.Print "CommandText: " & dbCommand.CommandText
+    Debug.Print "CommandType: " & dbCommand.CommandType & " (adCmdStoredProc)"
+    Debug.Print "Parameters Collection (before execute):"
+
     ' Add parameters (groups of 5: name, type, direction, size, value)
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params) Step 5
@@ -450,18 +455,20 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
 
             Dim parameter As ADODB.Parameter
 
-            Debug.Print "  -- Parameter to create --"
-            Debug.Print "  Name: " & paramName
-            Debug.Print "  Type: " & paramType & " (" & TypeName(paramValue) & ")"
-            Debug.Print "  Direction: " & paramDirection
-            Debug.Print "  Size: " & paramSize
-            Debug.Print "  Value: " & CStr(paramValue) ' Ensure value is printable
-            Debug.Print "  -------------------------"
-
             Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
             dbCommand.Parameters.Append parameter
+
+            ' Log parameter details after appending to collection
+            Debug.Print "  Param Name: " & parameter.Name
+            Debug.Print "  Param Type: " & parameter.Type & " (" & TypeName(parameter.Value) & ")"
+            Debug.Print "  Param Direction: " & parameter.Direction
+            Debug.Print "  Param Size: " & parameter.Size
+            Debug.Print "  Param Value: " & CStr(parameter.Value)
+            Debug.Print "  -------------------------"
         Next i
     End If
+
+    Debug.Print "--- End Parameters Collection ---
 
     ' Execute
     If returnRecordset Then
