@@ -18,7 +18,7 @@ FROM sys.procedures
 WHERE name IN ('usp_insert_project_staging', 'usp_insert_cost_staging')
 ORDER BY name;
 
--- If they exist, show their parameters
+If they exist, show their parameters
 SELECT
     OBJECT_NAME(object_id) AS ProcedureName,
     parameter_id,
