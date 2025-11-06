@@ -43,9 +43,9 @@ Public Sub SubmitToDatabase()
     ' Confirmation prompt
     response = MsgBox("This will submit the PIF workbook to the database." & vbCrLf & vbCrLf & _
                       "Before proceeding, please confirm:" & vbCrLf & _
-                      "  • You have reviewed all data" & vbCrLf & _
-                      "  • The workbook has been approved for submission" & vbCrLf & _
-                      "  • You have a backup copy of this file" & vbCrLf & vbCrLf & _
+                      "  - You have reviewed all data" & vbCrLf & _
+                      "  - The workbook has been approved for submission" & vbCrLf & _
+                      "  - You have a backup copy of this file" & vbCrLf & vbCrLf & _
                       "Continue with submission?", _
                       vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Submission")
     

@@ -614,7 +614,9 @@ ErrHandler:
     
     If Not conn Is Nothing Then
         If conn.State = adStateOpen Then
+            On Error Resume Next
             conn.RollbackTrans
+            On Error GoTo 0
             conn.Close
         End If
         Set conn = Nothing
