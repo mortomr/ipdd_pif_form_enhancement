@@ -576,6 +576,12 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(18) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
                 params(19) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
                 
+                Debug.Print "--- Processing Project Row: " & actualRow & " ---"
+                For j = LBound(params) To UBound(params)
+                    Debug.Print "  Param(" & j & "): " & CStr(params(j))
+                Next j
+                Debug.Print "-------------------------------------"
+                
                 If Not ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _

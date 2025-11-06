@@ -427,17 +427,19 @@ Private Function UploadProjectData() As Boolean
     
     Dim wsData As Worksheet
     Dim dataRange As Range
+    Dim lastDataRow As Long
     
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
     
-    ' Get the current region starting from C4 (assuming C4 is the start of data after headers)
-    Set dataRange = wsData.Range("C4").CurrentRegion
+    ' Find the last row with data in Column G (PIF_ID) to define the extent of project data
+    lastDataRow = wsData.Cells(wsData.Rows.Count, "G").End(xlUp).Row
     
-    ' If the CurrentRegion includes more than just data (e.g., headers above C4),
-    ' we need to adjust it. Assuming C4 is the first data cell.
-    If dataRange.Row < 4 Then
-        Set dataRange = dataRange.Offset(3, 0).Resize(dataRange.Rows.Count - 3, dataRange.Columns.Count)
-    End If
+    ' Ensure we don't include header rows or start before the actual data
+    If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
+    
+    ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
+    ' Assuming project data spans from column C to AN (40)
+    Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AN"))
     
     UploadProjectData = BulkInsertProjects(dataRange)
     
@@ -459,17 +461,19 @@ Private Function UploadCostData() As Boolean
     
     Dim wsCost As Worksheet
     Dim dataRange As Range
+    Dim lastDataRow As Long
     
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
     
-    ' Get the current region starting from A2 (assuming A2 is the start of data after headers)
-    Set dataRange = wsCost.Range("A2").CurrentRegion
+    ' Find the last row with data in Column A (pif_id) to define the extent of cost data
+    lastDataRow = wsCost.Cells(wsCost.Rows.Count, "A").End(xlUp).Row
     
-    ' If the CurrentRegion includes more than just data (e.g., header in A1),
-    ' we need to adjust it. Assuming A2 is the first data cell.
-    If dataRange.Row < 2 Then
-        Set dataRange = dataRange.Offset(1, 0).Resize(dataRange.Rows.Count - 1, dataRange.Columns.Count)
-    End If
+    ' Ensure we don't include header rows or start before the actual data
+    If lastDataRow < 2 Then lastDataRow = 1 ' If no data, set to just above data start
+    
+    ' Define the data range from row 2 (first data row) to the last data row, across relevant columns
+    ' Assuming cost data spans from column A to G
+    Set dataRange = wsCost.Range(wsCost.Cells(2, "A"), wsCost.Cells(lastDataRow, "G"))
     
     UploadCostData = BulkInsertCosts(dataRange)
     
