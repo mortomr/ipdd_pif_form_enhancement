@@ -117,6 +117,36 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
 
     -- Status & classification
     status VARCHAR(58) NULL,
+    change_type VARCHAR(12) NULL,
+    accounting_treatment VARCHAR(14) NULL,
+    category VARCHAR(26) NULL,
+
+    -- Organizational
+    seg INT NULL,
+    opco VARCHAR(4) NULL,
+    site VARCHAR(4) NULL,
+    strategic_rank VARCHAR(26) NULL,
+
+    -- Project linkage
+    funding_project VARCHAR(10) NULL,
+    project_name VARCHAR(35) NULL,
+
+    -- Scheduling
+    original_fp_isd VARCHAR(20) NULL,
+    revised_fp_isd VARCHAR(20) NULL,
+    moving_isd_year CHAR(1) NULL,
+
+    -- Context
+    lcm_issue VARCHAR(11) NULL,
+    justification VARCHAR(192) NULL,
+    prior_year_spend DECIMAL(18,2) NULL,
+
+    -- Flags
+    archive_flag BIT NULL,
+    include_flag BIT NULL,
+
+    -- Constraints
+    CONSTRAINT UQ_inflight_pif_project UNIQUE (pif_id, project_id)
 );
 GO
 
