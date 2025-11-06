@@ -214,7 +214,7 @@ Private Function UnpivotCostData() As Boolean
     Application.StatusBar = "Unpivoting cost data..."
     
     ' Process each data row
-    For dataRow = 2 To lastRow
+    For dataRow = 4 To lastRow
         pifId = wsData.Cells(dataRow, 7).Value       ' Column G = pif_id
         projectId = wsData.Cells(dataRow, 13).Value  ' Column M = funding_project (adjust as needed)
         
@@ -228,86 +228,73 @@ Private Function UnpivotCostData() As Boolean
             reqVal = wsData.Cells(dataRow, 21).Value
             curVal = wsData.Cells(dataRow, 27).Value
             varVal = wsData.Cells(dataRow, 33).Value
-            
             AddCostRow wsCost, outputRow, pifId, projectId, "Target", currentYear & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CY+1 (2026): Columns V, AB, AH
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 1) & "-12-31", _
-                           wsData.Cells(dataRow, 22).Value, _  ' V
-                           wsData.Cells(dataRow, 28).Value, _  ' AB
-                           wsData.Cells(dataRow, 34).Value     ' AH
+
+            reqVal = wsData.Cells(dataRow, 22).Value
+            curVal = wsData.Cells(dataRow, 28).Value
+            varVal = wsData.Cells(dataRow, 34).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 1) & "-12-31", reqVal, curVal, varVal
+            outputRow = outputRow + 1
+
+            reqVal = wsData.Cells(dataRow, 23).Value
+            curVal = wsData.Cells(dataRow, 29).Value
+            varVal = wsData.Cells(dataRow, 35).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 2) & "-12-31", reqVal, curVal, varVal
+            outputRow = outputRow + 1
+
+            reqVal = wsData.Cells(dataRow, 24).Value
+            curVal = wsData.Cells(dataRow, 30).Value
+            varVal = wsData.Cells(dataRow, 36).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 3) & "-12-31", reqVal, curVal, varVal
+            outputRow = outputRow + 1
+
+            reqVal = wsData.Cells(dataRow, 25).Value
+            curVal = wsData.Cells(dataRow, 31).Value
+            varVal = wsData.Cells(dataRow, 37).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 4) & "-12-31", reqVal, curVal, varVal
+            outputRow = outputRow + 1
+
+            reqVal = wsData.Cells(dataRow, 26).Value
+            curVal = wsData.Cells(dataRow, 32).Value
+            varVal = wsData.Cells(dataRow, 38).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 5) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
             
-            ' CY+2 (2027): Columns W, AC, AI
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 2) & "-12-31", _
-                           wsData.Cells(dataRow, 23).Value, _  ' W
-                           wsData.Cells(dataRow, 29).Value, _  ' AC
-                           wsData.Cells(dataRow, 35).Value     ' AI
+            reqVal = wsData.Cells(dataRow, 41).Value
+            curVal = wsData.Cells(dataRow, 47).Value
+            varVal = wsData.Cells(dataRow, 53).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", currentYear & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CY+3 (2028): Columns X, AD, AJ
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 3) & "-12-31", _
-                           wsData.Cells(dataRow, 24).Value, _  ' X
-                           wsData.Cells(dataRow, 30).Value, _  ' AD
-                           wsData.Cells(dataRow, 36).Value     ' AJ
+
+            reqVal = wsData.Cells(dataRow, 42).Value
+            curVal = wsData.Cells(dataRow, 48).Value
+            varVal = wsData.Cells(dataRow, 54).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 1) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CY+4 (2029): Columns Y, AE, AK
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 4) & "-12-31", _
-                           wsData.Cells(dataRow, 25).Value, _  ' Y
-                           wsData.Cells(dataRow, 31).Value, _  ' AE
-                           wsData.Cells(dataRow, 37).Value     ' AK
+
+            reqVal = wsData.Cells(dataRow, 43).Value
+            curVal = wsData.Cells(dataRow, 49).Value
+            varVal = wsData.Cells(dataRow, 55).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 2) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CY+5 (2030): Columns Z, AF, AL
-            AddCostRow wsCost, outputRow, pifId, projectId, "Target", (currentYear + 5) & "-12-31", _
-                           wsData.Cells(dataRow, 26).Value, _  ' Z
-                           wsData.Cells(dataRow, 32).Value, _  ' AF
-                           wsData.Cells(dataRow, 38).Value     ' AL
+
+            reqVal = wsData.Cells(dataRow, 44).Value
+            curVal = wsData.Cells(dataRow, 50).Value
+            varVal = wsData.Cells(dataRow, 56).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 3) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CLOSINGS SCENARIO - Years 2025-2030
-            ' CY (2025): Columns AO, AU, BA
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", currentYear & "-12-31", _
-                           wsData.Cells(dataRow, 41).Value, _  ' AO
-                           wsData.Cells(dataRow, 47).Value, _  ' AU
-                           wsData.Cells(dataRow, 53).Value     ' BA
+
+            reqVal = wsData.Cells(dataRow, 45).Value
+            curVal = wsData.Cells(dataRow, 51).Value
+            varVal = wsData.Cells(dataRow, 57).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 4) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
-            
-            ' CY+1 (2026): Columns AP, AV, BB
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 1) & "-12-31", _
-                           wsData.Cells(dataRow, 42).Value, _  ' AP
-                           wsData.Cells(dataRow, 48).Value, _  ' AV
-                           wsData.Cells(dataRow, 54).Value     ' BB
-            outputRow = outputRow + 1
-            
-            ' CY+2 (2027): Columns AQ, AW, BC
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 2) & "-12-31", _
-                           wsData.Cells(dataRow, 43).Value, _  ' AQ
-                           wsData.Cells(dataRow, 49).Value, _  ' AW
-                           wsData.Cells(dataRow, 55).Value     ' BC
-            outputRow = outputRow + 1
-            
-            ' CY+3 (2028): Columns AR, AX, BD
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 3) & "-12-31", _
-                           wsData.Cells(dataRow, 44).Value, _  ' AR
-                           wsData.Cells(dataRow, 50).Value, _  ' AX
-                           wsData.Cells(dataRow, 56).Value     ' BD
-            outputRow = outputRow + 1
-            
-            ' CY+4 (2029): Columns AS, AY, BE
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 4) & "-12-31", _
-                           wsData.Cells(dataRow, 45).Value, _  ' AS
-                           wsData.Cells(dataRow, 51).Value, _  ' AY
-                           wsData.Cells(dataRow, 57).Value     ' BE
-            outputRow = outputRow + 1
-            
-            ' CY+5 (2030): Columns AT, AZ, BF
-            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 5) & "-12-31", _
-                           wsData.Cells(dataRow, 46).Value, _  ' AT
-                           wsData.Cells(dataRow, 52).Value, _  ' AZ
-                           wsData.Cells(dataRow, 58).Value     ' BF
+
+            reqVal = wsData.Cells(dataRow, 46).Value
+            curVal = wsData.Cells(dataRow, 52).Value
+            varVal = wsData.Cells(dataRow, 58).Value
+            AddCostRow wsCost, outputRow, pifId, projectId, "Closings", (currentYear + 5) & "-12-31", reqVal, curVal, varVal
             outputRow = outputRow + 1
         End If
         
