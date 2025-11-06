@@ -541,7 +541,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     
     conn.BeginTrans
     
-    For i = 2 To dataRange.Rows.Count
+    For i = 1 To dataRange.Rows.Count
         ' Check if row has data (skip empty rows)
         If Not IsEmpty(dataRange.Cells(i, 1).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
