@@ -570,6 +570,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     For i = 2 To dataRange.Rows.Count
         ' Check if row has data (skip empty rows)
         If Not IsEmpty(dataRange.Cells(i, 1).Value) Then
+            Dim params() As Variant
             ReDim params(0 To colCount - 1)
             For j = 1 To colCount
                 params(j - 1) = dataRange.Cells(i, j).Value
