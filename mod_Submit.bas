@@ -403,17 +403,17 @@ Private Function UploadProjectData() As Boolean
     
     Dim wsData As Worksheet
     Dim dataRange As Range
-    Dim lastRow As Long
-    Dim lastCol As Long
     
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
     
-    ' Determine the last row and column with data in the PIF sheet
-    lastRow = wsData.Cells.Find(What:="*", SearchOrder:=xlRows, SearchDirection:=xlPrevious, LookIn:=xlValues).Row
-    lastCol = wsData.Cells.Find(What:="*", SearchOrder:=xlColumns, SearchDirection:=xlPrevious, LookIn:=xlValues).Column
+    ' Get the current region starting from C4 (assuming C4 is the start of data after headers)
+    Set dataRange = wsData.Range("C4").CurrentRegion
     
-    ' Set dataRange to start from row 4 (after 3 header rows)
-    Set dataRange = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, lastCol))
+    ' If the CurrentRegion includes more than just data (e.g., headers above C4),
+    ' we need to adjust it. Assuming C4 is the first data cell.
+    If dataRange.Row < 4 Then
+        Set dataRange = dataRange.Offset(3, 0).Resize(dataRange.Rows.Count - 3, dataRange.Columns.Count)
+    End If
     
     UploadProjectData = BulkInsertProjects(dataRange)
     
@@ -435,17 +435,17 @@ Private Function UploadCostData() As Boolean
     
     Dim wsCost As Worksheet
     Dim dataRange As Range
-    Dim lastRow As Long
-    Dim lastCol As Long
     
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
     
-    ' Determine the last row and column with data in the Cost_Unpivoted sheet
-    lastRow = wsCost.Cells.Find(What:="*", SearchOrder:=xlRows, SearchDirection:=xlPrevious, LookIn:=xlValues).Row
-    lastCol = wsCost.Cells.Find(What:="*", SearchOrder:=xlColumns, SearchDirection:=xlPrevious, LookIn:=xlValues).Column
+    ' Get the current region starting from A2 (assuming A2 is the start of data after headers)
+    Set dataRange = wsCost.Range("A2").CurrentRegion
     
-    ' Set dataRange to start from row 2 (after 1 header row)
-    Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastRow, lastCol))
+    ' If the CurrentRegion includes more than just data (e.g., header in A1),
+    ' we need to adjust it. Assuming A2 is the first data cell.
+    If dataRange.Row < 2 Then
+        Set dataRange = dataRange.Offset(1, 0).Resize(dataRange.Rows.Count - 1, dataRange.Columns.Count)
+    End If
     
     UploadCostData = BulkInsertCosts(dataRange)
     
