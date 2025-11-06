@@ -583,7 +583,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@change_type", adVarChar, adParamInput, 12, params(3), _
                                             "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
                                             "@category", adVarChar, adParamInput, 26, params(5), _
-                                            "@seg", adInteger, adParamInput, , params(6), _
+                                            "@seg", adInteger, adParamInput, 0, params(6), _
                                             "@opco", adVarChar, adParamInput, 4, params(7), _
                                             "@site", adVarChar, adParamInput, 4, params(8), _
                                             "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
@@ -594,9 +594,9 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@moving_isd_year", adChar, adParamInput, 1, params(14), _
                                             "@lcm_issue", adVarChar, adParamInput, 11, params(15), _
                                             "@justification", adVarChar, adParamInput, 192, params(16), _
-                                            "@prior_year_spend", adNumeric, adParamInput, , params(17), _
-                                            "@archive_flag", adBoolean, adParamInput, , params(18), _
-                                            "@include_flag", adBoolean, adParamInput, , params(19)) Then
+                                            "@prior_year_spend", adCurrency, adParamInput, 0, params(17), _
+                                            "@archive_flag", adBit, adParamInput, 0, params(18), _
+                                            "@include_flag", adBit, adParamInput, 0, params(19)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
@@ -616,10 +616,10 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
                                             "@scenario", adVarChar, adParamInput, 12, params(2), _
-                                            "@year", adDate, adParamInput, , params(3), _
-                                            "@requested_value", adNumeric, adParamInput, , params(4), _
-                                            "@current_value", adNumeric, adParamInput, , params(5), _
-                                            "@variance_value", adNumeric, adParamInput, , params(6)) Then
+                                            "@year", adDate, adParamInput, 0, params(3), _
+                                            "@requested_value", adCurrency, adParamInput, 0, params(4), _
+                                            "@current_value", adCurrency, adParamInput, 0, params(5), _
+                                            "@variance_value", adCurrency, adParamInput, 0, params(6)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
@@ -1058,8 +1058,8 @@ End Function
 
 ' ----------------------------------------------------------------------------
 ' Function: SafeBoolean
-' Purpose: Convert cell value to Boolean, handling various formats
-' Returns: Boolean value or NULL for SQL
+' Purpose: Convert cell value to Boolean for SQL Server BIT type
+' Returns: 1 (True), 0 (False), or NULL for SQL
 ' Notes: Accepts TRUE/FALSE, 1/0, Y/N, Yes/No, T/F
 ' ----------------------------------------------------------------------------
 Private Function SafeBoolean(ByVal cellValue As Variant) As Variant
@@ -1074,11 +1074,15 @@ Private Function SafeBoolean(ByVal cellValue As Variant) As Variant
     If strValue = "" Then
         SafeBoolean = Null
     ElseIf strValue = "TRUE" Or strValue = "1" Or strValue = "Y" Or strValue = "YES" Or strValue = "T" Then
-        SafeBoolean = True
+        SafeBoolean = 1  ' Changed from True to 1 for SQL Server BIT
     ElseIf strValue = "FALSE" Or strValue = "0" Or strValue = "N" Or strValue = "NO" Or strValue = "F" Then
-        SafeBoolean = False
+        SafeBoolean = 0  ' Changed from False to 0 for SQL Server BIT
     ElseIf IsNumeric(cellValue) Then
-        SafeBoolean = (CDbl(cellValue) <> 0)
+        If CDbl(cellValue) <> 0 Then
+            SafeBoolean = 1
+        Else
+            SafeBoolean = 0
+        End If
     Else
         SafeBoolean = Null
     End If
