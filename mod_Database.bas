@@ -449,6 +449,15 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
             End If
 
             Dim parameter As ADODB.Parameter
+
+            Debug.Print "  -- Parameter to create --"
+            Debug.Print "  Name: " & paramName
+            Debug.Print "  Type: " & paramType & " (" & TypeName(paramValue) & ")"
+            Debug.Print "  Direction: " & paramDirection
+            Debug.Print "  Size: " & paramSize
+            Debug.Print "  Value: " & CStr(paramValue) ' Ensure value is printable
+            Debug.Print "  -------------------------"
+
             Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
             dbCommand.Parameters.Append parameter
         Next i
