@@ -554,27 +554,27 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         If Not IsEmpty(wsData.Cells(actualRow, 7).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
                 ReDim params(0 To 19) ' 20 parameters for usp_insert_project_staging
-                ' Use absolute column references from mod_SharedConstants
-                params(0) = wsData.Cells(actualRow, 7).Value   ' pif_id (G)
-                params(1) = wsData.Cells(actualRow, 13).Value  ' project_id (M - same as funding_project)
-                params(2) = wsData.Cells(actualRow, 18).Value  ' status (R)
-                params(3) = wsData.Cells(actualRow, 6).Value   ' change_type (F)
-                params(4) = wsData.Cells(actualRow, 5).Value   ' accounting_treatment (E)
-                params(5) = wsData.Cells(actualRow, 19).Value  ' category (S)
-                params(6) = wsData.Cells(actualRow, 8).Value   ' seg (H)
-                params(7) = wsData.Cells(actualRow, 9).Value   ' opco (I)
-                params(8) = wsData.Cells(actualRow, 10).Value  ' site (J)
-                params(9) = wsData.Cells(actualRow, 11).Value  ' strategic_rank (K)
-                params(10) = wsData.Cells(actualRow, 13).Value ' funding_project (M)
-                params(11) = wsData.Cells(actualRow, 14).Value ' project_name (N)
-                params(12) = wsData.Cells(actualRow, 15).Value ' original_fp_isd (O)
-                params(13) = wsData.Cells(actualRow, 16).Value ' revised_fp_isd (P)
-                params(14) = wsData.Cells(actualRow, 39).Value ' moving_isd_year (AM) - FIXED!
-                params(15) = wsData.Cells(actualRow, 17).Value ' lcm_issue (Q)
-                params(16) = wsData.Cells(actualRow, 20).Value ' justification (T)
-                params(17) = wsData.Cells(actualRow, 40).Value ' prior_year_spend (AN) - FIXED!
-                params(18) = wsData.Cells(actualRow, 3).Value  ' archive_flag (C)
-                params(19) = wsData.Cells(actualRow, 4).Value  ' include_flag (D)
+                ' Use absolute column references with proper type conversion
+                params(0) = SafeString(wsData.Cells(actualRow, 7).Value)   ' pif_id (G) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 13).Value)  ' project_id (M) - VARCHAR
+                params(2) = SafeString(wsData.Cells(actualRow, 18).Value)  ' status (R) - VARCHAR
+                params(3) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 19).Value)  ' category (S) - VARCHAR
+                params(6) = SafeInteger(wsData.Cells(actualRow, 8).Value)  ' seg (H) - INT
+                params(7) = SafeString(wsData.Cells(actualRow, 9).Value)   ' opco (I) - VARCHAR
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' site (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' strategic_rank (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 13).Value) ' funding_project (M) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' project_name (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' original_fp_isd (O) - VARCHAR
+                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' revised_fp_isd (P) - VARCHAR
+                params(14) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AM) - CHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 17).Value) ' lcm_issue (Q) - VARCHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 20).Value) ' justification (T) - VARCHAR
+                params(17) = SafeDecimal(wsData.Cells(actualRow, 40).Value) ' prior_year_spend (AN) - DECIMAL
+                params(18) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
                 
                 If Not ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
@@ -603,14 +603,14 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 End If
             ElseIf tableName = "tbl_pif_cost_staging" Then
                 ReDim params(0 To 6) ' 7 parameters for usp_insert_cost_staging
-                ' Cost_Unpivoted sheet has columns A-G (relative positions work here)
-                params(0) = wsData.Cells(actualRow, 1).Value  ' pif_id (A in Cost_Unpivoted)
-                params(1) = wsData.Cells(actualRow, 2).Value  ' project_id (B)
-                params(2) = wsData.Cells(actualRow, 3).Value  ' scenario (C)
-                params(3) = wsData.Cells(actualRow, 4).Value  ' year (D)
-                params(4) = wsData.Cells(actualRow, 5).Value  ' requested_value (E)
-                params(5) = wsData.Cells(actualRow, 6).Value  ' current_value (F)
-                params(6) = wsData.Cells(actualRow, 7).Value  ' variance_value (G)
+                ' Cost_Unpivoted sheet has columns A-G with proper type conversion
+                params(0) = SafeString(wsData.Cells(actualRow, 1).Value)  ' pif_id (A) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 2).Value)  ' project_id (B) - VARCHAR
+                params(2) = SafeString(wsData.Cells(actualRow, 3).Value)  ' scenario (C) - VARCHAR
+                params(3) = SafeDate(wsData.Cells(actualRow, 4).Value)    ' year (D) - DATE
+                params(4) = SafeDecimal(wsData.Cells(actualRow, 5).Value) ' requested_value (E) - DECIMAL
+                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' current_value (F) - DECIMAL
+                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' variance_value (G) - DECIMAL
                 
                 If Not ExecuteStoredProcedure(conn, "usp_insert_cost_staging", False, _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
@@ -1001,4 +1001,102 @@ End Sub
 ' ----------------------------------------------------------------------------
 Public Function GetModuleVersion() As String
     GetModuleVersion = MODULE_VERSION
+End Function
+
+' ============================================================================
+' DATA TYPE CONVERSION HELPERS
+' ============================================================================
+
+' ----------------------------------------------------------------------------
+' Function: SafeString
+' Purpose: Convert cell value to string, handling NULL/Empty
+' Returns: String value or NULL for SQL
+' ----------------------------------------------------------------------------
+Private Function SafeString(ByVal cellValue As Variant) As Variant
+    If IsEmpty(cellValue) Or IsNull(cellValue) Then
+        SafeString = Null
+    ElseIf Trim(CStr(cellValue)) = "" Then
+        SafeString = Null
+    Else
+        SafeString = Trim(CStr(cellValue))
+    End If
+End Function
+
+' ----------------------------------------------------------------------------
+' Function: SafeInteger
+' Purpose: Convert cell value to Integer, handling NULL/Empty
+' Returns: Integer value or NULL for SQL
+' ----------------------------------------------------------------------------
+Private Function SafeInteger(ByVal cellValue As Variant) As Variant
+    If IsEmpty(cellValue) Or IsNull(cellValue) Then
+        SafeInteger = Null
+    ElseIf Trim(CStr(cellValue)) = "" Then
+        SafeInteger = Null
+    ElseIf IsNumeric(cellValue) Then
+        SafeInteger = CLng(cellValue)
+    Else
+        SafeInteger = Null
+    End If
+End Function
+
+' ----------------------------------------------------------------------------
+' Function: SafeDecimal
+' Purpose: Convert cell value to Decimal, handling NULL/Empty
+' Returns: Decimal value or NULL for SQL
+' ----------------------------------------------------------------------------
+Private Function SafeDecimal(ByVal cellValue As Variant) As Variant
+    If IsEmpty(cellValue) Or IsNull(cellValue) Then
+        SafeDecimal = Null
+    ElseIf Trim(CStr(cellValue)) = "" Then
+        SafeDecimal = Null
+    ElseIf IsNumeric(cellValue) Then
+        SafeDecimal = CDbl(cellValue)
+    Else
+        SafeDecimal = Null
+    End If
+End Function
+
+' ----------------------------------------------------------------------------
+' Function: SafeBoolean
+' Purpose: Convert cell value to Boolean, handling various formats
+' Returns: Boolean value or NULL for SQL
+' Notes: Accepts TRUE/FALSE, 1/0, Y/N, Yes/No, T/F
+' ----------------------------------------------------------------------------
+Private Function SafeBoolean(ByVal cellValue As Variant) As Variant
+    If IsEmpty(cellValue) Or IsNull(cellValue) Then
+        SafeBoolean = Null
+        Exit Function
+    End If
+
+    Dim strValue As String
+    strValue = UCase(Trim(CStr(cellValue)))
+
+    If strValue = "" Then
+        SafeBoolean = Null
+    ElseIf strValue = "TRUE" Or strValue = "1" Or strValue = "Y" Or strValue = "YES" Or strValue = "T" Then
+        SafeBoolean = True
+    ElseIf strValue = "FALSE" Or strValue = "0" Or strValue = "N" Or strValue = "NO" Or strValue = "F" Then
+        SafeBoolean = False
+    ElseIf IsNumeric(cellValue) Then
+        SafeBoolean = (CDbl(cellValue) <> 0)
+    Else
+        SafeBoolean = Null
+    End If
+End Function
+
+' ----------------------------------------------------------------------------
+' Function: SafeDate
+' Purpose: Convert cell value to Date, handling NULL/Empty
+' Returns: Date value or NULL for SQL
+' ----------------------------------------------------------------------------
+Private Function SafeDate(ByVal cellValue As Variant) As Variant
+    If IsEmpty(cellValue) Or IsNull(cellValue) Then
+        SafeDate = Null
+    ElseIf Trim(CStr(cellValue)) = "" Then
+        SafeDate = Null
+    ElseIf IsDate(cellValue) Then
+        SafeDate = CDate(cellValue)
+    Else
+        SafeDate = Null
+    End If
 End Function

@@ -335,36 +335,47 @@ End Function
 ' ----------------------------------------------------------------------------
 ' Sub: AddCostRow
 ' Purpose: Helper function to add a row to the unpivoted cost sheet
+' Note: Handles NULL/empty values and type conversions safely
 ' ----------------------------------------------------------------------------
 Private Sub AddCostRow(ByVal ws As Worksheet, ByVal rowNum As Long, _
                        ByVal pifId As String, ByVal projectId As String, _
                        ByVal scenario As String, ByVal year As String, _
                        ByVal requested As Variant, ByVal current As Variant, _
                        ByVal variance As Variant)
-    
+
+    On Error Resume Next  ' Handle conversion errors gracefully
+
     ws.Cells(rowNum, 1).Value = pifId
     ws.Cells(rowNum, 2).Value = projectId
     ws.Cells(rowNum, 3).Value = scenario
+
+    ' Convert year string to date (e.g., "2025-12-31")
     ws.Cells(rowNum, 4).Value = CDate(year)
-    
-    ' Handle empty cells and convert to Double
-    If IsEmpty(requested) Or requested = "" Then
-        ws.Cells(rowNum, 5).Value = CDbl(0)
+    If Err.Number <> 0 Then
+        ws.Cells(rowNum, 4).Value = DateSerial(CInt(Left(year, 4)), 12, 31)
+        Err.Clear
+    End If
+
+    ' Handle numeric values - treat empty/non-numeric as 0
+    If IsEmpty(requested) Or Not IsNumeric(requested) Or Trim(CStr(requested)) = "" Then
+        ws.Cells(rowNum, 5).Value = 0
     Else
         ws.Cells(rowNum, 5).Value = CDbl(requested)
     End If
-    
-    If IsEmpty(current) Or current = "" Then
-        ws.Cells(rowNum, 6).Value = CDbl(0)
+
+    If IsEmpty(current) Or Not IsNumeric(current) Or Trim(CStr(current)) = "" Then
+        ws.Cells(rowNum, 6).Value = 0
     Else
         ws.Cells(rowNum, 6).Value = CDbl(current)
     End If
-    
-    If IsEmpty(variance) Or variance = "" Then
-        ws.Cells(rowNum, 7).Value = CDbl(0)
+
+    If IsEmpty(variance) Or Not IsNumeric(variance) Or Trim(CStr(variance)) = "" Then
+        ws.Cells(rowNum, 7).Value = 0
     Else
         ws.Cells(rowNum, 7).Value = CDbl(variance)
     End If
+
+    On Error GoTo 0
 End Sub
 
 ' ----------------------------------------------------------------------------
