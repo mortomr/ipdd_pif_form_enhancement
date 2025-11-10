@@ -225,20 +225,22 @@ Private Sub ValidateRequiredFields(ByVal wsData As Worksheet, ByRef errors As Co
     For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
-        
-        ' Check PIF ID
+
+        ' Skip rows without PIF_ID (totals rows, separators, etc.)
+        ' If no PIF_ID, this isn't a data row
         If IsEmpty(wsData.Cells(i, COL_PIF_ID).Value) Or _
            Trim(wsData.Cells(i, COL_PIF_ID).Value) = "" Then
-            errors.Add "Row " & i & "|Missing Required Field|PIF ID is required"
+            GoTo NextRow
         End If
-        
-        ' Check Project ID (assuming it's in column after project name for now)
-        ' NOTE: Adjust this based on where project_id actually is
+
+        ' At this point we know PIF_ID exists, now check other required fields
+
+        ' Check Project ID
         If IsEmpty(wsData.Cells(i, COL_FUNDING_PROJECT).Value) Or _
            Trim(wsData.Cells(i, COL_FUNDING_PROJECT).Value) = "" Then
             errors.Add "Row " & i & "|Missing Required Field|Project ID is required"
         End If
-        
+
         ' Check Change Type
         If IsEmpty(wsData.Cells(i, COL_CHANGE_TYPE).Value) Or _
            Trim(wsData.Cells(i, COL_CHANGE_TYPE).Value) = "" Then
@@ -270,7 +272,13 @@ Private Sub ValidateDataTypes(ByVal wsData As Worksheet, ByRef errors As Collect
     For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
-        
+
+        ' Skip rows without PIF_ID (totals rows, separators, etc.)
+        If IsEmpty(wsData.Cells(i, COL_PIF_ID).Value) Or _
+           Trim(wsData.Cells(i, COL_PIF_ID).Value) = "" Then
+            GoTo NextRow
+        End If
+
         ' Check SEG (should be numeric)
         If Not IsEmpty(wsData.Cells(i, COL_SEG).Value) Then
             If Not IsNumeric(wsData.Cells(i, COL_SEG).Value) Then
@@ -307,7 +315,13 @@ Private Sub ValidateBusinessRules(ByVal wsData As Worksheet, ByRef errors As Col
     For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
-        
+
+        ' Skip rows without PIF_ID (totals rows, separators, etc.)
+        If IsEmpty(wsData.Cells(i, COL_PIF_ID).Value) Or _
+           Trim(wsData.Cells(i, COL_PIF_ID).Value) = "" Then
+            GoTo NextRow
+        End If
+
         status = Trim(UCase(wsData.Cells(i, COL_STATUS).Value))
         justification = Trim(wsData.Cells(i, COL_JUSTIFICATION).Value)
         
@@ -351,10 +365,16 @@ Private Sub ValidateDuplicates(ByVal wsData As Worksheet, ByRef errors As Collec
     For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
-        
+
+        ' Skip rows without PIF_ID (totals rows, separators, etc.)
+        If IsEmpty(wsData.Cells(i, COL_PIF_ID).Value) Or _
+           Trim(wsData.Cells(i, COL_PIF_ID).Value) = "" Then
+            GoTo NextRow
+        End If
+
         pifId = Trim(wsData.Cells(i, COL_PIF_ID).Value)
-        projectId = Trim(wsData.Cells(i, COL_FUNDING_PROJECT).Value)  ' Adjust column as needed
-        
+        projectId = Trim(wsData.Cells(i, COL_FUNDING_PROJECT).Value)
+
         If pifId <> "" And projectId <> "" Then
             key = pifId & "|" & projectId
             
