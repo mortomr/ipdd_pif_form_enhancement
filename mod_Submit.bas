@@ -500,9 +500,21 @@ Private Function CommitToInflight() As Boolean
           "TRUNCATE TABLE dbo.tbl_pif_cost_inflight; " & _
           "TRUNCATE TABLE dbo.tbl_pif_projects_inflight; " & _
           "INSERT INTO dbo.tbl_pif_projects_inflight " & _
-          "SELECT *, GETDATE() AS submission_date FROM dbo.tbl_pif_projects_staging; " & _
+          "(pif_id, project_id, submission_date, status, change_type, " & _
+          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
+          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
+          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
+          "archive_flag, include_flag) " & _
+          "SELECT pif_id, project_id, GETDATE(), status, change_type, " & _
+          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
+          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
+          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
+          "archive_flag, include_flag FROM dbo.tbl_pif_projects_staging; " & _
           "INSERT INTO dbo.tbl_pif_cost_inflight " & _
-          "SELECT * FROM dbo.tbl_pif_cost_staging; " & _
+          "(pif_id, project_id, scenario, year, requested_value, " & _
+          "current_value, variance_value) " & _
+          "SELECT pif_id, project_id, scenario, year, requested_value, " & _
+          "current_value, variance_value FROM dbo.tbl_pif_cost_staging; " & _
           "COMMIT TRANSACTION;"
     
     CommitToInflight = ExecuteSQL(sql)
