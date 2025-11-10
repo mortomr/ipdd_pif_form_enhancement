@@ -572,24 +572,32 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params) Step 5
             Dim paramName As String
+            Dim paramType As ADODB.DataTypeEnum
+            Dim paramDirection As ADODB.ParameterDirectionEnum
+            Dim paramSize As Long
             Dim paramValue As Variant
 
             paramName = params(i)
+            paramType = params(i + 1)
+            paramDirection = params(i + 2)
+            paramSize = params(i + 3)
             paramValue = params(i + 4)
 
             On Error Resume Next
             With dbCommand.Parameters(paramName)
+                ' Explicitly set type and size BEFORE setting value (critical for NULL handling)
+                .Type = paramType
+                If paramSize > 0 Then
+                    .Size = paramSize
+                End If
+                .Direction = paramDirection
+
                 ' Handle NULL values explicitly for ADODB
                 If IsNull(paramValue) Then
                     .Value = Null
-                    Debug.Print "DEBUG: Setting " & paramName & " = NULL"
+                    Debug.Print "DEBUG: Setting " & paramName & " = NULL (Type: " & paramType & ", Size: " & paramSize & ")"
                 Else
                     .Value = paramValue
-                End If
-
-                ' Explicitly set type for BIT fields
-                If paramName = "@archive_flag" Or paramName = "@include_flag" Then
-                    .Type = adTinyInt
                 End If
             End With
 
