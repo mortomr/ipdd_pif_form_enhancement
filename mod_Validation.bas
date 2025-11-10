@@ -216,12 +216,13 @@ Private Sub ValidateRequiredFields(ByVal wsData As Worksheet, ByRef errors As Co
     Dim lastRow As Long
     Dim i As Long
     Dim errorMsg As String
-    
+
     lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
-    
+
     Application.StatusBar = "Validating required fields..."
-    
-    For i = 2 To lastRow
+
+    ' Start from row 4 - rows 1-3 are headers
+    For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
         
@@ -260,12 +261,13 @@ End Sub
 Private Sub ValidateDataTypes(ByVal wsData As Worksheet, ByRef errors As Collection)
     Dim lastRow As Long
     Dim i As Long
-    
+
     lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
-    
+
     Application.StatusBar = "Validating data types..."
-    
-    For i = 2 To lastRow
+
+    ' Start from row 4 - rows 1-3 are headers
+    For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
         
@@ -296,12 +298,13 @@ Private Sub ValidateBusinessRules(ByVal wsData As Worksheet, ByRef errors As Col
     Dim i As Long
     Dim status As String
     Dim justification As String
-    
+
     lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
-    
+
     Application.StatusBar = "Validating business rules..."
-    
-    For i = 2 To lastRow
+
+    ' Start from row 4 - rows 1-3 are headers
+    For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
         
@@ -337,14 +340,15 @@ Private Sub ValidateDuplicates(ByVal wsData As Worksheet, ByRef errors As Collec
     Dim pifId2 As String, projectId2 As String
     Dim dict As Object
     Dim key As String
-    
+
     Set dict = CreateObject("Scripting.Dictionary")
-    
+
     lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
-    
+
     Application.StatusBar = "Checking for duplicates..."
-    
-    For i = 2 To lastRow
+
+    ' Start from row 4 - rows 1-3 are headers
+    For i = 4 To lastRow
         ' Skip completely empty rows
         If WorksheetFunction.CountA(wsData.Rows(i)) = 0 Then GoTo NextRow
         
