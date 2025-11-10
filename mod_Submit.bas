@@ -61,12 +61,12 @@ Public Sub SubmitToDatabase()
     Application.StatusBar = "Preparing cost data..."
     success = UnpivotCostData()
     If Not success Then GoTo Cleanup
-    
-    ' STEP 2: Create backups
-    Application.StatusBar = "Creating backup tables..."
-    success = CreateBackupTables()
-    If Not success Then GoTo Cleanup
-    
+
+    ' STEP 2: Create backups (DISABLED - creates clutter in database)
+    ' Application.StatusBar = "Creating backup tables..."
+    ' success = CreateBackupTables()
+    ' If Not success Then GoTo Cleanup
+
     ' STEP 3: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
     success = UploadProjectData()
