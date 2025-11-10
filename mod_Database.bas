@@ -746,7 +746,11 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 
                 Debug.Print "--- Processing Project Row: " & actualRow & " ---"
                 For j = LBound(params) To UBound(params)
-                    Debug.Print "  Param(" & j & "): " & CStr(params(j))
+                    If IsNull(params(j)) Then
+                        Debug.Print "  Param(" & j & "): NULL"
+                    Else
+                        Debug.Print "  Param(" & j & "): " & CStr(params(j))
+                    End If
                 Next j
                 Debug.Print "-------------------------------------"
 
