@@ -528,7 +528,17 @@ Private Function ArchiveApprovedPIFs() As Boolean
     
     ' Insert approved projects (flag-based routing: archive=1 AND include=1)
     sql = "INSERT INTO dbo.tbl_pif_projects_approved " & _
-          "SELECT *, GETDATE() AS approval_date FROM dbo.tbl_pif_projects_inflight " & _
+          "(pif_id, project_id, submission_date, approval_date, status, " & _
+          "change_type, accounting_treatment, category, seg, opco, site, " & _
+          "strategic_rank, funding_project, project_name, original_fp_isd, " & _
+          "revised_fp_isd, moving_isd_year, lcm_issue, justification, " & _
+          "prior_year_spend, archive_flag, include_flag) " & _
+          "SELECT pif_id, project_id, submission_date, GETDATE(), status, " & _
+          "change_type, accounting_treatment, category, seg, opco, site, " & _
+          "strategic_rank, funding_project, project_name, original_fp_isd, " & _
+          "revised_fp_isd, moving_isd_year, lcm_issue, justification, " & _
+          "prior_year_spend, archive_flag, include_flag " & _
+          "FROM dbo.tbl_pif_projects_inflight " & _
           "WHERE archive_flag = 1 AND include_flag = 1"
 
     If Not ExecuteSQL(sql) Then
@@ -538,7 +548,10 @@ Private Function ArchiveApprovedPIFs() As Boolean
 
     ' Insert approved costs
     sql = "INSERT INTO dbo.tbl_pif_cost_approved " & _
-          "SELECT c.*, GETDATE() AS approval_date " & _
+          "(pif_id, project_id, scenario, year, requested_value, " & _
+          "current_value, variance_value, approval_date) " & _
+          "SELECT c.pif_id, c.project_id, c.scenario, c.year, " & _
+          "c.requested_value, c.current_value, c.variance_value, GETDATE() " & _
           "FROM dbo.tbl_pif_cost_inflight c " & _
           "INNER JOIN dbo.tbl_pif_projects_inflight p " & _
           "    ON c.pif_id = p.pif_id AND c.project_id = p.project_id " & _
