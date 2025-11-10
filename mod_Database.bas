@@ -510,6 +510,139 @@ ErrHandler:
     Set ExecuteStoredProcedure = Nothing
 End Function
 
+' ----------------------------------------------------------------------------
+' Function: ExecuteStoredProcedureNonQuery
+' Purpose: Execute stored procedure that doesn't return a recordset (INSERT, UPDATE, DELETE)
+' Parameters:
+'   dbConnection - Active connection (pass Nothing to create new)
+'   procedureName - Name of stored procedure
+'   params - Groups of 5: parameter name, type, direction, size, value
+' Returns: Boolean - True if successful, False if failed
+' SECURITY: Stored procedures are most secure - prevents all injection
+' ----------------------------------------------------------------------------
+Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Connection, _
+                                               ByVal procedureName As String, _
+                                               ParamArray params() As Variant) As Boolean
+    On Error GoTo ErrHandler
+
+    Dim dbCommand As ADODB.Command
+    Dim closeConnectionAfter As Boolean
+    Dim i As Long
+    Dim paramCount As Long
+    Dim recordsAffected As Long
+
+    ' Validate parameter count
+    If UBound(params) >= LBound(params) Then
+        paramCount = UBound(params) - LBound(params) + 1
+
+        If (paramCount Mod 5) <> 0 Then
+            Debug.Print "ERROR: Invalid parameter count: " & paramCount & " (must be divisible by 5)"
+            Call LogTechnicalError("ExecuteStoredProcedureNonQuery", 0, _
+                                  "Invalid parameter count: " & paramCount, _
+                                  "Procedure: " & procedureName)
+            ExecuteStoredProcedureNonQuery = False
+            Exit Function
+        End If
+    End If
+
+    ' Connection management
+    closeConnectionAfter = (dbConnection Is Nothing)
+    If dbConnection Is Nothing Then
+        Set dbConnection = GetDBConnection()
+        If dbConnection Is Nothing Then
+            ExecuteStoredProcedureNonQuery = False
+            Exit Function
+        End If
+    End If
+
+    ' Setup stored procedure command
+    Set dbCommand = New ADODB.Command
+    Set dbCommand.ActiveConnection = dbConnection
+    dbCommand.CommandText = procedureName
+    dbCommand.CommandType = adCmdStoredProc
+    dbCommand.CommandTimeout = COMMAND_TIMEOUT
+
+    ' Refresh parameters from database
+    dbCommand.Parameters.Refresh
+
+    ' Assign parameter values
+    If UBound(params) >= LBound(params) Then
+        For i = LBound(params) To UBound(params) Step 5
+            Dim paramName As String
+            Dim paramValue As Variant
+
+            paramName = params(i)
+            paramValue = params(i + 4)
+
+            On Error Resume Next
+            With dbCommand.Parameters(paramName)
+                .Value = paramValue
+                ' Explicitly set type for BIT fields
+                If paramName = "@archive_flag" Or paramName = "@include_flag" Then
+                    .Type = adTinyInt
+                End If
+            End With
+
+            If Err.Number <> 0 Then
+                Debug.Print "ERROR: Failed to set parameter " & paramName & ": " & Err.Description
+                Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
+                                      "Procedure: " & procedureName & ", Parameter: " & paramName)
+                On Error GoTo ErrHandler
+                ExecuteStoredProcedureNonQuery = False
+                Exit Function
+            End If
+            On Error GoTo ErrHandler
+        Next i
+    End If
+
+    ' Execute the stored procedure
+    dbCommand.Execute recordsAffected
+
+    ' Check return value (stored procs return 0 on success, -1 on error)
+    Dim returnValue As Long
+    returnValue = dbCommand.Parameters(0).Value  ' First parameter is return value
+
+    If returnValue <> 0 Then
+        Debug.Print "ERROR: Stored procedure returned error code: " & returnValue
+        Call LogTechnicalError("ExecuteStoredProcedureNonQuery", returnValue, _
+                              "Stored procedure returned error code", _
+                              "Procedure: " & procedureName)
+        ExecuteStoredProcedureNonQuery = False
+    Else
+        ExecuteStoredProcedureNonQuery = True
+    End If
+
+    ' Cleanup
+    Set dbCommand = Nothing
+
+    If closeConnectionAfter Then
+        If dbConnection.State = adStateOpen Then
+            dbConnection.Close
+        End If
+        Set dbConnection = Nothing
+    End If
+
+    Exit Function
+
+ErrHandler:
+    Debug.Print "ERROR: ExecuteStoredProcedureNonQuery failed: " & Err.Number & " - " & Err.Description
+
+    MsgBox "Stored procedure execution failed." & vbCrLf & vbCrLf & _
+           "Procedure: " & procedureName & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbCritical, "Database Error"
+
+    Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
+                          "Procedure: " & procedureName)
+
+    If closeConnectionAfter And Not dbConnection Is Nothing Then
+        If dbConnection.State = adStateOpen Then dbConnection.Close
+        Set dbConnection = Nothing
+    End If
+
+    ExecuteStoredProcedureNonQuery = False
+End Function
+
 ' ============================================================================
 ' BULK INSERT FUNCTIONS
 ' ============================================================================
@@ -597,8 +730,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     Debug.Print "  Param(" & j & "): " & CStr(params(j))
                 Next j
                 Debug.Print "-------------------------------------"
-                
-                If Not ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
+
+                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
                                             "@status", adVarChar, adParamInput, 58, params(2), _
@@ -633,8 +766,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(4) = SafeDecimal(wsData.Cells(actualRow, 5).Value) ' requested_value (E) - DECIMAL
                 params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' current_value (F) - DECIMAL
                 params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' variance_value (G) - DECIMAL
-                
-                If Not ExecuteStoredProcedure(conn, "usp_insert_cost_staging", False, _
+
+                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_cost_staging", _
                                             "@pif_id", 200, 1, 16, params(0), _
                                             "@project_id", 200, 1, 10, params(1), _
                                             "@scenario", 200, 1, 12, params(2), _
