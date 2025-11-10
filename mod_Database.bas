@@ -565,6 +565,9 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     ' Refresh parameters from database
     dbCommand.Parameters.Refresh
 
+    Debug.Print "DEBUG: Executing " & procedureName
+    Debug.Print "DEBUG: Parameters.Count = " & dbCommand.Parameters.Count
+
     ' Assign parameter values
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params) Step 5
@@ -598,9 +601,15 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     ' Execute the stored procedure
     dbCommand.Execute recordsAffected
 
+    Debug.Print "DEBUG: Records affected = " & recordsAffected
+    Debug.Print "DEBUG: Parameters(0).Name = " & dbCommand.Parameters(0).Name
+    Debug.Print "DEBUG: Parameters(0).Direction = " & dbCommand.Parameters(0).Direction
+
     ' Check return value (stored procs return 0 on success, -1 on error)
     Dim returnValue As Long
     returnValue = dbCommand.Parameters(0).Value  ' First parameter is return value
+
+    Debug.Print "DEBUG: Return value = " & returnValue
 
     If returnValue <> 0 Then
         Debug.Print "ERROR: Stored procedure returned error code: " & returnValue
@@ -609,6 +618,7 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
                               "Procedure: " & procedureName)
         ExecuteStoredProcedureNonQuery = False
     Else
+        Debug.Print "DEBUG: Stored procedure executed successfully"
         ExecuteStoredProcedureNonQuery = True
     End If
 
@@ -752,7 +762,10 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
                                             "@archive_flag", adTinyInt, adParamInput, 0, params(18), _
                                             "@include_flag", adTinyInt, adParamInput, 0, params(19)) Then
+                    Debug.Print "ERROR: ExecuteStoredProcedureNonQuery failed for project row " & actualRow
+                    Debug.Print "ERROR: Rolling back transaction..."
                     conn.RollbackTrans
+                    Debug.Print "ERROR: Transaction rolled back"
                     BulkInsertToStaging = False
                     Exit Function
                 End If
@@ -775,7 +788,10 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@requested_value", 131, 1, 0, params(4), _
                                             "@current_value", 131, 1, 0, params(5), _
                                             "@variance_value", 131, 1, 0, params(6)) Then
+                    Debug.Print "ERROR: ExecuteStoredProcedureNonQuery failed for cost row " & actualRow
+                    Debug.Print "ERROR: Rolling back transaction..."
                     conn.RollbackTrans
+                    Debug.Print "ERROR: Transaction rolled back"
                     BulkInsertToStaging = False
                     Exit Function
                 End If
@@ -789,9 +805,11 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
             End If
         End If
     Next i
-    
+
+    Debug.Print "DEBUG: Committing transaction for " & rowCount & " rows..."
     conn.CommitTrans
-    
+    Debug.Print "DEBUG: Transaction committed successfully"
+
     conn.Close
     Set conn = Nothing
     
