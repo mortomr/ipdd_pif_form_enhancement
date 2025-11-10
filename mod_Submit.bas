@@ -526,36 +526,36 @@ Private Function ArchiveApprovedPIFs() As Boolean
     
     Dim sql As String
     
-    ' Insert approved projects
+    ' Insert approved projects (flag-based routing: archive=1 AND include=1)
     sql = "INSERT INTO dbo.tbl_pif_projects_approved " & _
           "SELECT *, GETDATE() AS approval_date FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE status IN ('Approved', 'Dispositioned')"
-    
+          "WHERE archive_flag = 1 AND include_flag = 1"
+
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
-    
+
     ' Insert approved costs
     sql = "INSERT INTO dbo.tbl_pif_cost_approved " & _
           "SELECT c.*, GETDATE() AS approval_date " & _
           "FROM dbo.tbl_pif_cost_inflight c " & _
           "INNER JOIN dbo.tbl_pif_projects_inflight p " & _
           "    ON c.pif_id = p.pif_id AND c.project_id = p.project_id " & _
-          "WHERE p.status IN ('Approved', 'Dispositioned')"
-    
+          "WHERE p.archive_flag = 1 AND p.include_flag = 1"
+
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
-    
+
     ' Remove approved records from inflight
     sql = "DELETE c FROM dbo.tbl_pif_cost_inflight c " & _
           "INNER JOIN dbo.tbl_pif_projects_inflight p " & _
           "    ON c.pif_id = p.pif_id AND c.project_id = p.project_id " & _
-          "WHERE p.status IN ('Approved', 'Dispositioned'); " & _
+          "WHERE p.archive_flag = 1 AND p.include_flag = 1; " & _
           "DELETE FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE status IN ('Approved', 'Dispositioned')"
+          "WHERE archive_flag = 1 AND include_flag = 1"
     
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False

@@ -867,7 +867,7 @@ BEGIN
         p.archive_flag,
         p.include_flag
     FROM dbo.tbl_pif_projects_inflight p
-    WHERE p.status IN ('Approved', 'Dispositioned');
+    WHERE p.archive_flag = 1 AND p.include_flag = 1;
 
         SET @ApprovedCount = @@ROWCOUNT;
 
@@ -883,7 +883,7 @@ BEGIN
     FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id
-    WHERE p.status IN ('Approved', 'Dispositioned');
+    WHERE p.archive_flag = 1 AND p.include_flag = 1;
 
         SET @CostCount = @@ROWCOUNT;
 
@@ -892,10 +892,10 @@ BEGIN
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id
-        WHERE p.status IN ('Approved', 'Dispositioned');
+        WHERE p.archive_flag = 1 AND p.include_flag = 1;
 
         DELETE FROM dbo.tbl_pif_projects_inflight
-        WHERE status IN ('Approved', 'Dispositioned');
+        WHERE archive_flag = 1 AND include_flag = 1;
 
         COMMIT TRANSACTION;
 
