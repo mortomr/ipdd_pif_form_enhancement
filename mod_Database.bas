@@ -579,7 +579,14 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
 
             On Error Resume Next
             With dbCommand.Parameters(paramName)
-                .Value = paramValue
+                ' Handle NULL values explicitly for ADODB
+                If IsNull(paramValue) Then
+                    .Value = Null
+                    Debug.Print "DEBUG: Setting " & paramName & " = NULL"
+                Else
+                    .Value = paramValue
+                End If
+
                 ' Explicitly set type for BIT fields
                 If paramName = "@archive_flag" Or paramName = "@include_flag" Then
                     .Type = adTinyInt
@@ -588,6 +595,8 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
 
             If Err.Number <> 0 Then
                 Debug.Print "ERROR: Failed to set parameter " & paramName & ": " & Err.Description
+                Debug.Print "ERROR: Parameter value type: " & TypeName(paramValue)
+                Debug.Print "ERROR: Parameter value: " & IIf(IsNull(paramValue), "NULL", CStr(paramValue))
                 Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
                                       "Procedure: " & procedureName & ", Parameter: " & paramName)
                 On Error GoTo ErrHandler
