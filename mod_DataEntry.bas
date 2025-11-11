@@ -52,14 +52,25 @@ Public Sub AddRow()
     newRow = lastDataRow + 1
     sourceRow = lastDataRow
 
-    ' If source row appears to be a totals/summary row (check for SUM formulas),
+    ' If source row appears to be a totals/summary row (check for SUM/SUBTOTAL formulas),
     ' use the row above it as the source
     Dim cellFormula As String
+    Dim isTotalRow As Boolean
     On Error Resume Next
     cellFormula = UCase(ws.Cells(sourceRow, 21).Formula)  ' Column U (first cost column)
     On Error GoTo ErrHandler
 
-    If InStr(1, cellFormula, "SUM") > 0 Then
+    ' Check for total row indicators: SUM, SUBTOTAL, or AGGREGATE functions
+    isTotalRow = (InStr(1, cellFormula, "SUM(") > 0) Or _
+                 (InStr(1, cellFormula, "SUBTOTAL(") > 0) Or _
+                 (InStr(1, cellFormula, "AGGREGATE(") > 0)
+
+    ' Also check if PIF_ID column is empty (another indicator of total row)
+    If Trim(CStr(ws.Cells(sourceRow, 7).Value)) = "" Then
+        isTotalRow = True
+    End If
+
+    If isTotalRow Then
         ' This is a totals row - insert ABOVE it and copy from row above
         newRow = sourceRow
         sourceRow = sourceRow - 1
