@@ -63,7 +63,7 @@ CREATE TABLE dbo.tbl_pif_projects_staging
     moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue VARCHAR(11) NULL,
+    lcm_issue VARCHAR(20) NULL,
     justification VARCHAR(192) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
@@ -137,7 +137,7 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue VARCHAR(11) NULL,
+    lcm_issue VARCHAR(20) NULL,
     justification VARCHAR(192) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
@@ -215,7 +215,7 @@ CREATE TABLE dbo.tbl_pif_projects_approved
     moving_isd_year CHAR(1) NULL,
 
     -- Context
-    lcm_issue VARCHAR(11) NULL,
+    lcm_issue VARCHAR(20) NULL,
     justification VARCHAR(192) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
@@ -744,7 +744,7 @@ CREATE PROCEDURE dbo.usp_insert_project_staging
     @revised_fp_isd VARCHAR(20) = NULL,
     -- Corrected length
     @moving_isd_year CHAR(1) = NULL,
-    @lcm_issue VARCHAR(11) = NULL,
+    @lcm_issue VARCHAR(20) = NULL,
     @justification VARCHAR(192) = NULL,
     @prior_year_spend DECIMAL(18,2) = NULL,
     @archive_flag BIT = NULL,
