@@ -554,36 +554,35 @@ Private Function ArchiveApprovedPIFs() As Boolean
     Dim archivedCount As Long
 
     ' UPSERT approved projects using MERGE (update if exists, insert if new)
-    sql = "MERGE dbo.tbl_pif_projects_approved AS target " & _
-          "USING (SELECT pif_id, project_id, submission_date, status, change_type, " & _
-          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
-          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
-          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
-          "archive_flag, include_flag " & _
-          "FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE archive_flag = 1 AND include_flag = 1) AS source " & _
-          "ON target.pif_id = source.pif_id AND target.project_id = source.project_id " & _
-          "WHEN MATCHED THEN " & _
-          "UPDATE SET submission_date = source.submission_date, approval_date = GETDATE(), " & _
-          "status = source.status, change_type = source.change_type, " & _
-          "accounting_treatment = source.accounting_treatment, category = source.category, " & _
-          "seg = source.seg, opco = source.opco, site = source.site, " & _
-          "strategic_rank = source.strategic_rank, funding_project = source.funding_project, " & _
-          "project_name = source.project_name, original_fp_isd = source.original_fp_isd, " & _
-          "revised_fp_isd = source.revised_fp_isd, moving_isd_year = source.moving_isd_year, " & _
-          "lcm_issue = source.lcm_issue, justification = source.justification, " & _
-          "prior_year_spend = source.prior_year_spend, archive_flag = source.archive_flag, " & _
-          "include_flag = source.include_flag " & _
-          "WHEN NOT MATCHED THEN " & _
-          "INSERT (pif_id, project_id, submission_date, approval_date, status, " & _
-          "change_type, accounting_treatment, category, seg, opco, site, strategic_rank, " & _
-          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
-          "moving_isd_year, lcm_issue, justification, prior_year_spend, archive_flag, include_flag) " & _
-          "VALUES (source.pif_id, source.project_id, source.submission_date, GETDATE(), source.status, " & _
-          "source.change_type, source.accounting_treatment, source.category, source.seg, source.opco, " & _
-          "source.site, source.strategic_rank, source.funding_project, source.project_name, " & _
-          "source.original_fp_isd, source.revised_fp_isd, source.moving_isd_year, source.lcm_issue, " & _
-          "source.justification, source.prior_year_spend, source.archive_flag, source.include_flag);"
+    ' Build SQL in chunks to avoid VBA's 25 line continuation limit
+    sql = "MERGE dbo.tbl_pif_projects_approved AS target "
+    sql = sql & "USING (SELECT pif_id, project_id, submission_date, status, change_type, "
+    sql = sql & "accounting_treatment, category, seg, opco, site, strategic_rank, "
+    sql = sql & "funding_project, project_name, original_fp_isd, revised_fp_isd, "
+    sql = sql & "moving_isd_year, lcm_issue, justification, prior_year_spend, "
+    sql = sql & "archive_flag, include_flag FROM dbo.tbl_pif_projects_inflight "
+    sql = sql & "WHERE archive_flag = 1 AND include_flag = 1) AS source "
+    sql = sql & "ON target.pif_id = source.pif_id AND target.project_id = source.project_id "
+    sql = sql & "WHEN MATCHED THEN UPDATE SET submission_date = source.submission_date, "
+    sql = sql & "approval_date = GETDATE(), status = source.status, change_type = source.change_type, "
+    sql = sql & "accounting_treatment = source.accounting_treatment, category = source.category, "
+    sql = sql & "seg = source.seg, opco = source.opco, site = source.site, "
+    sql = sql & "strategic_rank = source.strategic_rank, funding_project = source.funding_project, "
+    sql = sql & "project_name = source.project_name, original_fp_isd = source.original_fp_isd, "
+    sql = sql & "revised_fp_isd = source.revised_fp_isd, moving_isd_year = source.moving_isd_year, "
+    sql = sql & "lcm_issue = source.lcm_issue, justification = source.justification, "
+    sql = sql & "prior_year_spend = source.prior_year_spend, archive_flag = source.archive_flag, "
+    sql = sql & "include_flag = source.include_flag "
+    sql = sql & "WHEN NOT MATCHED THEN INSERT (pif_id, project_id, submission_date, approval_date, "
+    sql = sql & "status, change_type, accounting_treatment, category, seg, opco, site, strategic_rank, "
+    sql = sql & "funding_project, project_name, original_fp_isd, revised_fp_isd, moving_isd_year, "
+    sql = sql & "lcm_issue, justification, prior_year_spend, archive_flag, include_flag) "
+    sql = sql & "VALUES (source.pif_id, source.project_id, source.submission_date, GETDATE(), "
+    sql = sql & "source.status, source.change_type, source.accounting_treatment, source.category, "
+    sql = sql & "source.seg, source.opco, source.site, source.strategic_rank, source.funding_project, "
+    sql = sql & "source.project_name, source.original_fp_isd, source.revised_fp_isd, "
+    sql = sql & "source.moving_isd_year, source.lcm_issue, source.justification, source.prior_year_spend, "
+    sql = sql & "source.archive_flag, source.include_flag);"
 
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
