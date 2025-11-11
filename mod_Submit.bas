@@ -111,15 +111,20 @@ Public Sub SubmitToDatabase()
     ' STEP 7: Log submission
     Application.StatusBar = "Logging submission..."
     success = LogSubmission()
-    
+
+    ' STEP 8: Clear archive/include checkboxes (prevent accidental re-archival)
+    Application.StatusBar = "Cleaning up archived records..."
+    Call ClearArchivedCheckboxes()
+
     ' Success!
     Dim elapsed As Double
     elapsed = Timer - startTime
-    
+
     MsgBox "Submission completed successfully!" & vbCrLf & vbCrLf & _
            "Elapsed time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
            "Your PIF data has been submitted to the database." & vbCrLf & _
-           "Approved PIFs have been archived to the permanent tables.", _
+           "Approved PIFs have been archived to the permanent tables." & vbCrLf & vbCrLf & _
+           "Archive/Include checkboxes have been cleared for archived records.", _
            vbInformation, "Success"
     
 Cleanup:
@@ -544,31 +549,53 @@ End Function
 ' ----------------------------------------------------------------------------
 Private Function ArchiveApprovedPIFs() As Boolean
     On Error GoTo ErrHandler
-    
+
     Dim sql As String
-    
-    ' Insert approved projects (flag-based routing: archive=1 AND include=1)
-    sql = "INSERT INTO dbo.tbl_pif_projects_approved " & _
-          "(pif_id, project_id, submission_date, approval_date, status, " & _
-          "change_type, accounting_treatment, category, seg, opco, site, " & _
-          "strategic_rank, funding_project, project_name, original_fp_isd, " & _
-          "revised_fp_isd, moving_isd_year, lcm_issue, justification, " & _
-          "prior_year_spend, archive_flag, include_flag) " & _
-          "SELECT pif_id, project_id, submission_date, GETDATE(), status, " & _
-          "change_type, accounting_treatment, category, seg, opco, site, " & _
-          "strategic_rank, funding_project, project_name, original_fp_isd, " & _
-          "revised_fp_isd, moving_isd_year, lcm_issue, justification, " & _
-          "prior_year_spend, archive_flag, include_flag " & _
+    Dim archivedCount As Long
+
+    ' UPSERT approved projects using MERGE (update if exists, insert if new)
+    sql = "MERGE dbo.tbl_pif_projects_approved AS target " & _
+          "USING (SELECT pif_id, project_id, submission_date, status, change_type, " & _
+          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
+          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
+          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
+          "archive_flag, include_flag " & _
           "FROM dbo.tbl_pif_projects_inflight " & _
-          "WHERE archive_flag = 1 AND include_flag = 1"
+          "WHERE archive_flag = 1 AND include_flag = 1) AS source " & _
+          "ON target.pif_id = source.pif_id AND target.project_id = source.project_id " & _
+          "WHEN MATCHED THEN " & _
+          "UPDATE SET submission_date = source.submission_date, approval_date = GETDATE(), " & _
+          "status = source.status, change_type = source.change_type, " & _
+          "accounting_treatment = source.accounting_treatment, category = source.category, " & _
+          "seg = source.seg, opco = source.opco, site = source.site, " & _
+          "strategic_rank = source.strategic_rank, funding_project = source.funding_project, " & _
+          "project_name = source.project_name, original_fp_isd = source.original_fp_isd, " & _
+          "revised_fp_isd = source.revised_fp_isd, moving_isd_year = source.moving_isd_year, " & _
+          "lcm_issue = source.lcm_issue, justification = source.justification, " & _
+          "prior_year_spend = source.prior_year_spend, archive_flag = source.archive_flag, " & _
+          "include_flag = source.include_flag " & _
+          "WHEN NOT MATCHED THEN " & _
+          "INSERT (pif_id, project_id, submission_date, approval_date, status, " & _
+          "change_type, accounting_treatment, category, seg, opco, site, strategic_rank, " & _
+          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
+          "moving_isd_year, lcm_issue, justification, prior_year_spend, archive_flag, include_flag) " & _
+          "VALUES (source.pif_id, source.project_id, source.submission_date, GETDATE(), source.status, " & _
+          "source.change_type, source.accounting_treatment, source.category, source.seg, source.opco, " & _
+          "source.site, source.strategic_rank, source.funding_project, source.project_name, " & _
+          "source.original_fp_isd, source.revised_fp_isd, source.moving_isd_year, source.lcm_issue, " & _
+          "source.justification, source.prior_year_spend, source.archive_flag, source.include_flag);"
 
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
 
-    ' Insert approved costs
-    sql = "INSERT INTO dbo.tbl_pif_cost_approved " & _
+    ' Delete and re-insert costs (simpler than MERGE for child records)
+    sql = "DELETE c FROM dbo.tbl_pif_cost_approved c " & _
+          "WHERE EXISTS (SELECT 1 FROM dbo.tbl_pif_projects_inflight p " & _
+          "WHERE p.pif_id = c.pif_id AND p.project_id = c.project_id " & _
+          "AND p.archive_flag = 1 AND p.include_flag = 1); " & _
+          "INSERT INTO dbo.tbl_pif_cost_approved " & _
           "(pif_id, project_id, scenario, year, requested_value, " & _
           "current_value, variance_value, approval_date) " & _
           "SELECT c.pif_id, c.project_id, c.scenario, c.year, " & _
@@ -590,12 +617,12 @@ Private Function ArchiveApprovedPIFs() As Boolean
           "WHERE p.archive_flag = 1 AND p.include_flag = 1; " & _
           "DELETE FROM dbo.tbl_pif_projects_inflight " & _
           "WHERE archive_flag = 1 AND include_flag = 1"
-    
+
     If Not ExecuteSQL(sql) Then
         ArchiveApprovedPIFs = False
         Exit Function
     End If
-    
+
     ArchiveApprovedPIFs = True
     Exit Function
     
@@ -631,3 +658,48 @@ ErrHandler:
     ' Log failure is not critical - don't fail entire submission
     LogSubmission = True
 End Function
+
+' ----------------------------------------------------------------------------
+' Sub: ClearArchivedCheckboxes
+' Purpose: Clear archive/include checkboxes for records that were archived
+' Note: Prevents accidental re-archival on next submission
+' ----------------------------------------------------------------------------
+Private Sub ClearArchivedCheckboxes()
+    On Error Resume Next ' Don't fail submission if this fails
+
+    Dim wsData As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim archiveCol As Integer
+    Dim includeCol As Integer
+    Dim clearedCount As Long
+
+    Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+
+    ' Get column indices from shared constants
+    archiveCol = PIFDataColumns.colArchive  ' Column C
+    includeCol = PIFDataColumns.colInclude  ' Column D
+
+    ' Find last row with data
+    lastRow = wsData.Cells(wsData.Rows.Count, PIFDataColumns.colPIFID).End(xlUp).Row
+
+    clearedCount = 0
+
+    ' Loop through data rows (start at row 4, rows 1-3 are headers)
+    For i = 4 To lastRow
+        ' Skip empty rows
+        If Not IsEmpty(wsData.Cells(i, PIFDataColumns.colPIFID).Value) Then
+            ' If both checkboxes are checked, clear them
+            If wsData.Cells(i, archiveCol).Value = True And _
+               wsData.Cells(i, includeCol).Value = True Then
+                wsData.Cells(i, archiveCol).Value = False
+                wsData.Cells(i, includeCol).Value = False
+                clearedCount = clearedCount + 1
+            End If
+        End If
+    Next i
+
+    On Error GoTo 0
+
+    Debug.Print "Cleared archive/include checkboxes for " & clearedCount & " rows"
+End Sub
