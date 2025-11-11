@@ -246,6 +246,18 @@ Public Sub Edit_DeleteRows()
         ' When working with Excel Tables, we must use the ListRows collection
         ' to delete rows. Standard row deletion causes Error 1004.
 
+        ' Handle filtered tables: temporarily disable AutoFilter to allow deletion
+        Dim filterWasOn As Boolean
+        filterWasOn = False
+
+        If tbl.ShowAutoFilter Then
+            If tbl.AutoFilter.FilterMode Then
+                ' Filters are active - need to clear them temporarily
+                filterWasOn = True
+                tbl.AutoFilter.ShowAllData  ' Clear filters
+            End If
+        End If
+
         ' Build array of ListRow indices to delete
         Dim indicesToDelete() As Long
         Dim indexCount As Long
@@ -295,6 +307,9 @@ Public Sub Edit_DeleteRows()
         For i = 1 To indexCount
             tbl.ListRows(indicesToDelete(i)).Delete
         Next i
+
+        ' Note: AutoFilter is automatically reapplied by Excel after row deletion
+        ' No need to manually re-enable it
 
     Else
         ' ========================================================================

@@ -217,11 +217,27 @@ Public Function ExecuteSQLSecure(ByRef dbConnection As ADODB.Connection, _
     Exit Function
 
 ErrHandler:
+    Application.ScreenUpdating = True  ' Ensure error message is visible
+
     ' IMPROVEMENT: User-friendly error message (no SQL exposure)
-    MsgBox "Database operation failed." & vbCrLf & vbCrLf & _
-           "Error Code: " & Err.Number & vbCrLf & vbCrLf & _
-           "Please contact IT support if this persists.", _
-           vbCritical, "Database Error"
+    Dim errMsg As String
+    errMsg = "Database operation failed." & vbCrLf & vbCrLf & _
+             "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf
+
+    ' Add specific guidance for common errors
+    If Err.Number = -2147217900 Or InStr(1, Err.Description, "Invalid object name", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Missing database tables" & vbCrLf & _
+                         "ACTION: Run PIF_Database_DDL.sql to create required tables"
+    ElseIf Err.Number = -2147467259 Or InStr(1, Err.Description, "Login failed", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Database connection failure" & vbCrLf & _
+                         "ACTION: Check connection settings in mod_Database.bas" & vbCrLf & _
+                         "Server: " & SQL_SERVER & vbCrLf & _
+                         "Database: " & SQL_DATABASE
+    Else
+        errMsg = errMsg & "Please contact IT support if this persists."
+    End If
+
+    MsgBox errMsg, vbCritical, "Database Error"
 
     Call LogTechnicalError("ExecuteSQLSecure", Err.Number, Err.Description, _
                           "SQL: " & Left(sqlStatement, 200))
@@ -652,12 +668,26 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Exit Function
 
 ErrHandler:
+    Application.ScreenUpdating = True  ' Ensure error message is visible
     Debug.Print "ERROR: ExecuteStoredProcedureNonQuery failed: " & Err.Number & " - " & Err.Description
 
-    MsgBox "Stored procedure execution failed." & vbCrLf & vbCrLf & _
-           "Procedure: " & procedureName & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical, "Database Error"
+    Dim errMsg As String
+    errMsg = "Stored procedure execution failed." & vbCrLf & vbCrLf & _
+             "Procedure: " & procedureName & vbCrLf & _
+             "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf
+
+    ' Add specific guidance for common errors
+    If Err.Number = -2147217900 Or InStr(1, Err.Description, "Could not find stored procedure", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Stored procedure '" & procedureName & "' does not exist" & vbCrLf & _
+                         "ACTION: Run PIF_Database_DDL.sql to create required stored procedures" & vbCrLf & _
+                         "See VERIFY_STORED_PROC.sql to verify installation"
+    ElseIf Err.Number = 201 Or InStr(1, Err.Description, "parameter", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Parameter mismatch" & vbCrLf & _
+                         "ACTION: Check stored procedure parameters match VBA code" & vbCrLf & _
+                         "See VERIFY_STORED_PROC.sql to check parameters"
+    End If
+
+    MsgBox errMsg, vbCritical, "Database Error"
 
     Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
                           "Procedure: " & procedureName)
@@ -849,7 +879,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 ErrHandler:
     Application.StatusBar = False
     Application.ScreenUpdating = True
-    
+
     If Not conn Is Nothing Then
         If conn.State = adStateOpen Then
             On Error Resume Next
@@ -859,13 +889,29 @@ ErrHandler:
         End If
         Set conn = Nothing
     End If
-    
-    MsgBox "Bulk insert failed:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
-           "Table: " & tableName & vbCrLf & _
-           "Rows processed: " & rowCount, _
-           vbCritical, "Upload Error"
-           
+
+    ' Enhanced error message with diagnostic information
+    Dim errMsg As String
+    errMsg = "Bulk insert failed:" & vbCrLf & vbCrLf & _
+             "Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
+             "Table: " & tableName & vbCrLf & _
+             "Rows processed: " & rowCount & vbCrLf & vbCrLf
+
+    ' Add specific guidance for common errors
+    If Err.Number = -2147217900 Or InStr(1, Err.Description, "Could not find stored procedure", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Missing stored procedures" & vbCrLf & _
+                         "ACTION: Run PIF_Database_DDL.sql to create required stored procedures" & vbCrLf & _
+                         "See VERIFY_STORED_PROC.sql to check if procedures exist"
+    ElseIf Err.Number = -2147467259 Or InStr(1, Err.Description, "Login failed", vbTextCompare) > 0 Or _
+           InStr(1, Err.Description, "connect", vbTextCompare) > 0 Then
+        errMsg = errMsg & "LIKELY CAUSE: Database connection failure" & vbCrLf & _
+                         "ACTION: Check database connection settings in mod_Database.bas" & vbCrLf & _
+                         "Server: " & SQL_SERVER & vbCrLf & _
+                         "Database: " & SQL_DATABASE
+    End If
+
+    MsgBox errMsg, vbCritical, "Upload Error"
+
     BulkInsertToStaging = False
 End Function
 
