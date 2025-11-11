@@ -70,7 +70,7 @@ Public Sub Setup_SiteSelection()
         ' Create list of sites in hidden area
         .Range("E1").Value = "ANO"
         .Range("E2").Value = "GGN"
-        .Range("E3").Value = "RBN"
+        .Range("E3").Value = "RBS"
         .Range("E4").Value = "WF3"
         .Range("E5").Value = "HQN"
         .Range("E6").Value = "Fleet"
@@ -106,7 +106,7 @@ Public Sub Setup_SiteSelection()
         .Range("A12").Font.Bold = True
         .Range("A13").Value = "ANO - Arkansas Nuclear One"
         .Range("A14").Value = "GGN - Grand Gulf Nuclear"
-        .Range("A15").Value = "RBN - River Bend Nuclear"
+        .Range("A15").Value = "RBS - Riverbend Station"
         .Range("A16").Value = "WF3 - Waterford 3"
         .Range("A17").Value = "HQN - Headquarters"
         .Range("A18").Value = "Fleet - All Sites (Read-Only)"
@@ -160,7 +160,7 @@ End Sub
 ' ----------------------------------------------------------------------------
 ' Function: GetSelectedSite
 ' Purpose: Helper function to retrieve selected site from named range
-' Returns: Site code (ANO, GGN, RBN, WF3, HQN, Fleet) or empty string if not set
+' Returns: Site code (ANO, GGN, RBS, WF3, HQN, Fleet) or empty string if not set
 ' ----------------------------------------------------------------------------
 Public Function GetSelectedSite() As String
     On Error Resume Next
@@ -187,7 +187,7 @@ Public Function ValidateSelectedSite() As Boolean
 
     ' Validate site is one of the allowed values
     Select Case UCase(site)
-        Case "ANO", "GGN", "RBN", "WF3", "HQN", "FLEET"
+        Case "ANO", "GGN", "RBS", "WF3", "HQN", "FLEET"
             ValidateSelectedSite = True
         Case Else
             MsgBox "Invalid site selected: " & site & vbCrLf & vbCrLf & _

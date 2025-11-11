@@ -56,7 +56,7 @@ Public Sub DB_SaveSnapshot()
     If UCase(selectedSite) = "FLEET" Then
         MsgBox "Fleet cannot save data." & vbCrLf & vbCrLf & _
                "Fleet is read-only access for viewing all sites." & vbCrLf & _
-               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN) to save data.", _
+               "Please select a specific site (ANO, GGN, RBS, WF3, or HQN) to save data.", _
                vbExclamation, "Fleet Submission Not Allowed"
         Exit Sub
     End If
@@ -181,7 +181,7 @@ Public Sub DB_FinalizeMonth()
     If UCase(selectedSite) = "FLEET" Then
         MsgBox "Fleet cannot finalize data." & vbCrLf & vbCrLf & _
                "Fleet is read-only access for viewing all sites." & vbCrLf & _
-               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN).", _
+               "Please select a specific site (ANO, GGN, RBS, WF3, or HQN).", _
                vbExclamation, "Fleet Operation Not Allowed"
         Exit Sub
     End If

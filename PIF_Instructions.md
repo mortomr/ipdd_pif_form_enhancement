@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-1. **Select Your Site**: Go to the "Instructions" worksheet and select your site from the dropdown (ANO, GGN, RBN, WF3, HQN)
+1. **Select Your Site**: Go to the "Instructions" worksheet and select your site from the dropdown (ANO, GGN, RBS, WF3, HQN)
 2. **Enter PIF Name**: Enter the PIF name in cell A1 of the "PIF" tab (reference EN-PM-100 for naming guidance)
 
 ---
@@ -22,7 +22,7 @@
 | **G** | PIF ID | Yes | Unique PIF identifier (16 char max) |
 | **H** | SEG | No | Segment number |
 | **I** | Opco | No | Operating company code (4 char max) |
-| **J** | Site | Yes | Site code: ANO, GGN, RBN, WF3, or HQN |
+| **J** | Site | Yes | Site code: ANO, GGN, RBS, WF3, or HQN |
 | **K** | Strategic Rank | No | Strategic rank from LCM (26 char max) |
 | **L** | From Blanket? | No | Yes/No - Is funding from blanket project? |
 | **M** | Project # | Yes | Funding project number (10 char max) |
@@ -145,7 +145,7 @@ Two new worksheets show your data in familiar PIF format:
 - Go to Instructions worksheet and select a site from the dropdown
 
 **Error: "Fleet cannot submit data"**
-- Fleet is read-only - select a specific site (ANO, GGN, RBN, WF3, HQN) to save data
+- Fleet is read-only - select a specific site (ANO, GGN, RBS, WF3, HQN) to save data
 
 **Error: "Missing Required Field"**
 - Ensure PIF ID, Project #, Change Type, and Site are filled in for all data rows
