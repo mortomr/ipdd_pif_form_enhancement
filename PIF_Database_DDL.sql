@@ -380,6 +380,99 @@ AS
             ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
 GO
 
+-- ----------------------------------------------------------------------------
+-- View: vw_inflight_by_site
+-- Purpose: Query inflight records with site filtering (VBA adds WHERE clause)
+-- Usage: SELECT * FROM vw_inflight_by_site WHERE site = 'ANO'
+--        SELECT * FROM vw_inflight_by_site (for Fleet - all sites)
+-- ----------------------------------------------------------------------------
+
+IF OBJECT_ID('dbo.vw_inflight_by_site', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_inflight_by_site;
+GO
+
+CREATE VIEW dbo.vw_inflight_by_site
+AS
+    SELECT
+        p.pif_project_id,
+        p.pif_id,
+        p.project_id,
+        p.submission_date,
+        p.status,
+        p.change_type,
+        p.accounting_treatment,
+        p.category,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.moving_isd_year,
+        p.lcm_issue,
+        p.justification,
+        p.prior_year_spend,
+        p.archive_flag,
+        p.include_flag,
+        c.scenario,
+        c.year,
+        c.requested_value,
+        c.current_value,
+        c.variance_value
+    FROM dbo.tbl_pif_projects_inflight p
+        LEFT JOIN dbo.tbl_pif_cost_inflight c
+        ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+GO
+
+-- ----------------------------------------------------------------------------
+-- View: vw_approved_by_site
+-- Purpose: Query approved records with site filtering (VBA adds WHERE clause)
+-- Usage: SELECT * FROM vw_approved_by_site WHERE site = 'ANO'
+--        SELECT * FROM vw_approved_by_site (for Fleet - all sites)
+-- ----------------------------------------------------------------------------
+
+IF OBJECT_ID('dbo.vw_approved_by_site', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_approved_by_site;
+GO
+
+CREATE VIEW dbo.vw_approved_by_site
+AS
+    SELECT
+        p.pif_project_id,
+        p.pif_id,
+        p.project_id,
+        p.submission_date,
+        p.approval_date,
+        p.status,
+        p.change_type,
+        p.accounting_treatment,
+        p.category,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.moving_isd_year,
+        p.lcm_issue,
+        p.justification,
+        p.prior_year_spend,
+        p.archive_flag,
+        p.include_flag,
+        c.scenario,
+        c.year,
+        c.requested_value,
+        c.current_value,
+        c.variance_value
+    FROM dbo.tbl_pif_projects_approved p
+        LEFT JOIN dbo.tbl_pif_cost_approved c
+        ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+GO
+
 -- ============================================================================
 -- SECTION 6: SECURE STORED PROCEDURES (NEW)
 -- ============================================================================
@@ -718,6 +811,7 @@ IF OBJECT_ID('dbo.usp_commit_to_inflight', 'P') IS NOT NULL
 GO
 
 CREATE PROCEDURE dbo.usp_commit_to_inflight
+    @site VARCHAR(4)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -729,9 +823,17 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Step 1: Clear inflight tables
-        TRUNCATE TABLE dbo.tbl_pif_cost_inflight;
-        TRUNCATE TABLE dbo.tbl_pif_projects_inflight;
+        -- Step 1: Clear inflight tables for selected site only
+        -- Delete costs first (foreign key relationship)
+        DELETE c
+        FROM dbo.tbl_pif_cost_inflight c
+        INNER JOIN dbo.tbl_pif_projects_inflight p
+            ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        WHERE p.site = @site;
+
+        -- Delete projects for selected site
+        DELETE FROM dbo.tbl_pif_projects_inflight
+        WHERE site = @site;
 
         -- Step 2: Move validated data from staging to inflight
         INSERT INTO dbo.tbl_pif_projects_inflight
