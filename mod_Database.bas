@@ -836,14 +836,13 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     
     Application.StatusBar = False
     Application.ScreenUpdating = True
-    
+
     Dim elapsed As Double
     elapsed = Timer - startTime
-    
-    MsgBox "Successfully uploaded " & rowCount & " rows to " & tableName & vbCrLf & _
-           "Elapsed time: " & Format(elapsed, "0.0") & " seconds", _
-           vbInformation, "Upload Complete"
-    
+
+    ' IMPROVEMENT: Removed excessive messagebox - caller will display final result
+    ' Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+
     BulkInsertToStaging = True
     Exit Function
     
