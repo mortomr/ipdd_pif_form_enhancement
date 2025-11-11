@@ -866,7 +866,8 @@ BEGIN
         s.prior_year_spend,
         s.archive_flag,
         s.include_flag
-    FROM dbo.tbl_pif_projects_staging s;
+    FROM dbo.tbl_pif_projects_staging s
+    WHERE s.site = @site;
 
         SET @ProjectCount = @@ROWCOUNT;
 
@@ -876,9 +877,12 @@ BEGIN
         requested_value, current_value, variance_value
         )
     SELECT
-        pif_id, project_id, scenario, year,
-        requested_value, current_value, variance_value
-    FROM dbo.tbl_pif_cost_staging;
+        c.pif_id, c.project_id, c.scenario, c.year,
+        c.requested_value, c.current_value, c.variance_value
+    FROM dbo.tbl_pif_cost_staging c
+    INNER JOIN dbo.tbl_pif_projects_staging p
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+    WHERE p.site = @site;
 
         SET @CostCount = @@ROWCOUNT;
 
