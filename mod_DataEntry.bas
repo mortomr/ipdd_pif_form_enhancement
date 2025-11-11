@@ -193,7 +193,6 @@ Public Sub Edit_DeleteRows()
     Dim firstRow As Long
     Dim lastRow As Long
     Dim i As Long
-    Dim rowsToDelete As Collection
 
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
 
@@ -247,21 +246,54 @@ Public Sub Edit_DeleteRows()
         ' When working with Excel Tables, we must use the ListRows collection
         ' to delete rows. Standard row deletion causes Error 1004.
 
-        ' Build collection of ListRow indices to delete (in reverse order)
-        Set rowsToDelete = New Collection
-
+        ' Build array of ListRow indices to delete
+        Dim indicesToDelete() As Long
+        Dim indexCount As Long
         Dim lr As ListRow
+        Dim j As Long
+        Dim temp As Long
+
+        indexCount = 0
+
+        ' First pass: count how many rows to delete
         For Each lr In tbl.ListRows
-            ' Check if this ListRow intersects with our selection
             If Not Intersect(lr.Range, selectedRows) Is Nothing Then
-                ' Add to front of collection for reverse-order deletion
-                rowsToDelete.Add lr.Index, , 1
+                indexCount = indexCount + 1
             End If
         Next lr
 
-        ' Delete rows in reverse order to maintain correct indices
-        For i = 1 To rowsToDelete.Count
-            tbl.ListRows(rowsToDelete(i)).Delete
+        ' If no rows to delete, exit
+        If indexCount = 0 Then
+            Application.ScreenUpdating = True
+            Exit Sub
+        End If
+
+        ' Size the array
+        ReDim indicesToDelete(1 To indexCount)
+
+        ' Second pass: collect indices
+        j = 1
+        For Each lr In tbl.ListRows
+            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
+                indicesToDelete(j) = lr.Index
+                j = j + 1
+            End If
+        Next lr
+
+        ' Sort indices in descending order (bubble sort - simple and reliable)
+        For i = 1 To indexCount - 1
+            For j = i + 1 To indexCount
+                If indicesToDelete(i) < indicesToDelete(j) Then
+                    temp = indicesToDelete(i)
+                    indicesToDelete(i) = indicesToDelete(j)
+                    indicesToDelete(j) = temp
+                End If
+            Next j
+        Next i
+
+        ' Delete rows from highest index to lowest to maintain correct indices
+        For i = 1 To indexCount
+            tbl.ListRows(indicesToDelete(i)).Delete
         Next i
 
     Else

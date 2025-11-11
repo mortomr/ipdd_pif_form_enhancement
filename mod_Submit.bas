@@ -76,40 +76,68 @@ Public Sub DB_SaveSnapshot()
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
+    success = False  ' Track overall success
+
     ' STEP 1: Unpivot cost data
     Application.StatusBar = "Preparing cost data..."
-    success = UnpivotCostData()
-    If Not success Then GoTo Cleanup
+    If Not UnpivotCostData() Then
+        MsgBox "Failed to unpivot cost data." & vbCrLf & vbCrLf & _
+               "Please check your data and try again.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 2: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
-    success = UploadProjectData()
-    If Not success Then GoTo Cleanup
+    If Not UploadProjectData() Then
+        MsgBox "Failed to upload project data to staging." & vbCrLf & vbCrLf & _
+               "Please check database connection and try again.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
     Application.StatusBar = "Uploading cost data to staging..."
-    success = UploadCostData()
-    If Not success Then GoTo Cleanup
+    If Not UploadCostData() Then
+        MsgBox "Failed to upload cost data to staging." & vbCrLf & vbCrLf & _
+               "Please check database connection and try again.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 3: Validate staging data
     Application.StatusBar = "Running validation checks..."
-    success = ValidateData()  ' Excel-side validation
-    If Not success Then GoTo Cleanup
+    If Not ValidateData() Then
+        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
+               "Fix all validation errors and try again.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
-    success = ValidateStagingData()  ' SQL-side validation
-    If Not success Then GoTo Cleanup
+    If Not ValidateStagingData() Then
+        MsgBox "Database validation failed." & vbCrLf & vbCrLf & _
+               "Please check the Validation_Report sheet for errors.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 4: Commit to inflight tables
     Application.StatusBar = "Committing to database..."
-    success = CommitToInflight()
-    If Not success Then GoTo Cleanup
+    If Not CommitToInflight() Then
+        MsgBox "Failed to commit data to inflight tables." & vbCrLf & vbCrLf & _
+               "Database has been rolled back. Please check connection and try again.", _
+               vbCritical, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 5: Log submission
     Application.StatusBar = "Logging submission..."
-    success = LogSubmission()
+    Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
     ' STEP 6: Refresh query worksheets
     Application.StatusBar = "Refreshing query worksheets..."
     Call mod_WorksheetQuery.Nav_RefreshAll
+
+    success = True  ' Mark as successful
 
     ' Success!
     MsgBox "Working snapshot saved!" & vbCrLf & vbCrLf & _
@@ -205,45 +233,78 @@ Public Sub DB_FinalizeMonth()
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
 
+    success = False  ' Track overall success
+
     ' STEP 1: Unpivot cost data
     Application.StatusBar = "Preparing cost data..."
-    success = UnpivotCostData()
-    If Not success Then GoTo Cleanup
+    If Not UnpivotCostData() Then
+        MsgBox "Failed to unpivot cost data." & vbCrLf & vbCrLf & _
+               "Please check your data and try again.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 2: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
-    success = UploadProjectData()
-    If Not success Then GoTo Cleanup
+    If Not UploadProjectData() Then
+        MsgBox "Failed to upload project data to staging." & vbCrLf & vbCrLf & _
+               "Please check database connection and try again.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
     Application.StatusBar = "Uploading cost data to staging..."
-    success = UploadCostData()
-    If Not success Then GoTo Cleanup
+    If Not UploadCostData() Then
+        MsgBox "Failed to upload cost data to staging." & vbCrLf & vbCrLf & _
+               "Please check database connection and try again.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 3: Validate staging data
     Application.StatusBar = "Running validation checks..."
-    success = ValidateData()  ' Excel-side validation
-    If Not success Then GoTo Cleanup
+    If Not ValidateData() Then
+        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
+               "Fix all validation errors and try again.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
-    success = ValidateStagingData()  ' SQL-side validation
-    If Not success Then GoTo Cleanup
+    If Not ValidateStagingData() Then
+        MsgBox "Database validation failed." & vbCrLf & vbCrLf & _
+               "Please check the Validation_Report sheet for errors.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 4: Commit to inflight tables
     Application.StatusBar = "Committing to inflight database..."
-    success = CommitToInflight()
-    If Not success Then GoTo Cleanup
+    If Not CommitToInflight() Then
+        MsgBox "Failed to commit data to inflight tables." & vbCrLf & vbCrLf & _
+               "Database has been rolled back. Please check connection and try again.", _
+               vbCritical, "Finalization Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 5: Archive approved records (permanent storage)
     Application.StatusBar = "Archiving approved records to permanent storage..."
-    success = ArchiveApprovedRecordsInternal()
-    If Not success Then GoTo Cleanup
+    If Not ArchiveApprovedRecordsInternal() Then
+        MsgBox "Failed to archive approved records." & vbCrLf & vbCrLf & _
+               "Inflight data was saved, but archival failed." & vbCrLf & _
+               "Please check the database and try archiving manually.", _
+               vbExclamation, "Archival Failed"
+        GoTo Cleanup
+    End If
 
     ' STEP 6: Log submission
     Application.StatusBar = "Logging submission..."
-    success = LogSubmission()
+    Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
     ' STEP 7: Refresh query worksheets
     Application.StatusBar = "Refreshing query worksheets..."
     Call mod_WorksheetQuery.Nav_RefreshAll
+
+    success = True  ' Mark as successful
 
     ' Success!
     Dim elapsed As Double

@@ -28,17 +28,18 @@ Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
 ' Sub: RefreshArchiveWorksheet
 ' Purpose: Create or refresh the Archive worksheet with approved records
 ' Usage: Call from button or manually
+' Notes: Uses Excel QueryTable for native refresh capability (no VBA needed)
 ' ----------------------------------------------------------------------------
 Public Sub Nav_RefreshArchive()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
-    Dim conn As ADODB.Connection
-    Dim rs As ADODB.Recordset
     Dim ws As Worksheet
     Dim sql As String
     Dim startTime As Double
-    Dim rowCount As Long
+    Dim qt As QueryTable
+    Dim connStr As String
+    Dim tbl As ListObject
 
     startTime = Timer
 
@@ -56,9 +57,6 @@ Public Sub Nav_RefreshArchive()
     ' Get or create worksheet
     Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE, "Archive (Read-Only)")
 
-    ' Clear existing data
-    ws.Cells.Clear
-
     ' Build SQL query with site filter
     sql = "SELECT * FROM dbo.vw_pif_approved_wide"
 
@@ -69,27 +67,13 @@ Public Sub Nav_RefreshArchive()
 
     sql = sql & " ORDER BY approval_date DESC, pif_id, project_id"
 
-    ' Execute query
-    Set conn = mod_Database.GetDBConnection()
-    If conn Is Nothing Then Exit Sub
+    ' Build connection string using Windows Authentication
+    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
+              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
+              ";Integrated Security=SSPI;"
 
-    Set rs = New ADODB.Recordset
-    rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
-
-    ' Write headers starting at B4
-    Call WriteRecordsetHeaders(ws, rs)
-
-    ' Write data starting at row 5 (after headers at row 4)
-    rowCount = WriteRecordsetData(ws, rs, 5)
-
-    ' Format worksheet (lastRow = dataRows + headerRow)
-    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 4)
-
-    ' Cleanup
-    rs.Close
-    conn.Close
-    Set rs = Nothing
-    Set conn = Nothing
+    ' Create or refresh QueryTable
+    Call CreateOrRefreshQueryTable(ws, "ArchiveQuery", sql, connStr, selectedSite)
 
     ws.Activate
     Application.ScreenUpdating = True
@@ -98,10 +82,19 @@ Public Sub Nav_RefreshArchive()
     Dim elapsed As Double
     elapsed = Timer - startTime
 
+    ' Count records (excluding header)
+    Dim recordCount As Long
+    recordCount = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row - 4
+    If recordCount < 0 Then recordCount = 0
+
     MsgBox "Archive worksheet refreshed!" & vbCrLf & vbCrLf & _
            "Site: " & selectedSite & vbCrLf & _
-           "Records: " & rowCount & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds", _
+           "Records: " & recordCount & vbCrLf & _
+           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
+           "NOTE: You can refresh this data anytime by:" & vbCrLf & _
+           "  1. Right-clicking on the table" & vbCrLf & _
+           "  2. Selecting 'Refresh' from the context menu" & vbCrLf & _
+           "  3. Or using Data > Refresh All on the ribbon", _
            vbInformation, "Refresh Complete"
 
     Exit Sub
@@ -119,17 +112,18 @@ End Sub
 ' Sub: RefreshInflightWorksheet
 ' Purpose: Create or refresh the Inflight worksheet with current working records
 ' Usage: Call from button or manually
+' Notes: Uses Excel QueryTable for native refresh capability (no VBA needed)
 ' ----------------------------------------------------------------------------
 Public Sub Nav_RefreshInflight()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
-    Dim conn As ADODB.Connection
-    Dim rs As ADODB.Recordset
     Dim ws As Worksheet
     Dim sql As String
     Dim startTime As Double
-    Dim rowCount As Long
+    Dim qt As QueryTable
+    Dim connStr As String
+    Dim tbl As ListObject
 
     startTime = Timer
 
@@ -147,9 +141,6 @@ Public Sub Nav_RefreshInflight()
     ' Get or create worksheet
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
 
-    ' Clear existing data
-    ws.Cells.Clear
-
     ' Build SQL query with site filter
     sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
 
@@ -160,27 +151,13 @@ Public Sub Nav_RefreshInflight()
 
     sql = sql & " ORDER BY submission_date DESC, pif_id, project_id"
 
-    ' Execute query
-    Set conn = mod_Database.GetDBConnection()
-    If conn Is Nothing Then Exit Sub
+    ' Build connection string using Windows Authentication
+    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
+              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
+              ";Integrated Security=SSPI;"
 
-    Set rs = New ADODB.Recordset
-    rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
-
-    ' Write headers starting at B4
-    Call WriteRecordsetHeaders(ws, rs)
-
-    ' Write data starting at row 5 (after headers at row 4)
-    rowCount = WriteRecordsetData(ws, rs, 5)
-
-    ' Format worksheet (lastRow = dataRows + headerRow)
-    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 4)
-
-    ' Cleanup
-    rs.Close
-    conn.Close
-    Set rs = Nothing
-    Set conn = Nothing
+    ' Create or refresh QueryTable
+    Call CreateOrRefreshQueryTable(ws, "InflightQuery", sql, connStr, selectedSite)
 
     ws.Activate
     Application.ScreenUpdating = True
@@ -189,10 +166,19 @@ Public Sub Nav_RefreshInflight()
     Dim elapsed As Double
     elapsed = Timer - startTime
 
+    ' Count records (excluding header)
+    Dim recordCount As Long
+    recordCount = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row - 4
+    If recordCount < 0 Then recordCount = 0
+
     MsgBox "Inflight worksheet refreshed!" & vbCrLf & vbCrLf & _
            "Site: " & selectedSite & vbCrLf & _
-           "Records: " & rowCount & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds", _
+           "Records: " & recordCount & vbCrLf & _
+           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
+           "NOTE: You can refresh this data anytime by:" & vbCrLf & _
+           "  1. Right-clicking on the table" & vbCrLf & _
+           "  2. Selecting 'Refresh' from the context menu" & vbCrLf & _
+           "  3. Or using Data > Refresh All on the ribbon", _
            vbInformation, "Refresh Complete"
 
     Exit Sub
@@ -237,6 +223,108 @@ End Sub
 ' ============================================================================
 ' PRIVATE HELPER FUNCTIONS
 ' ============================================================================
+
+' ----------------------------------------------------------------------------
+' Sub: CreateOrRefreshQueryTable
+' Purpose: Create or refresh a QueryTable connection to SQL Server
+' Parameters:
+'   ws - Target worksheet
+'   queryName - Name for the QueryTable
+'   sql - SQL query string
+'   connStr - Connection string
+'   siteName - Site name for table formatting
+' Notes: Creates native Excel QueryTable that can be refreshed without VBA
+' ----------------------------------------------------------------------------
+Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
+                                      ByVal queryName As String, _
+                                      ByVal sql As String, _
+                                      ByVal connStr As String, _
+                                      ByVal siteName As String)
+    On Error GoTo ErrHandler
+
+    Dim qt As QueryTable
+    Dim tbl As ListObject
+    Dim qtExists As Boolean
+    Dim i As Integer
+
+    ' Clear worksheet
+    ws.Cells.Clear
+
+    ' Delete existing QueryTables on this worksheet
+    For i = ws.QueryTables.Count To 1 Step -1
+        ws.QueryTables(i).Delete
+    Next i
+
+    ' Delete existing ListObjects (Tables)
+    For i = ws.ListObjects.Count To 1 Step -1
+        ws.ListObjects(i).Delete
+    Next i
+
+    ' Create new QueryTable starting at B4
+    Set qt = ws.QueryTables.Add( _
+        Connection:=connStr, _
+        Destination:=ws.Range("B4"), _
+        sql:=sql)
+
+    ' Configure QueryTable properties
+    With qt
+        .Name = queryName
+        .FieldNames = True
+        .RowNumbers = False
+        .FillAdjacentFormulas = False
+        .PreserveFormatting = True
+        .RefreshOnFileOpen = False
+        .BackgroundQuery = False
+        .RefreshStyle = xlInsertDeleteCells
+        .SavePassword = False
+        .SaveData = True
+        .AdjustColumnWidth = True
+        .RefreshPeriod = 0
+        .PreserveColumnInfo = True
+
+        ' Refresh to populate data
+        .Refresh BackgroundQuery:=False
+    End With
+
+    ' Convert QueryTable result to Excel Table for better user experience
+    ' Find the data range (QueryTable's ResultRange)
+    If Not qt.ResultRange Is Nothing Then
+        On Error Resume Next
+        Set tbl = ws.ListObjects.Add(xlSrcRange, qt.ResultRange, , xlYes)
+        On Error GoTo ErrHandler
+
+        If Not tbl Is Nothing Then
+            tbl.Name = Replace(queryName, " ", "_") & "_Table"
+            tbl.TableStyle = "TableStyleMedium2"
+
+            ' Disable table autoexpand (prevents issues with refresh)
+            tbl.ShowAutoFilter = True
+        End If
+    End If
+
+    ' Format the worksheet
+    ws.Columns("B:ZZ").AutoFit
+    ws.Range("B4").Select
+    ActiveWindow.FreezePanes = True
+
+    ' Add title header in row 1
+    ws.Range("B1").Value = UCase(Replace(queryName, "Query", "")) & " - " & siteName
+    ws.Range("B1").Font.Bold = True
+    ws.Range("B1").Font.Size = 14
+
+    ' Add instructions in row 2
+    ws.Range("B2").Value = "To refresh this data: Right-click on the table and select 'Refresh', or use Data > Refresh All"
+    ws.Range("B2").Font.Italic = True
+    ws.Range("B2").Font.Size = 9
+    ws.Range("B2").Font.Color = RGB(128, 128, 128)
+
+    Exit Sub
+
+ErrHandler:
+    MsgBox "Error creating QueryTable:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbExclamation, "QueryTable Error"
+End Sub
 
 ' ----------------------------------------------------------------------------
 ' Function: GetOrCreateWorksheet
@@ -378,22 +466,20 @@ End Sub
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshArchiveWorksheetSilent
 ' Purpose: Refresh Archive worksheet without messagebox (for batch operations)
+' Notes: Uses Excel QueryTable for native refresh capability
 ' ----------------------------------------------------------------------------
 Private Sub RefreshArchiveWorksheetSilent()
     On Error Resume Next
 
     Dim selectedSite As String
-    Dim conn As ADODB.Connection
-    Dim rs As ADODB.Recordset
     Dim ws As Worksheet
     Dim sql As String
-    Dim rowCount As Long
+    Dim connStr As String
 
     selectedSite = mod_SiteSetup.GetSelectedSite()
     If selectedSite = "" Then Exit Sub
 
     Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE, "Archive (Read-Only)")
-    ws.Cells.Clear
 
     sql = "SELECT * FROM dbo.vw_pif_approved_wide"
     If UCase(selectedSite) <> "FLEET" Then
@@ -401,18 +487,11 @@ Private Sub RefreshArchiveWorksheetSilent()
     End If
     sql = sql & " ORDER BY approval_date DESC, pif_id, project_id"
 
-    Set conn = mod_Database.GetDBConnection()
-    If conn Is Nothing Then Exit Sub
+    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
+              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
+              ";Integrated Security=SSPI;"
 
-    Set rs = New ADODB.Recordset
-    rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
-
-    Call WriteRecordsetHeaders(ws, rs)
-    rowCount = WriteRecordsetData(ws, rs, 5)
-    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 4)
-
-    rs.Close
-    conn.Close
+    Call CreateOrRefreshQueryTable(ws, "ArchiveQuery", sql, connStr, selectedSite)
 
     On Error GoTo 0
 End Sub
@@ -420,22 +499,20 @@ End Sub
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshInflightWorksheetSilent
 ' Purpose: Refresh Inflight worksheet without messagebox (for batch operations)
+' Notes: Uses Excel QueryTable for native refresh capability
 ' ----------------------------------------------------------------------------
 Private Sub RefreshInflightWorksheetSilent()
     On Error Resume Next
 
     Dim selectedSite As String
-    Dim conn As ADODB.Connection
-    Dim rs As ADODB.Recordset
     Dim ws As Worksheet
     Dim sql As String
-    Dim rowCount As Long
+    Dim connStr As String
 
     selectedSite = mod_SiteSetup.GetSelectedSite()
     If selectedSite = "" Then Exit Sub
 
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
-    ws.Cells.Clear
 
     sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
     If UCase(selectedSite) <> "FLEET" Then
@@ -443,18 +520,11 @@ Private Sub RefreshInflightWorksheetSilent()
     End If
     sql = sql & " ORDER BY submission_date DESC, pif_id, project_id"
 
-    Set conn = mod_Database.GetDBConnection()
-    If conn Is Nothing Then Exit Sub
+    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
+              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
+              ";Integrated Security=SSPI;"
 
-    Set rs = New ADODB.Recordset
-    rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
-
-    Call WriteRecordsetHeaders(ws, rs)
-    rowCount = WriteRecordsetData(ws, rs, 5)
-    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 4)
-
-    rs.Close
-    conn.Close
+    Call CreateOrRefreshQueryTable(ws, "InflightQuery", sql, connStr, selectedSite)
 
     On Error GoTo 0
 End Sub
