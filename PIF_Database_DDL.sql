@@ -500,8 +500,10 @@ CREATE PROCEDURE dbo.usp_insert_project_staging
     @strategic_rank VARCHAR(26) = NULL,
     @funding_project VARCHAR(10) = NULL,
     @project_name VARCHAR(35) = NULL,
-    @original_fp_isd VARCHAR(20) = NULL, -- Corrected length
-    @revised_fp_isd VARCHAR(20) = NULL,  -- Corrected length
+    @original_fp_isd VARCHAR(20) = NULL,
+    -- Corrected length
+    @revised_fp_isd VARCHAR(20) = NULL,
+    -- Corrected length
     @moving_isd_year CHAR(1) = NULL,
     @lcm_issue VARCHAR(11) = NULL,
     @justification VARCHAR(192) = NULL,
@@ -517,12 +519,12 @@ BEGIN
         -- Insert into staging table
         INSERT INTO dbo.tbl_pif_projects_staging
         (
-            pif_id, project_id, status, change_type, accounting_treatment,
-            category, seg, opco, site, strategic_rank, funding_project,
-            project_name, original_fp_isd, revised_fp_isd, moving_isd_year,
-            lcm_issue, justification, prior_year_spend, archive_flag, include_flag
+        pif_id, project_id, status, change_type, accounting_treatment,
+        category, seg, opco, site, strategic_rank, funding_project,
+        project_name, original_fp_isd, revised_fp_isd, moving_isd_year,
+        lcm_issue, justification, prior_year_spend, archive_flag, include_flag
         )
-        VALUES
+    VALUES
         (
             @pif_id, @project_id, @status, @change_type, @accounting_treatment,
             @category, @seg, @opco, @site, @strategic_rank, @funding_project,
@@ -571,10 +573,10 @@ BEGIN
     BEGIN TRY
         INSERT INTO dbo.tbl_pif_cost_staging
         (
-            pif_id, project_id, scenario, year,
-            requested_value, current_value, variance_value
+        pif_id, project_id, scenario, year,
+        requested_value, current_value, variance_value
         )
-        VALUES
+    VALUES
         (
             @pif_id, @project_id, @scenario, @year,
             @requested_value, @current_value, @variance_value
@@ -828,7 +830,7 @@ BEGIN
         DELETE c
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-            ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
         WHERE p.site = @site;
 
         -- Delete projects for selected site
