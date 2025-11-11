@@ -27,13 +27,14 @@ Option Explicit
 ' ============================================================================
 
 ' ----------------------------------------------------------------------------
-' Sub: SubmitToDatabase
-' Purpose: Main entry point for PIF submission process
-' Usage: Attach this to a button or run from VBA editor
+' Sub: SaveSnapshot
+' Purpose: Save current PIF data to inflight tables (working snapshot)
+' Usage: Attach to [Save Snapshot] button - for ongoing work, no archival
+' Notes: This is for in-progress work - does NOT archive to permanent tables
 ' ----------------------------------------------------------------------------
-Public Sub SubmitToDatabase()
+Public Sub SaveSnapshot()
     On Error GoTo ErrHandler
-    
+
     Dim response As VbMsgBoxResult
     Dim startTime As Double
     Dim success As Boolean
@@ -45,7 +46,7 @@ Public Sub SubmitToDatabase()
     On Error GoTo ErrHandler
 
     If selectedSite = "" Then
-        MsgBox "Please select a site before submitting." & vbCrLf & vbCrLf & _
+        MsgBox "Please select a site before saving." & vbCrLf & vbCrLf & _
                "Go to the Instructions worksheet and select your site from the dropdown.", _
                vbExclamation, "Site Not Selected"
         Exit Sub
@@ -53,17 +54,18 @@ Public Sub SubmitToDatabase()
 
     ' Block Fleet submissions (read-only access)
     If UCase(selectedSite) = "FLEET" Then
-        MsgBox "Fleet cannot submit data." & vbCrLf & vbCrLf & _
+        MsgBox "Fleet cannot save data." & vbCrLf & vbCrLf & _
                "Fleet is read-only access for viewing all sites." & vbCrLf & _
-               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN) to submit data.", _
+               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN) to save data.", _
                vbExclamation, "Fleet Submission Not Allowed"
         Exit Sub
     End If
 
     ' Confirmation prompt
-    response = MsgBox("Submit PIF data for site: " & selectedSite & "?" & vbCrLf & vbCrLf & _
-                      "This will update the inflight database tables.", _
-                      vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Submission")
+    response = MsgBox("Save working snapshot for site: " & selectedSite & "?" & vbCrLf & vbCrLf & _
+                      "This will update the inflight tables with your current work." & vbCrLf & _
+                      "Records will NOT be archived to permanent storage.", _
+                      vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Save Snapshot")
 
     If response = vbNo Then
         Exit Sub
@@ -73,66 +75,255 @@ Public Sub SubmitToDatabase()
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
     Application.EnableEvents = False
-    
+
     ' STEP 1: Unpivot cost data
     Application.StatusBar = "Preparing cost data..."
     success = UnpivotCostData()
     If Not success Then GoTo Cleanup
 
-    ' STEP 2: Create backups (DISABLED - creates clutter in database)
-    ' Application.StatusBar = "Creating backup tables..."
-    ' success = CreateBackupTables()
-    ' If Not success Then GoTo Cleanup
-
-    ' STEP 3: Upload to staging
+    ' STEP 2: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
     success = UploadProjectData()
     If Not success Then GoTo Cleanup
-    
+
     Application.StatusBar = "Uploading cost data to staging..."
     success = UploadCostData()
     If Not success Then GoTo Cleanup
-    
-    ' STEP 4: Validate staging data
+
+    ' STEP 3: Validate staging data
     Application.StatusBar = "Running validation checks..."
     success = ValidateData()  ' Excel-side validation
     If Not success Then GoTo Cleanup
-    
+
     success = ValidateStagingData()  ' SQL-side validation
     If Not success Then GoTo Cleanup
 
-    ' STEP 5: Commit to inflight tables
+    ' STEP 4: Commit to inflight tables
     Application.StatusBar = "Committing to database..."
     success = CommitToInflight()
     If Not success Then GoTo Cleanup
 
-    ' STEP 6: Log submission
+    ' STEP 5: Log submission
     Application.StatusBar = "Logging submission..."
     success = LogSubmission()
 
+    ' STEP 6: Refresh query worksheets
+    Application.StatusBar = "Refreshing query worksheets..."
+    Call mod_WorksheetQuery.RefreshBothWorksheets
+
     ' Success!
-    MsgBox "Snapshot saved to working database (inflight tables)." & vbCrLf & vbCrLf & _
-           "Site: " & selectedSite, vbInformation, "Success"
-    
+    MsgBox "Working snapshot saved!" & vbCrLf & vbCrLf & _
+           "Site: " & selectedSite & vbCrLf & _
+           "Data saved to inflight tables (in-progress work)" & vbCrLf & vbCrLf & _
+           "To permanently archive approved records, use [Finalize Month] button.", _
+           vbInformation, "Snapshot Saved"
+
 Cleanup:
     Application.StatusBar = False
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
     Exit Sub
-    
+
 ErrHandler:
     Application.StatusBar = False
     Application.ScreenUpdating = True
     Application.Calculation = xlCalculationAutomatic
     Application.EnableEvents = True
-    
-    MsgBox "Submission failed:" & vbCrLf & vbCrLf & _
+
+    MsgBox "Save failed:" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
            "The database has been rolled back to its previous state." & vbCrLf & _
            "Please review the error and try again.", _
-           vbCritical, "Submission Error"
+           vbCritical, "Save Error"
 End Sub
+
+' ----------------------------------------------------------------------------
+' Sub: SubmitToDatabase (DEPRECATED - Use SaveSnapshot instead)
+' Purpose: Backward compatibility wrapper
+' ----------------------------------------------------------------------------
+Public Sub SubmitToDatabase()
+    Call SaveSnapshot
+End Sub
+
+' ----------------------------------------------------------------------------
+' Sub: FinalizeMonth
+' Purpose: Complete month-end workflow - save to inflight AND archive approved
+' Usage: Attach to [Finalize Month] button - when all decisions are final
+' Notes: This does the FULL workflow including permanent archival
+' ----------------------------------------------------------------------------
+Public Sub FinalizeMonth()
+    On Error GoTo ErrHandler
+
+    Dim response As VbMsgBoxResult
+    Dim startTime As Double
+    Dim success As Boolean
+    Dim selectedSite As String
+
+    ' STEP 0: Validate site selection
+    On Error Resume Next
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    On Error GoTo ErrHandler
+
+    If selectedSite = "" Then
+        MsgBox "Please select a site before finalizing." & vbCrLf & vbCrLf & _
+               "Go to the Instructions worksheet and select your site from the dropdown.", _
+               vbExclamation, "Site Not Selected"
+        Exit Sub
+    End If
+
+    ' Block Fleet operations (read-only access)
+    If UCase(selectedSite) = "FLEET" Then
+        MsgBox "Fleet cannot finalize data." & vbCrLf & vbCrLf & _
+               "Fleet is read-only access for viewing all sites." & vbCrLf & _
+               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN).", _
+               vbExclamation, "Fleet Operation Not Allowed"
+        Exit Sub
+    End If
+
+    ' Strong confirmation prompt for final operation
+    response = MsgBox("FINALIZE MONTH for site: " & selectedSite & "?" & vbCrLf & vbCrLf & _
+                      "This will:" & vbCrLf & _
+                      "  1. Save all current data to inflight tables" & vbCrLf & _
+                      "  2. PERMANENTLY ARCHIVE records marked for archive + include" & vbCrLf & _
+                      "  3. Update query worksheets" & vbCrLf & vbCrLf & _
+                      "Use this when all month-end decisions are final." & vbCrLf & vbCrLf & _
+                      "Proceed with month-end finalization?", _
+                      vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Month-End Finalization")
+
+    If response = vbNo Then
+        Exit Sub
+    End If
+
+    startTime = Timer
+    Application.ScreenUpdating = False
+    Application.Calculation = xlCalculationManual
+    Application.EnableEvents = False
+
+    ' STEP 1: Unpivot cost data
+    Application.StatusBar = "Preparing cost data..."
+    success = UnpivotCostData()
+    If Not success Then GoTo Cleanup
+
+    ' STEP 2: Upload to staging
+    Application.StatusBar = "Uploading project data to staging..."
+    success = UploadProjectData()
+    If Not success Then GoTo Cleanup
+
+    Application.StatusBar = "Uploading cost data to staging..."
+    success = UploadCostData()
+    If Not success Then GoTo Cleanup
+
+    ' STEP 3: Validate staging data
+    Application.StatusBar = "Running validation checks..."
+    success = ValidateData()  ' Excel-side validation
+    If Not success Then GoTo Cleanup
+
+    success = ValidateStagingData()  ' SQL-side validation
+    If Not success Then GoTo Cleanup
+
+    ' STEP 4: Commit to inflight tables
+    Application.StatusBar = "Committing to inflight database..."
+    success = CommitToInflight()
+    If Not success Then GoTo Cleanup
+
+    ' STEP 5: Archive approved records (permanent storage)
+    Application.StatusBar = "Archiving approved records to permanent storage..."
+    success = ArchiveApprovedRecordsInternal()
+    If Not success Then GoTo Cleanup
+
+    ' STEP 6: Log submission
+    Application.StatusBar = "Logging submission..."
+    success = LogSubmission()
+
+    ' STEP 7: Refresh query worksheets
+    Application.StatusBar = "Refreshing query worksheets..."
+    Call mod_WorksheetQuery.RefreshBothWorksheets
+
+    ' Success!
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+
+    MsgBox "MONTH-END FINALIZATION COMPLETE!" & vbCrLf & vbCrLf & _
+           "Site: " & selectedSite & vbCrLf & _
+           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
+           "Actions completed:" & vbCrLf & _
+           "  - Saved snapshot to inflight tables" & vbCrLf & _
+           "  - Archived approved records to permanent storage" & vbCrLf & _
+           "  - Refreshed Archive and Inflight worksheets", _
+           vbInformation, "Finalization Complete"
+
+Cleanup:
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+    Exit Sub
+
+ErrHandler:
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+    Application.Calculation = xlCalculationAutomatic
+    Application.EnableEvents = True
+
+    MsgBox "Finalization failed:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "The database has been rolled back to its previous state." & vbCrLf & _
+           "Please review the error and try again.", _
+           vbCritical, "Finalization Error"
+End Sub
+
+' ----------------------------------------------------------------------------
+' Function: ArchiveApprovedRecordsInternal
+' Purpose: Internal function to archive records with archive=1 AND include=1
+' Returns: True if successful, False if failed
+' Notes: Called by FinalizeMonth - uses stored procedure for UPSERT capability
+' ----------------------------------------------------------------------------
+Private Function ArchiveApprovedRecordsInternal() As Boolean
+    On Error GoTo ErrHandler
+
+    Dim conn As ADODB.Connection
+    Dim selectedSite As String
+    Dim success As Boolean
+
+    ' Get selected site
+    selectedSite = mod_SiteSetup.GetSelectedSite()
+    If selectedSite = "" Then
+        ArchiveApprovedRecordsInternal = False
+        Exit Function
+    End If
+
+    ' Connect to database
+    Set conn = mod_Database.GetDBConnection()
+    If conn Is Nothing Then
+        ArchiveApprovedRecordsInternal = False
+        Exit Function
+    End If
+
+    ' Call stored procedure with site parameter
+    ' usp_archive_approved_pifs handles UPSERT and DELETE operations
+    success = mod_Database.ExecuteStoredProcedureNonQuery(conn, "dbo.usp_archive_approved_pifs", _
+                                                          "@site", adVarChar, adParamInput, 4, selectedSite)
+
+    ' Cleanup
+    conn.Close
+    Set conn = Nothing
+
+    ArchiveApprovedRecordsInternal = success
+    Exit Function
+
+ErrHandler:
+    If Not conn Is Nothing Then
+        If conn.State = adStateOpen Then conn.Close
+        Set conn = Nothing
+    End If
+
+    MsgBox "Archive operation failed:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbCritical, "Archive Error"
+
+    ArchiveApprovedRecordsInternal = False
+End Function
 
 ' ----------------------------------------------------------------------------
 ' Sub: RunValidationOnly

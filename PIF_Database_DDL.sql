@@ -473,6 +473,245 @@ AS
         ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
 GO
 
+-- ----------------------------------------------------------------------------
+-- View: vw_inflight_wide
+-- Purpose: Inflight data in WIDE format (mimics original PIF Excel layout)
+-- Usage: SELECT * FROM vw_inflight_wide WHERE site = 'ANO'
+-- Notes: Cost data is pivoted from long format back to wide format
+--        Columns match original Excel layout for user familiarity
+-- ----------------------------------------------------------------------------
+
+IF OBJECT_ID('dbo.vw_inflight_wide', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_inflight_wide;
+GO
+
+CREATE VIEW dbo.vw_inflight_wide
+AS
+    WITH cost_pivot AS (
+        SELECT
+            pif_id,
+            project_id,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN requested_value END) AS Target_Req_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN requested_value END) AS Target_Req_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN requested_value END) AS Target_Req_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN requested_value END) AS Target_Req_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN requested_value END) AS Target_Req_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN requested_value END) AS Target_Req_2030,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN current_value END) AS Target_Curr_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN current_value END) AS Target_Curr_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN current_value END) AS Target_Curr_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN current_value END) AS Target_Curr_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN current_value END) AS Target_Curr_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN current_value END) AS Target_Curr_2030,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN variance_value END) AS Target_Var_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN variance_value END) AS Target_Var_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN variance_value END) AS Target_Var_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN variance_value END) AS Target_Var_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN variance_value END) AS Target_Var_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN variance_value END) AS Target_Var_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN requested_value END) AS Closings_Req_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN requested_value END) AS Closings_Req_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN requested_value END) AS Closings_Req_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN requested_value END) AS Closings_Req_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN requested_value END) AS Closings_Req_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN requested_value END) AS Closings_Req_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN current_value END) AS Closings_Curr_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN current_value END) AS Closings_Curr_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN current_value END) AS Closings_Curr_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN current_value END) AS Closings_Curr_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN current_value END) AS Closings_Curr_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN current_value END) AS Closings_Curr_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN variance_value END) AS Closings_Var_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN variance_value END) AS Closings_Var_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN variance_value END) AS Closings_Var_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN variance_value END) AS Closings_Var_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN variance_value END) AS Closings_Var_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN variance_value END) AS Closings_Var_2030
+        FROM dbo.tbl_pif_cost_inflight
+        GROUP BY pif_id, project_id
+    )
+    SELECT
+        p.archive_flag,
+        p.include_flag,
+        p.accounting_treatment,
+        p.change_type,
+        p.pif_id,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.lcm_issue,
+        p.status,
+        p.category,
+        p.justification,
+        c.Target_Req_2025,
+        c.Target_Req_2026,
+        c.Target_Req_2027,
+        c.Target_Req_2028,
+        c.Target_Req_2029,
+        c.Target_Req_2030,
+        c.Target_Curr_2025,
+        c.Target_Curr_2026,
+        c.Target_Curr_2027,
+        c.Target_Curr_2028,
+        c.Target_Curr_2029,
+        c.Target_Curr_2030,
+        c.Target_Var_2025,
+        c.Target_Var_2026,
+        c.Target_Var_2027,
+        c.Target_Var_2028,
+        c.Target_Var_2029,
+        c.Target_Var_2030,
+        p.moving_isd_year,
+        p.prior_year_spend,
+        c.Closings_Req_2025,
+        c.Closings_Req_2026,
+        c.Closings_Req_2027,
+        c.Closings_Req_2028,
+        c.Closings_Req_2029,
+        c.Closings_Req_2030,
+        c.Closings_Curr_2025,
+        c.Closings_Curr_2026,
+        c.Closings_Curr_2027,
+        c.Closings_Curr_2028,
+        c.Closings_Curr_2029,
+        c.Closings_Curr_2030,
+        c.Closings_Var_2025,
+        c.Closings_Var_2026,
+        c.Closings_Var_2027,
+        c.Closings_Var_2028,
+        c.Closings_Var_2029,
+        c.Closings_Var_2030,
+        p.submission_date,
+        p.project_id
+    FROM dbo.tbl_pif_projects_inflight p
+        LEFT JOIN cost_pivot c ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+GO
+
+-- ----------------------------------------------------------------------------
+-- View: vw_approved_wide
+-- Purpose: Approved data in WIDE format (mimics original PIF Excel layout)
+-- Usage: SELECT * FROM vw_approved_wide WHERE site = 'ANO'
+-- Notes: Cost data is pivoted from long format back to wide format
+--        Columns match original Excel layout for user familiarity
+-- ----------------------------------------------------------------------------
+
+IF OBJECT_ID('dbo.vw_approved_wide', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_approved_wide;
+GO
+
+CREATE VIEW dbo.vw_approved_wide
+AS
+    WITH cost_pivot AS (
+        SELECT
+            pif_id,
+            project_id,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN requested_value END) AS Target_Req_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN requested_value END) AS Target_Req_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN requested_value END) AS Target_Req_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN requested_value END) AS Target_Req_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN requested_value END) AS Target_Req_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN requested_value END) AS Target_Req_2030,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN current_value END) AS Target_Curr_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN current_value END) AS Target_Curr_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN current_value END) AS Target_Curr_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN current_value END) AS Target_Curr_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN current_value END) AS Target_Curr_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN current_value END) AS Target_Curr_2030,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2025 THEN variance_value END) AS Target_Var_2025,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2026 THEN variance_value END) AS Target_Var_2026,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2027 THEN variance_value END) AS Target_Var_2027,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2028 THEN variance_value END) AS Target_Var_2028,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2029 THEN variance_value END) AS Target_Var_2029,
+            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = 2030 THEN variance_value END) AS Target_Var_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN requested_value END) AS Closings_Req_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN requested_value END) AS Closings_Req_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN requested_value END) AS Closings_Req_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN requested_value END) AS Closings_Req_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN requested_value END) AS Closings_Req_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN requested_value END) AS Closings_Req_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN current_value END) AS Closings_Curr_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN current_value END) AS Closings_Curr_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN current_value END) AS Closings_Curr_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN current_value END) AS Closings_Curr_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN current_value END) AS Closings_Curr_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN current_value END) AS Closings_Curr_2030,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2025 THEN variance_value END) AS Closings_Var_2025,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2026 THEN variance_value END) AS Closings_Var_2026,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2027 THEN variance_value END) AS Closings_Var_2027,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2028 THEN variance_value END) AS Closings_Var_2028,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2029 THEN variance_value END) AS Closings_Var_2029,
+            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = 2030 THEN variance_value END) AS Closings_Var_2030
+        FROM dbo.tbl_pif_cost_approved
+        GROUP BY pif_id, project_id
+    )
+    SELECT
+        p.archive_flag,
+        p.include_flag,
+        p.accounting_treatment,
+        p.change_type,
+        p.pif_id,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.lcm_issue,
+        p.status,
+        p.category,
+        p.justification,
+        c.Target_Req_2025,
+        c.Target_Req_2026,
+        c.Target_Req_2027,
+        c.Target_Req_2028,
+        c.Target_Req_2029,
+        c.Target_Req_2030,
+        c.Target_Curr_2025,
+        c.Target_Curr_2026,
+        c.Target_Curr_2027,
+        c.Target_Curr_2028,
+        c.Target_Curr_2029,
+        c.Target_Curr_2030,
+        c.Target_Var_2025,
+        c.Target_Var_2026,
+        c.Target_Var_2027,
+        c.Target_Var_2028,
+        c.Target_Var_2029,
+        c.Target_Var_2030,
+        p.moving_isd_year,
+        p.prior_year_spend,
+        c.Closings_Req_2025,
+        c.Closings_Req_2026,
+        c.Closings_Req_2027,
+        c.Closings_Req_2028,
+        c.Closings_Req_2029,
+        c.Closings_Req_2030,
+        c.Closings_Curr_2025,
+        c.Closings_Curr_2026,
+        c.Closings_Curr_2027,
+        c.Closings_Curr_2028,
+        c.Closings_Curr_2029,
+        c.Closings_Curr_2030,
+        c.Closings_Var_2025,
+        c.Closings_Var_2026,
+        c.Closings_Var_2027,
+        c.Closings_Var_2028,
+        c.Closings_Var_2029,
+        c.Closings_Var_2030,
+        p.approval_date,
+        p.submission_date,
+        p.project_id
+    FROM dbo.tbl_pif_projects_approved p
+        LEFT JOIN cost_pivot c ON p.pif_id = c.pif_id AND p.project_id = c.project_id;
+GO
+
 -- ============================================================================
 -- SECTION 6: SECURE STORED PROCEDURES (NEW)
 -- ============================================================================
