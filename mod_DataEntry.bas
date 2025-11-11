@@ -246,6 +246,21 @@ Public Sub Edit_DeleteRows()
         ' When working with Excel Tables, we must use the ListRows collection
         ' to delete rows. Standard row deletion causes Error 1004.
 
+        ' Check if user is trying to delete the totals row (not allowed)
+        If tbl.ShowTotals Then
+            Dim totalsRow As Long
+            totalsRow = tbl.Range.Rows.Count + tbl.Range.Row - 1
+
+            ' Check if selection includes the totals row
+            If Not Intersect(selectedRows, ws.Rows(totalsRow)) Is Nothing Then
+                MsgBox "Cannot delete the table totals row (Sum row)." & vbCrLf & vbCrLf & _
+                       "Please select only data rows to delete.", _
+                       vbExclamation, "Cannot Delete Totals Row"
+                Application.ScreenUpdating = True
+                Exit Sub
+            End If
+        End If
+
         ' Handle filtered tables: temporarily disable AutoFilter to allow deletion
         Dim filterWasOn As Boolean
         filterWasOn = False
@@ -276,6 +291,9 @@ Public Sub Edit_DeleteRows()
 
         ' If no rows to delete, exit
         If indexCount = 0 Then
+            MsgBox "No data rows selected to delete." & vbCrLf & vbCrLf & _
+                   "Please select table data rows (not header or totals).", _
+                   vbInformation, "No Rows Selected"
             Application.ScreenUpdating = True
             Exit Sub
         End If
