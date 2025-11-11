@@ -304,8 +304,17 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
 
     ' Format the worksheet
     ws.Columns("B:ZZ").AutoFit
+
+    ' Temporarily enable screen updating to avoid Error 1004 with Select/FreezePanes
+    Dim screenUpdateState As Boolean
+    screenUpdateState = Application.ScreenUpdating
+    On Error Resume Next  ' Handle any errors with Select/FreezePanes gracefully
+    Application.ScreenUpdating = True
+    ws.Activate
     ws.Range("B4").Select
     ActiveWindow.FreezePanes = True
+    Application.ScreenUpdating = screenUpdateState
+    On Error GoTo ErrHandler  ' Resume normal error handling
 
     ' Add title header in row 1
     ws.Range("B1").Value = UCase(Replace(queryName, "Query", "")) & " - " & siteName

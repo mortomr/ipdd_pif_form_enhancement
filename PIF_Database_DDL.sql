@@ -1170,6 +1170,7 @@ IF OBJECT_ID('dbo.usp_archive_approved_pifs', 'P') IS NOT NULL
 GO
 
 CREATE PROCEDURE dbo.usp_archive_approved_pifs
+    @site VARCHAR(4)
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1181,7 +1182,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        -- Step 1: Archive approved projects
+        -- Step 1: Archive approved projects for specified site
         INSERT INTO dbo.tbl_pif_projects_approved
         (
         pif_id, project_id, submission_date, approval_date, status,
@@ -1214,11 +1215,11 @@ BEGIN
         p.archive_flag,
         p.include_flag
     FROM dbo.tbl_pif_projects_inflight p
-    WHERE p.archive_flag = 1 AND p.include_flag = 1;
+    WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site;
 
         SET @ApprovedCount = @@ROWCOUNT;
 
-        -- Step 2: Archive approved costs
+        -- Step 2: Archive approved costs for specified site
         INSERT INTO dbo.tbl_pif_cost_approved
         (
         pif_id, project_id, scenario, year,
@@ -1230,19 +1231,19 @@ BEGIN
     FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id
-    WHERE p.archive_flag = 1 AND p.include_flag = 1;
+    WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site;
 
         SET @CostCount = @@ROWCOUNT;
 
-        -- Step 3: Remove archived records from inflight
+        -- Step 3: Remove archived records from inflight for specified site
         DELETE c
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id
-        WHERE p.archive_flag = 1 AND p.include_flag = 1;
+        WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site;
 
         DELETE FROM dbo.tbl_pif_projects_inflight
-        WHERE archive_flag = 1 AND include_flag = 1;
+        WHERE archive_flag = 1 AND include_flag = 1 AND site = @site;
 
         COMMIT TRANSACTION;
 
