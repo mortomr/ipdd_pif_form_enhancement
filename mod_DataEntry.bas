@@ -180,6 +180,7 @@ End Sub
 ' Purpose: Delete selected row(s) from PIF sheet with confirmation
 ' Usage: Attach to [Delete Row] button or context menu
 ' Notes: Prevents accidental deletion with confirmation prompt
+'        Handles both Excel Tables (ListObjects) and regular ranges
 ' ----------------------------------------------------------------------------
 Public Sub Edit_DeleteRows()
     On Error GoTo ErrHandler
@@ -188,6 +189,11 @@ Public Sub Edit_DeleteRows()
     Dim selectedRows As Range
     Dim response As VbMsgBoxResult
     Dim rowCount As Long
+    Dim tbl As ListObject
+    Dim firstRow As Long
+    Dim lastRow As Long
+    Dim i As Long
+    Dim rowsToDelete As Collection
 
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
 
@@ -204,9 +210,11 @@ Public Sub Edit_DeleteRows()
 
     ' Count rows
     rowCount = selectedRows.Rows.Count
+    firstRow = selectedRows.Row
+    lastRow = firstRow + rowCount - 1
 
     ' Prevent deletion of header rows (rows 1-3)
-    If selectedRows.Row <= 3 Then
+    If firstRow <= 3 Then
         MsgBox "Cannot delete header rows (rows 1-3).", _
                vbExclamation, "Invalid Selection"
         Exit Sub
@@ -227,8 +235,42 @@ Public Sub Edit_DeleteRows()
 
     Application.ScreenUpdating = False
 
-    ' Delete rows
-    selectedRows.Delete Shift:=xlUp
+    ' Check if selection is within an Excel Table (ListObject)
+    On Error Resume Next
+    Set tbl = selectedRows.Cells(1, 1).ListObject
+    On Error GoTo ErrHandler
+
+    If Not tbl Is Nothing Then
+        ' ========================================================================
+        ' EXCEL TABLE DELETION (ListObject)
+        ' ========================================================================
+        ' When working with Excel Tables, we must use the ListRows collection
+        ' to delete rows. Standard row deletion causes Error 1004.
+
+        ' Build collection of ListRow indices to delete (in reverse order)
+        Set rowsToDelete = New Collection
+
+        Dim lr As ListRow
+        For Each lr In tbl.ListRows
+            ' Check if this ListRow intersects with our selection
+            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
+                ' Add to front of collection for reverse-order deletion
+                rowsToDelete.Add lr.Index, , 1
+            End If
+        Next lr
+
+        ' Delete rows in reverse order to maintain correct indices
+        For i = 1 To rowsToDelete.Count
+            tbl.ListRows(rowsToDelete(i)).Delete
+        Next i
+
+    Else
+        ' ========================================================================
+        ' REGULAR RANGE DELETION (Non-Table)
+        ' ========================================================================
+        ' Standard row deletion for non-table ranges
+        selectedRows.Delete Shift:=xlUp
+    End If
 
     Application.ScreenUpdating = True
 
@@ -237,7 +279,7 @@ Public Sub Edit_DeleteRows()
 ErrHandler:
     Application.ScreenUpdating = True
     MsgBox "Error deleting rows:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
+           "Error " & Err.Number & ": " & Err.Description, _
            vbCritical, "Delete Error"
 End Sub
 
