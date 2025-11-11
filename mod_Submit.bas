@@ -111,15 +111,8 @@ Public Sub SubmitToDatabase()
     success = LogSubmission()
 
     ' Success!
-    Dim elapsed As Double
-    elapsed = Timer - startTime
-
-    MsgBox "Submission completed successfully!" & vbCrLf & vbCrLf & _
-           "Site: " & selectedSite & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-           "Data has been submitted to inflight tables." & vbCrLf & _
-           "Use the Archive button to move approved PIFs to permanent storage.", _
-           vbInformation, "Success"
+    MsgBox "Snapshot saved to working database (inflight tables)." & vbCrLf & vbCrLf & _
+           "Site: " & selectedSite, vbInformation, "Success"
     
 Cleanup:
     Application.StatusBar = False
@@ -740,9 +733,9 @@ Public Sub ArchiveApprovedRecords()
     End If
 
     ' Confirmation prompt
-    response = MsgBox("Archive PIFs with Archive☑ and Include☑ checked?" & vbCrLf & vbCrLf & _
+    response = MsgBox("Archive PIFs with ARCHIVE and INCLUDE checked?" & vbCrLf & vbCrLf & _
                       "Site: " & selectedSite & vbCrLf & _
-                      "This will move them to permanent approved tables.", _
+                      "This will move them from inflight to permanent approved tables.", _
                       vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Archive")
 
     If response = vbNo Then
@@ -751,7 +744,7 @@ Public Sub ArchiveApprovedRecords()
     End If
 
     ' Archive approved PIFs
-    Application.StatusBar = "Archiving approved PIFs..."
+    Application.StatusBar = "Archiving to permanent tables..."
     success = ArchiveApprovedPIFs()
 
     If Not success Then
@@ -760,23 +753,11 @@ Public Sub ArchiveApprovedRecords()
         Exit Sub
     End If
 
-    ' Clear checkboxes
-    Application.StatusBar = "Clearing checkboxes..."
-    Call ClearArchivedCheckboxes()
-
     ' Success
-    Dim elapsed As Double
-    elapsed = Timer - startTime
-
     Application.ScreenUpdating = True
     Application.StatusBar = False
 
-    MsgBox "Archive completed successfully!" & vbCrLf & vbCrLf & _
-           "Site: " & selectedSite & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-           "Approved PIFs have been moved to permanent tables." & vbCrLf & _
-           "Checkboxes have been cleared for archived records.", _
-           vbInformation, "Archive Complete"
+    MsgBox "Archive complete! Records moved to permanent approved tables.", vbInformation, "Success"
 
     Exit Sub
 
