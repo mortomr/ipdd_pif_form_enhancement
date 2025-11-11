@@ -17,7 +17,7 @@ Option Explicit
 ' Purpose: Create Instructions sheet with site selection dropdown
 ' Usage: Run this macro once to set up site selection UI
 ' ----------------------------------------------------------------------------
-Public Sub SetupSiteSelection()
+Public Sub Setup_SiteSelection()
     On Error GoTo ErrHandler
 
     Dim wsInstructions As Worksheet
@@ -196,3 +196,11 @@ Public Function ValidateSelectedSite() As Boolean
             ValidateSelectedSite = False
     End Select
 End Function
+
+' ============================================================================
+' BACKWARD COMPATIBILITY WRAPPERS
+' ============================================================================
+
+Public Sub SetupSiteSelection()
+    Call Setup_SiteSelection
+End Sub

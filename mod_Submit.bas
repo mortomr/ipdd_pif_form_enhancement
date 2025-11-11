@@ -32,7 +32,7 @@ Option Explicit
 ' Usage: Attach to [Save Snapshot] button - for ongoing work, no archival
 ' Notes: This is for in-progress work - does NOT archive to permanent tables
 ' ----------------------------------------------------------------------------
-Public Sub SaveSnapshot()
+Public Sub DB_SaveSnapshot()
     On Error GoTo ErrHandler
 
     Dim response As VbMsgBoxResult
@@ -109,7 +109,7 @@ Public Sub SaveSnapshot()
 
     ' STEP 6: Refresh query worksheets
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.RefreshBothWorksheets
+    Call mod_WorksheetQuery.Nav_RefreshAll
 
     ' Success!
     MsgBox "Working snapshot saved!" & vbCrLf & vbCrLf & _
@@ -142,8 +142,13 @@ End Sub
 ' Sub: SubmitToDatabase (DEPRECATED - Use SaveSnapshot instead)
 ' Purpose: Backward compatibility wrapper
 ' ----------------------------------------------------------------------------
+Public Sub DB_Submit()
+    Call DB_SaveSnapshot
+End Sub
+
+' Backward compatibility
 Public Sub SubmitToDatabase()
-    Call SaveSnapshot
+    Call DB_SaveSnapshot
 End Sub
 
 ' ----------------------------------------------------------------------------
@@ -152,7 +157,7 @@ End Sub
 ' Usage: Attach to [Finalize Month] button - when all decisions are final
 ' Notes: This does the FULL workflow including permanent archival
 ' ----------------------------------------------------------------------------
-Public Sub FinalizeMonth()
+Public Sub DB_FinalizeMonth()
     On Error GoTo ErrHandler
 
     Dim response As VbMsgBoxResult
@@ -238,7 +243,7 @@ Public Sub FinalizeMonth()
 
     ' STEP 7: Refresh query worksheets
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.RefreshBothWorksheets
+    Call mod_WorksheetQuery.Nav_RefreshAll
 
     ' Success!
     Dim elapsed As Double
@@ -330,7 +335,7 @@ End Function
 ' Purpose: Run validation checks without submitting
 ' Usage: For testing/debugging before actual submission
 ' ----------------------------------------------------------------------------
-Public Sub RunValidationOnly()
+Public Sub DB_ValidateOnly()
     On Error GoTo ErrHandler
     
     Application.ScreenUpdating = False
@@ -890,7 +895,7 @@ End Sub
 ' Purpose: Archive PIFs with archive=1 AND include=1 to approved tables
 ' Usage: Attach this to the [Archive] button
 ' ----------------------------------------------------------------------------
-Public Sub ArchiveApprovedRecords()
+Public Sub DB_ArchiveApproved()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
@@ -959,4 +964,24 @@ ErrHandler:
     MsgBox "Archive failed:" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical, "Archive Error"
+End Sub
+
+' ============================================================================
+' ADDITIONAL BACKWARD COMPATIBILITY WRAPPERS
+' ============================================================================
+
+Public Sub SaveSnapshot()
+    Call DB_SaveSnapshot
+End Sub
+
+Public Sub FinalizeMonth()
+    Call DB_FinalizeMonth
+End Sub
+
+Public Sub RunValidationOnly()
+    Call DB_ValidateOnly
+End Sub
+
+Public Sub ArchiveApprovedRecords()
+    Call DB_ArchiveApproved
 End Sub

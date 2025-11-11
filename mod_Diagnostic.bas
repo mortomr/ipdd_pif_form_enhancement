@@ -13,7 +13,7 @@ Option Explicit
 ' Purpose: Test inserting a single row with detailed diagnostics
 ' Usage: Run this from VBA editor to see exactly where the error occurs
 ' ----------------------------------------------------------------------------
-Public Sub TestSingleRowInsert()
+Public Sub Diag_TestInsert()
     On Error GoTo ErrHandler
 
     Dim wsData As Worksheet
@@ -155,7 +155,7 @@ End Sub
 ' Sub: ShowValidationErrors
 ' Purpose: Display all validation errors in a message box
 ' ----------------------------------------------------------------------------
-Public Sub ShowValidationErrors()
+Public Sub Diag_ShowErrors()
     Dim wsValidation As Worksheet
     Dim lastRow As Long
     Dim i As Long
@@ -195,7 +195,7 @@ End Sub
 ' Sub: TestParameterTypes
 ' Purpose: Test each parameter type individually
 ' ----------------------------------------------------------------------------
-Public Sub TestParameterTypes()
+Public Sub Diag_TestParameters()
     Dim msg As String
     Dim testVal As Variant
 
@@ -239,4 +239,20 @@ Public Sub TestParameterTypes()
     msg = msg & "SafeBoolean(TRUE): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
 
     MsgBox msg, vbInformation, "Type Conversion Tests"
+End Sub
+
+' ============================================================================
+' BACKWARD COMPATIBILITY WRAPPERS
+' ============================================================================
+
+Public Sub TestSingleRowInsert()
+    Call Diag_TestInsert
+End Sub
+
+Public Sub ShowValidationErrors()
+    Call Diag_ShowErrors
+End Sub
+
+Public Sub TestParameterTypes()
+    Call Diag_TestParameters
 End Sub

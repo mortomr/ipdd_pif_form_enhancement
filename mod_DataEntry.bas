@@ -27,7 +27,7 @@ Private Const SHEET_DATA As String = "PIF"
 ' Usage: Attach to [Add Row] button on PIF sheet
 ' Notes: Automatically copies formulas and formatting from previous row
 ' ----------------------------------------------------------------------------
-Public Sub AddRow()
+Public Sub Edit_AddRow()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
@@ -181,7 +181,7 @@ End Sub
 ' Usage: Attach to [Delete Row] button or context menu
 ' Notes: Prevents accidental deletion with confirmation prompt
 ' ----------------------------------------------------------------------------
-Public Sub DeleteSelectedRows()
+Public Sub Edit_DeleteRows()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
@@ -283,7 +283,7 @@ End Function
 ' Usage: Run manually or attach to button for data quality check
 ' Notes: Highlights entire row in light red if missing required fields
 ' ----------------------------------------------------------------------------
-Public Sub HighlightIncompleteRows()
+Public Sub Tool_HighlightIncomplete()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
@@ -346,7 +346,7 @@ End Sub
 ' Purpose: Remove all row highlighting applied by HighlightIncompleteRows
 ' Usage: Run manually or attach to button
 ' ----------------------------------------------------------------------------
-Public Sub ClearRowHighlights()
+Public Sub Tool_ClearHighlights()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
@@ -371,4 +371,24 @@ ErrHandler:
     MsgBox "Error clearing highlights:" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical, "Clear Error"
+End Sub
+
+' ============================================================================
+' BACKWARD COMPATIBILITY WRAPPERS
+' ============================================================================
+
+Public Sub AddRow()
+    Call Edit_AddRow
+End Sub
+
+Public Sub DeleteSelectedRows()
+    Call Edit_DeleteRows
+End Sub
+
+Public Sub HighlightIncompleteRows()
+    Call Tool_HighlightIncomplete
+End Sub
+
+Public Sub ClearRowHighlights()
+    Call Tool_ClearHighlights
 End Sub

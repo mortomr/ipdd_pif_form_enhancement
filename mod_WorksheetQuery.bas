@@ -29,7 +29,7 @@ Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
 ' Purpose: Create or refresh the Archive worksheet with approved records
 ' Usage: Call from button or manually
 ' ----------------------------------------------------------------------------
-Public Sub RefreshArchiveWorksheet()
+Public Sub Nav_RefreshArchive()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
@@ -120,7 +120,7 @@ End Sub
 ' Purpose: Create or refresh the Inflight worksheet with current working records
 ' Usage: Call from button or manually
 ' ----------------------------------------------------------------------------
-Public Sub RefreshInflightWorksheet()
+Public Sub Nav_RefreshInflight()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
@@ -211,7 +211,7 @@ End Sub
 ' Purpose: Refresh both Archive and Inflight worksheets
 ' Usage: Call after submission/archival to update both views
 ' ----------------------------------------------------------------------------
-Public Sub RefreshBothWorksheets()
+Public Sub Nav_RefreshAll()
     On Error GoTo ErrHandler
 
     Application.ScreenUpdating = False
@@ -449,4 +449,20 @@ Private Sub RefreshInflightWorksheetSilent()
     conn.Close
 
     On Error GoTo 0
+End Sub
+
+' ============================================================================
+' BACKWARD COMPATIBILITY WRAPPERS
+' ============================================================================
+
+Public Sub RefreshArchiveWorksheet()
+    Call Nav_RefreshArchive
+End Sub
+
+Public Sub RefreshInflightWorksheet()
+    Call Nav_RefreshInflight
+End Sub
+
+Public Sub RefreshBothWorksheets()
+    Call Nav_RefreshAll
 End Sub
