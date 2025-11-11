@@ -37,21 +37,35 @@ Public Sub SubmitToDatabase()
     Dim response As VbMsgBoxResult
     Dim startTime As Double
     Dim success As Boolean
-    
+    Dim selectedSite As String
+
+    ' STEP 0: Validate site selection
+    On Error Resume Next
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    On Error GoTo ErrHandler
+
+    If selectedSite = "" Then
+        MsgBox "Please select a site before submitting." & vbCrLf & vbCrLf & _
+               "Go to the Instructions worksheet and select your site from the dropdown.", _
+               vbExclamation, "Site Not Selected"
+        Exit Sub
+    End If
+
     ' Confirmation prompt
-    response = MsgBox("This will submit the PIF workbook to the database." & vbCrLf & vbCrLf & _
+    response = MsgBox("This will submit the PIF workbook to the database for site: " & selectedSite & vbCrLf & vbCrLf & _
                       "Before proceeding, please confirm:" & vbCrLf & _
                       "  - You have reviewed all data" & vbCrLf & _
                       "  - The workbook has been approved for submission" & vbCrLf & _
-                      "  - You have a backup copy of this file" & vbCrLf & vbCrLf & _
+                      "  - You have a backup copy of this file" & vbCrLf & _
+                      "  - You are submitting for the correct site (" & selectedSite & ")" & vbCrLf & vbCrLf & _
                       "Continue with submission?", _
                       vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Submission")
-    
+
     If response = vbNo Then
         MsgBox "Submission cancelled by user.", vbInformation
         Exit Sub
     End If
-    
+
     startTime = Timer
     Application.ScreenUpdating = False
     Application.Calculation = xlCalculationManual
@@ -492,31 +506,26 @@ End Function
 ' ----------------------------------------------------------------------------
 Private Function CommitToInflight() As Boolean
     On Error GoTo ErrHandler
-    
+
+    Dim selectedSite As String
     Dim sql As String
-    
-    ' Execute within transaction for atomicity
-    sql = "BEGIN TRANSACTION; " & _
-          "TRUNCATE TABLE dbo.tbl_pif_cost_inflight; " & _
-          "TRUNCATE TABLE dbo.tbl_pif_projects_inflight; " & _
-          "INSERT INTO dbo.tbl_pif_projects_inflight " & _
-          "(pif_id, project_id, submission_date, status, change_type, " & _
-          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
-          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
-          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
-          "archive_flag, include_flag) " & _
-          "SELECT pif_id, project_id, GETDATE(), status, change_type, " & _
-          "accounting_treatment, category, seg, opco, site, strategic_rank, " & _
-          "funding_project, project_name, original_fp_isd, revised_fp_isd, " & _
-          "moving_isd_year, lcm_issue, justification, prior_year_spend, " & _
-          "archive_flag, include_flag FROM dbo.tbl_pif_projects_staging; " & _
-          "INSERT INTO dbo.tbl_pif_cost_inflight " & _
-          "(pif_id, project_id, scenario, year, requested_value, " & _
-          "current_value, variance_value) " & _
-          "SELECT pif_id, project_id, scenario, year, requested_value, " & _
-          "current_value, variance_value FROM dbo.tbl_pif_cost_staging; " & _
-          "COMMIT TRANSACTION;"
-    
+
+    ' Get selected site from Instructions sheet
+    On Error Resume Next
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    On Error GoTo ErrHandler
+
+    If selectedSite = "" Then
+        MsgBox "Site not selected. Cannot commit to inflight tables." & vbCrLf & vbCrLf & _
+               "Please select a site on the Instructions worksheet.", _
+               vbExclamation, "Site Required"
+        CommitToInflight = False
+        Exit Function
+    End If
+
+    ' Call stored procedure with site parameter (site-filtered commit)
+    sql = "EXEC dbo.usp_commit_to_inflight @site = '" & SQLSafe(selectedSite) & "'"
+
     CommitToInflight = ExecuteSQL(sql)
     
     Exit Function
