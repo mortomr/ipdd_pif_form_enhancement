@@ -76,14 +76,14 @@ Public Sub Nav_RefreshArchive()
     Set rs = New ADODB.Recordset
     rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
 
-    ' Write headers
+    ' Write headers starting at B4
     Call WriteRecordsetHeaders(ws, rs)
 
-    ' Write data
-    rowCount = WriteRecordsetData(ws, rs, 2)
+    ' Write data starting at row 5 (after headers at row 4)
+    rowCount = WriteRecordsetData(ws, rs, 5)
 
-    ' Format worksheet
-    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 1)
+    ' Format worksheet (lastRow = dataRows + headerRow)
+    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 4)
 
     ' Cleanup
     rs.Close
@@ -167,14 +167,14 @@ Public Sub Nav_RefreshInflight()
     Set rs = New ADODB.Recordset
     rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
 
-    ' Write headers
+    ' Write headers starting at B4
     Call WriteRecordsetHeaders(ws, rs)
 
-    ' Write data
-    rowCount = WriteRecordsetData(ws, rs, 2)
+    ' Write data starting at row 5 (after headers at row 4)
+    rowCount = WriteRecordsetData(ws, rs, 5)
 
-    ' Format worksheet
-    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 1)
+    ' Format worksheet (lastRow = dataRows + headerRow)
+    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 4)
 
     ' Cleanup
     rs.Close
@@ -278,13 +278,15 @@ End Function
 ' ----------------------------------------------------------------------------
 Private Sub WriteRecordsetHeaders(ByVal ws As Worksheet, ByVal rs As ADODB.Recordset)
     Dim i As Integer
+    Const HEADER_ROW As Long = 4
+    Const START_COL As Long = 2  ' Column B
 
     For i = 0 To rs.Fields.Count - 1
-        ws.Cells(1, i + 1).Value = rs.Fields(i).Name
+        ws.Cells(HEADER_ROW, START_COL + i).Value = rs.Fields(i).Name
     Next i
 
     ' Format header row
-    With ws.Rows(1)
+    With ws.Rows(HEADER_ROW)
         .Font.Bold = True
         .Font.Size = 11
         .Interior.Color = RGB(68, 114, 196)
@@ -308,6 +310,7 @@ Private Function WriteRecordsetData(ByVal ws As Worksheet, _
     Dim rowNum As Long
     Dim colNum As Integer
     Dim recordCount As Long
+    Const START_COL As Long = 2  ' Column B
 
     rowNum = startRow
     recordCount = 0
@@ -315,7 +318,7 @@ Private Function WriteRecordsetData(ByVal ws As Worksheet, _
     Do While Not rs.EOF
         For colNum = 0 To rs.Fields.Count - 1
             If Not IsNull(rs.Fields(colNum).Value) Then
-                ws.Cells(rowNum, colNum + 1).Value = rs.Fields(colNum).Value
+                ws.Cells(rowNum, START_COL + colNum).Value = rs.Fields(colNum).Value
             End If
         Next colNum
 
@@ -344,18 +347,23 @@ End Function
 Private Sub FormatQueryWorksheet(ByVal ws As Worksheet, _
                                 ByVal title As String, _
                                 ByVal lastRow As Long)
+    Const HEADER_ROW As Long = 4
+    Const START_COL As Long = 2  ' Column B
+    Dim lastCol As Long
+
     ' Auto-fit columns
     ws.Cells.Columns.AutoFit
 
-    ' Freeze top row
+    ' Freeze panes at B5 (after headers in row 4)
     ws.Activate
-    ws.Rows(2).Select
+    ws.Range("B5").Select
     ActiveWindow.FreezePanes = True
-    ws.Range("A1").Select
+    ws.Range("B4").Select
 
-    ' Add auto-filter
-    If lastRow > 1 Then
-        ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column)).AutoFilter
+    ' Add auto-filter - determine last column with data
+    If lastRow > HEADER_ROW Then
+        lastCol = ws.Cells(HEADER_ROW, ws.Columns.Count).End(xlToLeft).Column
+        ws.Range(ws.Cells(HEADER_ROW, START_COL), ws.Cells(lastRow, lastCol)).AutoFilter
     End If
 
     ' Format as table (optional - remove if not desired)
@@ -400,8 +408,8 @@ Private Sub RefreshArchiveWorksheetSilent()
     rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
 
     Call WriteRecordsetHeaders(ws, rs)
-    rowCount = WriteRecordsetData(ws, rs, 2)
-    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 1)
+    rowCount = WriteRecordsetData(ws, rs, 5)
+    Call FormatQueryWorksheet(ws, "ARCHIVE - " & selectedSite, rowCount + 4)
 
     rs.Close
     conn.Close
@@ -442,8 +450,8 @@ Private Sub RefreshInflightWorksheetSilent()
     rs.Open sql, conn, adOpenForwardOnly, adLockReadOnly
 
     Call WriteRecordsetHeaders(ws, rs)
-    rowCount = WriteRecordsetData(ws, rs, 2)
-    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 1)
+    rowCount = WriteRecordsetData(ws, rs, 5)
+    Call FormatQueryWorksheet(ws, "INFLIGHT - " & selectedSite, rowCount + 4)
 
     rs.Close
     conn.Close
