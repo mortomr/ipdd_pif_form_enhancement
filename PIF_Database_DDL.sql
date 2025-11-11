@@ -381,17 +381,17 @@ AS
 GO
 
 -- ----------------------------------------------------------------------------
--- View: vw_inflight_by_site
+-- View: vw_pif_inflight_by_site
 -- Purpose: Query inflight records with site filtering (VBA adds WHERE clause)
--- Usage: SELECT * FROM vw_inflight_by_site WHERE site = 'ANO'
---        SELECT * FROM vw_inflight_by_site (for Fleet - all sites)
+-- Usage: SELECT * FROM vw_pif_inflight_by_site WHERE site = 'ANO'
+--        SELECT * FROM vw_pif_inflight_by_site (for Fleet - all sites)
 -- ----------------------------------------------------------------------------
 
-IF OBJECT_ID('dbo.vw_inflight_by_site', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_inflight_by_site;
+IF OBJECT_ID('dbo.vw_pif_inflight_by_site', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_pif_inflight_by_site;
 GO
 
-CREATE VIEW dbo.vw_inflight_by_site
+CREATE VIEW dbo.vw_pif_inflight_by_site
 AS
     SELECT
         p.pif_project_id,
@@ -427,17 +427,17 @@ AS
 GO
 
 -- ----------------------------------------------------------------------------
--- View: vw_approved_by_site
+-- View: vw_pif_approved_by_site
 -- Purpose: Query approved records with site filtering (VBA adds WHERE clause)
--- Usage: SELECT * FROM vw_approved_by_site WHERE site = 'ANO'
---        SELECT * FROM vw_approved_by_site (for Fleet - all sites)
+-- Usage: SELECT * FROM vw_pif_approved_by_site WHERE site = 'ANO'
+--        SELECT * FROM vw_pif_approved_by_site (for Fleet - all sites)
 -- ----------------------------------------------------------------------------
 
-IF OBJECT_ID('dbo.vw_approved_by_site', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_approved_by_site;
+IF OBJECT_ID('dbo.vw_pif_approved_by_site', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_pif_approved_by_site;
 GO
 
-CREATE VIEW dbo.vw_approved_by_site
+CREATE VIEW dbo.vw_pif_approved_by_site
 AS
     SELECT
         p.pif_project_id,
@@ -474,18 +474,18 @@ AS
 GO
 
 -- ----------------------------------------------------------------------------
--- View: vw_inflight_wide
+-- View: vw_pif_inflight_wide
 -- Purpose: Inflight data in WIDE format (mimics original PIF Excel layout)
--- Usage: SELECT * FROM vw_inflight_wide WHERE site = 'ANO'
+-- Usage: SELECT * FROM vw_pif_inflight_wide WHERE site = 'ANO'
 -- Notes: Cost data is pivoted from long format back to wide format
 --        Columns match original Excel layout for user familiarity
 -- ----------------------------------------------------------------------------
 
-IF OBJECT_ID('dbo.vw_inflight_wide', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_inflight_wide;
+IF OBJECT_ID('dbo.vw_pif_inflight_wide', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_pif_inflight_wide;
 GO
 
-CREATE VIEW dbo.vw_inflight_wide
+CREATE VIEW dbo.vw_pif_inflight_wide
 AS
     WITH cost_pivot AS (
         SELECT
@@ -593,18 +593,18 @@ AS
 GO
 
 -- ----------------------------------------------------------------------------
--- View: vw_approved_wide
+-- View: vw_pif_approved_wide
 -- Purpose: Approved data in WIDE format (mimics original PIF Excel layout)
--- Usage: SELECT * FROM vw_approved_wide WHERE site = 'ANO'
+-- Usage: SELECT * FROM vw_pif_approved_wide WHERE site = 'ANO'
 -- Notes: Cost data is pivoted from long format back to wide format
 --        Columns match original Excel layout for user familiarity
 -- ----------------------------------------------------------------------------
 
-IF OBJECT_ID('dbo.vw_approved_wide', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_approved_wide;
+IF OBJECT_ID('dbo.vw_pif_approved_wide', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_pif_approved_wide;
 GO
 
-CREATE VIEW dbo.vw_approved_wide
+CREATE VIEW dbo.vw_pif_approved_wide
 AS
     WITH cost_pivot AS (
         SELECT

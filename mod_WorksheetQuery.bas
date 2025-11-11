@@ -7,8 +7,8 @@ Attribute VB_Name = "mod_WorksheetQuery"
 ' Date: 2025-11-11
 '
 ' Features:
-'   - Populates PIF_Archive worksheet from vw_approved_wide view
-'   - Populates PIF_Inflight worksheet from vw_inflight_wide view
+'   - Populates PIF_Archive worksheet from vw_pif_approved_wide view
+'   - Populates PIF_Inflight worksheet from vw_pif_inflight_wide view
 '   - Filters by selected site (respects SelectedSite named range)
 '   - Displays data in original PIF table format for familiarity
 '   - Auto-refreshable with button click
@@ -60,7 +60,7 @@ Public Sub RefreshArchiveWorksheet()
     ws.Cells.Clear
 
     ' Build SQL query with site filter
-    sql = "SELECT * FROM dbo.vw_approved_wide"
+    sql = "SELECT * FROM dbo.vw_pif_approved_wide"
 
     ' Add site filter (Fleet sees all)
     If UCase(selectedSite) <> "FLEET" Then
@@ -151,7 +151,7 @@ Public Sub RefreshInflightWorksheet()
     ws.Cells.Clear
 
     ' Build SQL query with site filter
-    sql = "SELECT * FROM dbo.vw_inflight_wide"
+    sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
 
     ' Add site filter (Fleet sees all)
     If UCase(selectedSite) <> "FLEET" Then
@@ -387,7 +387,7 @@ Private Sub RefreshArchiveWorksheetSilent()
     Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE, "Archive (Read-Only)")
     ws.Cells.Clear
 
-    sql = "SELECT * FROM dbo.vw_approved_wide"
+    sql = "SELECT * FROM dbo.vw_pif_approved_wide"
     If UCase(selectedSite) <> "FLEET" Then
         sql = sql & " WHERE site = '" & selectedSite & "'"
     End If
@@ -429,7 +429,7 @@ Private Sub RefreshInflightWorksheetSilent()
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
     ws.Cells.Clear
 
-    sql = "SELECT * FROM dbo.vw_inflight_wide"
+    sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
     If UCase(selectedSite) <> "FLEET" Then
         sql = sql & " WHERE site = '" & selectedSite & "'"
     End If
