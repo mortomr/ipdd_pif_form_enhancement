@@ -51,18 +51,21 @@ Public Sub SubmitToDatabase()
         Exit Sub
     End If
 
+    ' Block Fleet submissions (read-only access)
+    If UCase(selectedSite) = "FLEET" Then
+        MsgBox "Fleet cannot submit data." & vbCrLf & vbCrLf & _
+               "Fleet is read-only access for viewing all sites." & vbCrLf & _
+               "Please select a specific site (ANO, GGN, RBN, WF3, or HQN) to submit data.", _
+               vbExclamation, "Fleet Submission Not Allowed"
+        Exit Sub
+    End If
+
     ' Confirmation prompt
-    response = MsgBox("This will submit the PIF workbook to the database for site: " & selectedSite & vbCrLf & vbCrLf & _
-                      "Before proceeding, please confirm:" & vbCrLf & _
-                      "  - You have reviewed all data" & vbCrLf & _
-                      "  - The workbook has been approved for submission" & vbCrLf & _
-                      "  - You have a backup copy of this file" & vbCrLf & _
-                      "  - You are submitting for the correct site (" & selectedSite & ")" & vbCrLf & vbCrLf & _
-                      "Continue with submission?", _
+    response = MsgBox("Submit PIF data for site: " & selectedSite & "?" & vbCrLf & vbCrLf & _
+                      "This will update the inflight database tables.", _
                       vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Submission")
 
     If response = vbNo Then
-        MsgBox "Submission cancelled by user.", vbInformation
         Exit Sub
     End If
 
@@ -97,34 +100,25 @@ Public Sub SubmitToDatabase()
     
     success = ValidateStagingData()  ' SQL-side validation
     If Not success Then GoTo Cleanup
-    
+
     ' STEP 5: Commit to inflight tables
     Application.StatusBar = "Committing to database..."
     success = CommitToInflight()
     If Not success Then GoTo Cleanup
-    
-    ' STEP 6: Archive approved PIFs
-    Application.StatusBar = "Archiving approved PIFs..."
-    success = ArchiveApprovedPIFs()
-    If Not success Then GoTo Cleanup
-    
-    ' STEP 7: Log submission
+
+    ' STEP 6: Log submission
     Application.StatusBar = "Logging submission..."
     success = LogSubmission()
-
-    ' STEP 8: Clear archive/include checkboxes (prevent accidental re-archival)
-    Application.StatusBar = "Cleaning up archived records..."
-    Call ClearArchivedCheckboxes()
 
     ' Success!
     Dim elapsed As Double
     elapsed = Timer - startTime
 
     MsgBox "Submission completed successfully!" & vbCrLf & vbCrLf & _
-           "Elapsed time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-           "Your PIF data has been submitted to the database." & vbCrLf & _
-           "Approved PIFs have been archived to the permanent tables." & vbCrLf & vbCrLf & _
-           "Archive/Include checkboxes have been cleared for archived records.", _
+           "Site: " & selectedSite & vbCrLf & _
+           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
+           "Data has been submitted to inflight tables." & vbCrLf & _
+           "Use the Archive button to move approved PIFs to permanent storage.", _
            vbInformation, "Success"
     
 Cleanup:
@@ -701,4 +695,96 @@ Private Sub ClearArchivedCheckboxes()
     On Error GoTo 0
 
     Debug.Print "Cleared archive/include checkboxes for " & clearedCount & " rows"
+End Sub
+
+' ============================================================================
+' ARCHIVE BUTTON WORKFLOW (SEPARATE FROM SUBMIT)
+' ============================================================================
+
+' ----------------------------------------------------------------------------
+' Sub: ArchiveApprovedRecords
+' Purpose: Archive PIFs with archive=1 AND include=1 to approved tables
+' Usage: Attach this to the [Archive] button
+' ----------------------------------------------------------------------------
+Public Sub ArchiveApprovedRecords()
+    On Error GoTo ErrHandler
+
+    Dim selectedSite As String
+    Dim response As VbMsgBoxResult
+    Dim startTime As Double
+    Dim success As Boolean
+
+    startTime = Timer
+    Application.ScreenUpdating = False
+
+    ' Validate site selection
+    On Error Resume Next
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    On Error GoTo ErrHandler
+
+    If selectedSite = "" Then
+        MsgBox "Please select a site before archiving." & vbCrLf & vbCrLf & _
+               "Go to the Instructions worksheet and select your site from the dropdown.", _
+               vbExclamation, "Site Not Selected"
+        Application.ScreenUpdating = True
+        Exit Sub
+    End If
+
+    ' Block Fleet archival
+    If UCase(selectedSite) = "FLEET" Then
+        MsgBox "Fleet cannot archive data." & vbCrLf & vbCrLf & _
+               "Fleet is read-only access for viewing all sites.", _
+               vbExclamation, "Fleet Archive Not Allowed"
+        Application.ScreenUpdating = True
+        Exit Sub
+    End If
+
+    ' Confirmation prompt
+    response = MsgBox("Archive PIFs with Archive☑ and Include☑ checked?" & vbCrLf & vbCrLf & _
+                      "Site: " & selectedSite & vbCrLf & _
+                      "This will move them to permanent approved tables.", _
+                      vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Archive")
+
+    If response = vbNo Then
+        Application.ScreenUpdating = True
+        Exit Sub
+    End If
+
+    ' Archive approved PIFs
+    Application.StatusBar = "Archiving approved PIFs..."
+    success = ArchiveApprovedPIFs()
+
+    If Not success Then
+        Application.ScreenUpdating = True
+        Application.StatusBar = False
+        Exit Sub
+    End If
+
+    ' Clear checkboxes
+    Application.StatusBar = "Clearing checkboxes..."
+    Call ClearArchivedCheckboxes()
+
+    ' Success
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+
+    Application.ScreenUpdating = True
+    Application.StatusBar = False
+
+    MsgBox "Archive completed successfully!" & vbCrLf & vbCrLf & _
+           "Site: " & selectedSite & vbCrLf & _
+           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
+           "Approved PIFs have been moved to permanent tables." & vbCrLf & _
+           "Checkboxes have been cleared for archived records.", _
+           vbInformation, "Archive Complete"
+
+    Exit Sub
+
+ErrHandler:
+    Application.ScreenUpdating = True
+    Application.StatusBar = False
+
+    MsgBox "Archive failed:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbCritical, "Archive Error"
 End Sub
