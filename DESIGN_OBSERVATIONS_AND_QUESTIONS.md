@@ -8,39 +8,55 @@
 
 ## Critical Observations
 
-### 1. QueryTable Refresh Functionality Broken
+### 1. Abandoned Database Connections (RESOLVED)
 
-**Issue**: The PIF_Archive and PIF_Inflight worksheets have non-functional refresh capabilities.
+**Issue**: PIF_Archive and PIF_Inflight worksheet refreshes left abandoned OLEDB connections in SQL Server.
+
+**Root Cause**:
+- `CreateOrRefreshQueryTable` function deleted QueryTables without closing their WorkbookConnections
+- Each refresh created a NEW OLEDB connection to SQL Server
+- Old connections remained open indefinitely, consuming SQL Server resources
+- After multiple refreshes, connection pool could be exhausted
 
 **Technical Details**:
-- `mod_WorksheetQuery.bas:290-336` implements a delete/recreate pattern for QueryTables
-- Original QueryTable is created, refreshed, then **deleted** (line 298)
-- Data is converted to ListObject (Excel Table) for better formatting
-- A NEW QueryTable is re-created on top of the table (lines 314-333)
-- This breaks native Excel refresh functionality
-- Properties like "Refresh" and "Connection Properties" are disabled/non-functional
+- QueryTables created with `ws.QueryTables.Add(Connection:=connStr, ...)` automatically create WorkbookConnection objects
+- Deleting QueryTables (line 270) did NOT automatically close their connections
+- Excel maintained orphaned connections in `ThisWorkbook.Connections` collection
+- These connections held open sessions in SQL Server
 
-**Current Workarounds**:
-- User must click VBA buttons (`Nav_RefreshArchive`, `Nav_RefreshInflight`) to refresh
-- Native Excel "Data > Refresh All" does NOT work
-- Right-click "Refresh" context menu is disabled
+**Solution Implemented** (2025-11-12):
+- Added connection cleanup logic BEFORE deleting QueryTables (lines 258-270)
+- Iterates through `ThisWorkbook.Connections` collection in reverse
+- Identifies OLEDB connections matching `SQL_SERVER` and `SQL_DATABASE`
+- Explicitly calls `conn.Delete` to close and remove connections
+- Ensures clean slate before creating new QueryTable connections
+
+**Code Location**: `mod_WorksheetQuery.bas:258-270`
 
 **Impact**:
-- Loss of native Excel refresh functionality
-- Increased dependency on VBA macros
-- User cannot manually refresh data outside of button clicks
+- ✅ Prevents connection pool exhaustion in SQL Server
+- ✅ Reduces server memory usage
+- ✅ Eliminates "max pool size reached" errors
+- ✅ Improves refresh reliability
 
-**Potential Solutions**:
-1. Use QueryTable WITHOUT converting to ListObject (lose table formatting)
-2. Use ListObject with `QueryTable` property properly configured
-3. Use Power Query instead of legacy QueryTables
-4. Accept VBA-only refresh as the design pattern
-
-**Status**: **UNRESOLVED** - Needs architectural decision
+**Status**: **RESOLVED** - Fix committed 2025-11-12
 
 ---
 
-### 2. Fleet vs Site-Specific View Disconnect
+### 2. QueryTable Refresh Functionality Fixed
+
+**Previous Issue**: The PIF_Archive and PIF_Inflight worksheets had non-functional native refresh capabilities (see QUERYTABLE_REFRESH_FIX_OPTIONS.md for details).
+
+**Solution Implemented**: Option 1 (QueryTable-Only Approach)
+- Uses QueryTable without ListObject conversion
+- Native Excel refresh now works perfectly
+- Right-click "Refresh" and "Data > Refresh All" are fully functional
+
+**Status**: **RESOLVED** - See mod_WorksheetQuery.bas for implementation
+
+---
+
+### 3. Fleet vs Site-Specific View Disconnect
 
 **Issue**: The system was designed from a fleet perspective but is less useful in site-specific deployments.
 

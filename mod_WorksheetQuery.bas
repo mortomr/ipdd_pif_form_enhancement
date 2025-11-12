@@ -240,6 +240,12 @@ End Sub
 '   siteName - Site name for table formatting
 ' Notes: Creates native Excel QueryTable with full refresh capability
 '        Uses QueryTable-only approach (no ListObject) for reliability
+'
+' Connection Management:
+'   - CRITICAL: Deletes WorkbookConnections BEFORE deleting QueryTables
+'   - This prevents abandoned OLEDB connections in SQL Server
+'   - Each refresh would otherwise create a new connection without closing old ones
+'   - Identifies connections by matching SQL_SERVER and SQL_DATABASE in connection string
 ' ----------------------------------------------------------------------------
 Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
                                       ByVal queryName As String, _
@@ -250,9 +256,24 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
 
     Dim qt As QueryTable
     Dim i As Integer
+    Dim conn As WorkbookConnection
 
     ' Clear worksheet
     ws.Cells.Clear
+
+    ' CRITICAL FIX: Close and delete WorkbookConnections BEFORE deleting QueryTables
+    ' This prevents abandoned database connections in SQL Server
+    For i = ThisWorkbook.Connections.Count To 1 Step -1
+        Set conn = ThisWorkbook.Connections(i)
+        ' Delete OLEDB connections to our SQL Server to prevent orphaned connections
+        ' Check if connection string contains our SQL Server and Database
+        If conn.Type = xlConnectionTypeOLEDB Then
+            If InStr(1, conn.OLEDBConnection.Connection, mod_Database.SQL_SERVER, vbTextCompare) > 0 And _
+               InStr(1, conn.OLEDBConnection.Connection, mod_Database.SQL_DATABASE, vbTextCompare) > 0 Then
+                conn.Delete
+            End If
+        End If
+    Next i
 
     ' Delete existing QueryTables on this worksheet
     For i = ws.QueryTables.Count To 1 Step -1

@@ -43,6 +43,13 @@ The system follows a staging → inflight → approved pattern:
   - Manages transactional commit to ensure atomicity
   - Archives approved PIFs after each submission
 
+- **mod_WorksheetQuery.bas**: Manages Archive and Inflight worksheet QueryTables
+  - Creates refreshable QueryTables for viewing approved and inflight PIFs
+  - CRITICAL: Properly manages WorkbookConnections to prevent abandoned connections
+  - Cleanup logic (lines 264-276) deletes old OLEDB connections before creating new QueryTables
+  - Without cleanup, each refresh would leave orphaned connections in SQL Server
+  - Native Excel refresh works: right-click "Refresh" or "Data > Refresh All"
+
 ### Cost Data Transformation
 
 The system transforms wide-format Excel cost columns into a normalized structure:
