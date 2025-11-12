@@ -78,7 +78,16 @@ Public Sub DB_SaveSnapshot()
 
     success = False  ' Track overall success
 
-    ' STEP 1: Unpivot cost data
+    ' STEP 1: Validate Excel data FIRST (catch errors before touching database)
+    Application.StatusBar = "Running validation checks..."
+    If Not ValidateData(showSuccessMessage:=False) Then
+        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
+               "Fix all validation errors and try again.", _
+               vbExclamation, "Save Snapshot Failed"
+        GoTo Cleanup
+    End If
+
+    ' STEP 2: Unpivot cost data
     Application.StatusBar = "Preparing cost data..."
     If Not UnpivotCostData() Then
         MsgBox "Failed to unpivot cost data." & vbCrLf & vbCrLf & _
@@ -87,7 +96,7 @@ Public Sub DB_SaveSnapshot()
         GoTo Cleanup
     End If
 
-    ' STEP 2: Upload to staging
+    ' STEP 3: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
     If Not UploadProjectData() Then
         MsgBox "Failed to upload project data to staging." & vbCrLf & vbCrLf & _
@@ -104,15 +113,8 @@ Public Sub DB_SaveSnapshot()
         GoTo Cleanup
     End If
 
-    ' STEP 3: Validate staging data
-    Application.StatusBar = "Running validation checks..."
-    If Not ValidateData(showSuccessMessage:=False) Then
-        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
-               "Fix all validation errors and try again.", _
-               vbExclamation, "Save Snapshot Failed"
-        GoTo Cleanup
-    End If
-
+    ' STEP 4: Validate staging data (SQL-side validation)
+    Application.StatusBar = "Running database validation checks..."
     If Not ValidateStagingData() Then
         MsgBox "Database validation failed." & vbCrLf & vbCrLf & _
                "Please check the Validation_Report sheet for errors.", _
@@ -120,7 +122,7 @@ Public Sub DB_SaveSnapshot()
         GoTo Cleanup
     End If
 
-    ' STEP 4: Commit to inflight tables
+    ' STEP 5: Commit to inflight tables
     Application.StatusBar = "Committing to database..."
     If Not CommitToInflight() Then
         MsgBox "Failed to commit data to inflight tables." & vbCrLf & vbCrLf & _
@@ -129,11 +131,11 @@ Public Sub DB_SaveSnapshot()
         GoTo Cleanup
     End If
 
-    ' STEP 5: Log submission
+    ' STEP 6: Log submission
     Application.StatusBar = "Logging submission..."
     Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
-    ' STEP 6: Refresh query worksheets (silently - final message will report success)
+    ' STEP 7: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
     Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
 
@@ -235,7 +237,16 @@ Public Sub DB_FinalizeMonth()
 
     success = False  ' Track overall success
 
-    ' STEP 1: Unpivot cost data
+    ' STEP 1: Validate Excel data FIRST (catch errors before touching database)
+    Application.StatusBar = "Running validation checks..."
+    If Not ValidateData(showSuccessMessage:=False) Then
+        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
+               "Fix all validation errors and try again.", _
+               vbExclamation, "Finalization Failed"
+        GoTo Cleanup
+    End If
+
+    ' STEP 2: Unpivot cost data
     Application.StatusBar = "Preparing cost data..."
     If Not UnpivotCostData() Then
         MsgBox "Failed to unpivot cost data." & vbCrLf & vbCrLf & _
@@ -244,7 +255,7 @@ Public Sub DB_FinalizeMonth()
         GoTo Cleanup
     End If
 
-    ' STEP 2: Upload to staging
+    ' STEP 3: Upload to staging
     Application.StatusBar = "Uploading project data to staging..."
     If Not UploadProjectData() Then
         MsgBox "Failed to upload project data to staging." & vbCrLf & vbCrLf & _
@@ -261,15 +272,8 @@ Public Sub DB_FinalizeMonth()
         GoTo Cleanup
     End If
 
-    ' STEP 3: Validate staging data
-    Application.StatusBar = "Running validation checks..."
-    If Not ValidateData(showSuccessMessage:=False) Then
-        MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
-               "Fix all validation errors and try again.", _
-               vbExclamation, "Finalization Failed"
-        GoTo Cleanup
-    End If
-
+    ' STEP 4: Validate staging data (SQL-side validation)
+    Application.StatusBar = "Running database validation checks..."
     If Not ValidateStagingData() Then
         MsgBox "Database validation failed." & vbCrLf & vbCrLf & _
                "Please check the Validation_Report sheet for errors.", _
@@ -277,7 +281,7 @@ Public Sub DB_FinalizeMonth()
         GoTo Cleanup
     End If
 
-    ' STEP 4: Commit to inflight tables
+    ' STEP 5: Commit to inflight tables
     Application.StatusBar = "Committing to inflight database..."
     If Not CommitToInflight() Then
         MsgBox "Failed to commit data to inflight tables." & vbCrLf & vbCrLf & _
@@ -286,7 +290,7 @@ Public Sub DB_FinalizeMonth()
         GoTo Cleanup
     End If
 
-    ' STEP 5: Archive approved records (permanent storage)
+    ' STEP 6: Archive approved records (permanent storage)
     Application.StatusBar = "Archiving approved records to permanent storage..."
     If Not ArchiveApprovedRecordsInternal() Then
         MsgBox "Failed to archive approved records." & vbCrLf & vbCrLf & _
@@ -296,11 +300,11 @@ Public Sub DB_FinalizeMonth()
         GoTo Cleanup
     End If
 
-    ' STEP 6: Log submission
+    ' STEP 7: Log submission
     Application.StatusBar = "Logging submission..."
     Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
-    ' STEP 7: Refresh query worksheets (silently - final message will report success)
+    ' STEP 8: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
     Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
 
