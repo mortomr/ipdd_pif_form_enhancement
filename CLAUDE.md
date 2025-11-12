@@ -154,5 +154,6 @@ errors.Add "Row " & i & "|Business Rule Violation|Your error message"
 1. PIF ID + Project ID combination must be unique per submission
 2. Approved PIFs require justification text (enforced in validation)
 3. Approved or Dispositioned PIFs are automatically archived to permanent tables
-4. Variance values are stored from Excel but can be recalculated as requested - current
-5. Each submission creates timestamped backups before truncating inflight tables
+4. **Re-archiving behavior**: If a previously approved PIF is re-submitted with updates (e.g., changed accounting treatment), the system will UPDATE the existing approved record rather than creating a duplicate. This is enforced by MERGE logic in the `usp_archive_approved_pifs` stored procedure.
+5. Variance values are stored from Excel but can be recalculated as requested - current
+6. Each submission creates timestamped backups before truncating inflight tables
