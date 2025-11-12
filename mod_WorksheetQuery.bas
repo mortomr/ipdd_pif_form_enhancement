@@ -242,10 +242,11 @@ End Sub
 '        Uses QueryTable-only approach (no ListObject) for reliability
 '
 ' Connection Management:
-'   - CRITICAL: Deletes WorkbookConnections BEFORE deleting QueryTables
+'   - CRITICAL: Deletes orphaned WorkbookConnections BEFORE deleting QueryTables
 '   - This prevents abandoned OLEDB connections in SQL Server
 '   - Each refresh would otherwise create a new connection without closing old ones
-'   - Identifies connections by matching SQL_SERVER and SQL_DATABASE in connection string
+'   - SAFETY: Only deletes connections specifically used by THIS worksheet's QueryTables
+'   - Does NOT touch other connections in the workbook (protects other QueryTables/Power Query)
 ' ----------------------------------------------------------------------------
 Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
                                       ByVal queryName As String, _
@@ -261,21 +262,46 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
     ' Clear worksheet
     ws.Cells.Clear
 
-    ' CRITICAL FIX: Close and delete WorkbookConnections BEFORE deleting QueryTables
+    ' CRITICAL FIX: Delete orphaned WorkbookConnections BEFORE deleting QueryTables
     ' This prevents abandoned database connections in SQL Server
-    For i = ThisWorkbook.Connections.Count To 1 Step -1
-        Set conn = ThisWorkbook.Connections(i)
-        ' Delete OLEDB connections to our SQL Server to prevent orphaned connections
-        ' Check if connection string contains our SQL Server and Database
-        If conn.Type = xlConnectionTypeOLEDB Then
-            If InStr(1, conn.OLEDBConnection.Connection, mod_Database.SQL_SERVER, vbTextCompare) > 0 And _
-               InStr(1, conn.OLEDBConnection.Connection, mod_Database.SQL_DATABASE, vbTextCompare) > 0 Then
-                conn.Delete
+    ' SAFETY: Only delete connections specifically created by this worksheet's QueryTables
+    Dim qtConn As WorkbookConnection
+    Dim qtConnName As String
+    Dim connToDelete As Collection
+    Set connToDelete = New Collection
+
+    ' First pass: Identify connections used by QueryTables on THIS worksheet
+    For i = ws.QueryTables.Count To 1 Step -1
+        Set qt = ws.QueryTables(i)
+        ' Extract connection name from QueryTable's connection string
+        ' QueryTable connections typically named "Query from <source>" or custom names
+        On Error Resume Next
+        qtConnName = ""
+        For Each qtConn In ThisWorkbook.Connections
+            If qtConn.Type = xlConnectionTypeOLEDB Then
+                ' Check if this connection matches the QueryTable's connection string
+                If InStr(1, qt.Connection, qtConn.Name, vbTextCompare) > 0 Then
+                    qtConnName = qtConn.Name
+                    connToDelete.Add qtConnName, qtConnName  ' Use name as key to avoid duplicates
+                    Exit For
+                End If
             End If
-        End If
+        Next qtConn
+        On Error GoTo ErrHandler
     Next i
 
-    ' Delete existing QueryTables on this worksheet
+    ' Second pass: Delete only the connections we identified (orphaned from this worksheet)
+    For i = connToDelete.Count To 1 Step -1
+        qtConnName = connToDelete(i)
+        On Error Resume Next
+        Set conn = ThisWorkbook.Connections(qtConnName)
+        If Not conn Is Nothing Then
+            conn.Delete
+        End If
+        On Error GoTo ErrHandler
+    Next i
+
+    ' Now delete existing QueryTables on this worksheet
     For i = ws.QueryTables.Count To 1 Step -1
         ws.QueryTables(i).Delete
     Next i
