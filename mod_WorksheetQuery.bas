@@ -233,7 +233,8 @@ End Sub
 '   sql - SQL query string
 '   connStr - Connection string
 '   siteName - Site name for table formatting
-' Notes: Creates native Excel QueryTable that can be refreshed without VBA
+' Notes: Creates native Excel QueryTable with full refresh capability
+'        Uses QueryTable-only approach (no ListObject) for reliability
 ' ----------------------------------------------------------------------------
 Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
                                       ByVal queryName As String, _
@@ -243,8 +244,6 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
     On Error GoTo ErrHandler
 
     Dim qt As QueryTable
-    Dim tbl As ListObject
-    Dim qtExists As Boolean
     Dim i As Integer
 
     ' Clear worksheet
@@ -255,7 +254,7 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
         ws.QueryTables(i).Delete
     Next i
 
-    ' Delete existing ListObjects (Tables)
+    ' Delete existing ListObjects (Tables) - we're using QueryTable-only approach
     For i = ws.ListObjects.Count To 1 Step -1
         ws.ListObjects(i).Delete
     Next i
@@ -266,7 +265,7 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
         Destination:=ws.Range("B4"), _
         sql:=sql)
 
-    ' Configure QueryTable properties
+    ' Configure QueryTable properties for full refresh capability
     With qt
         .Name = queryName
         .FieldNames = True
@@ -275,7 +274,7 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
         .PreserveFormatting = True
         .RefreshOnFileOpen = False
         .BackgroundQuery = False
-        .RefreshStyle = xlInsertDeleteCells
+        .RefreshStyle = xlInsertDeleteCells  ' Allows data to grow/shrink on refresh
         .SavePassword = False
         .SaveData = True
         .AdjustColumnWidth = True
@@ -286,52 +285,38 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
         .Refresh BackgroundQuery:=False
     End With
 
-    ' Convert QueryTable result to Excel Table for better user experience
-    ' Find the data range (QueryTable's ResultRange)
-    Dim qtResultRange As Range
+    ' Apply table-like formatting to QueryTable result
     If Not qt.ResultRange Is Nothing Then
-        ' Store the result range before deleting QueryTable
-        Set qtResultRange = qt.ResultRange
+        Dim dataRange As Range
+        Set dataRange = qt.ResultRange
 
-        ' Delete the QueryTable to prevent overlap conflicts with the Table
-        ' The data remains in the worksheet
-        qt.Delete
-        Set qt = Nothing
+        ' Format header row (first row of result)
+        With dataRange.Rows(1)
+            .Font.Bold = True
+            .Font.Size = 11
+            .Interior.Color = RGB(68, 114, 196)
+            .Font.Color = RGB(255, 255, 255)
+            .HorizontalAlignment = xlCenter
+        End With
 
-        On Error Resume Next
-        Set tbl = ws.ListObjects.Add(xlSrcRange, qtResultRange, , xlYes)
-        On Error GoTo ErrHandler
+        ' Add borders to entire data range
+        With dataRange.Borders
+            .LineStyle = xlContinuous
+            .Color = RGB(208, 206, 206)
+            .Weight = xlThin
+        End With
 
-        If Not tbl Is Nothing Then
-            tbl.Name = Replace(queryName, " ", "_") & "_Table"
-            tbl.TableStyle = "TableStyleMedium2"
+        ' Apply zebra striping to data rows (skip header)
+        If dataRange.Rows.Count > 1 Then
+            Dim row As Long
+            For row = 2 To dataRange.Rows.Count Step 2
+                dataRange.Rows(row).Interior.Color = RGB(242, 242, 242)
+            Next row
+        End If
 
-            ' Disable table autoexpand (prevents issues with refresh)
-            tbl.ShowAutoFilter = True
-
-            ' Re-create QueryTable connection on the table for refresh capability
-            On Error Resume Next
-            Set qt = ws.QueryTables.Add( _
-                Connection:=connStr, _
-                Destination:=tbl.Range.Cells(1, 1), _
-                sql:=sql)
-
-            If Not qt Is Nothing Then
-                With qt
-                    .Name = queryName
-                    .FieldNames = True
-                    .RowNumbers = False
-                    .RefreshOnFileOpen = False
-                    .BackgroundQuery = False
-                    .RefreshStyle = xlOverwriteCells  ' Changed from xlInsertDeleteCells to avoid overlap
-                    .SavePassword = False
-                    .SaveData = True
-                    .AdjustColumnWidth = True
-                    .RefreshPeriod = 0
-                    .PreserveColumnInfo = True
-                End With
-            End If
-            On Error GoTo ErrHandler
+        ' Enable AutoFilter on the data range
+        If Not dataRange.Worksheet.AutoFilterMode Then
+            dataRange.AutoFilter
         End If
     End If
 
@@ -344,8 +329,10 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
     On Error Resume Next  ' Handle any errors with Select/FreezePanes gracefully
     Application.ScreenUpdating = True
     ws.Activate
-    ws.Range("B4").Select
+    ws.Range("B5").Select  ' Freeze below header row at B4
+    ActiveWindow.FreezePanes = False  ' Clear existing freeze first
     ActiveWindow.FreezePanes = True
+    ws.Range("B4").Select
     Application.ScreenUpdating = screenUpdateState
     On Error GoTo ErrHandler  ' Resume normal error handling
 
@@ -354,11 +341,11 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
     ws.Range("B1").Font.Bold = True
     ws.Range("B1").Font.Size = 14
 
-    ' Add instructions in row 2
-    ws.Range("B2").Value = "To refresh this data: Right-click on the table and select 'Refresh', or use Data > Refresh All"
+    ' Add instructions in row 2 (updated to reflect working refresh)
+    ws.Range("B2").Value = "Refresh: Right-click data range > Refresh, or Data > Refresh All (native Excel refresh enabled)"
     ws.Range("B2").Font.Italic = True
     ws.Range("B2").Font.Size = 9
-    ws.Range("B2").Font.Color = RGB(128, 128, 128)
+    ws.Range("B2").Font.Color = RGB(0, 128, 0)  ' Green to indicate working feature
 
     Exit Sub
 
