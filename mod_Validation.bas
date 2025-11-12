@@ -47,9 +47,11 @@ Private Const COL_JUSTIFICATION As Integer = 20    ' T
 ' ----------------------------------------------------------------------------
 ' Function: ValidateData
 ' Purpose: Master validation function - runs all validation checks
+' Parameters:
+'   Optional showSuccessMessage - Set to False to suppress success message
 ' Returns: True if validation passed, False if errors found
 ' ----------------------------------------------------------------------------
-Public Function ValidateData() As Boolean
+Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True) As Boolean
     On Error GoTo ErrHandler
     
     Dim wsData As Worksheet
@@ -101,15 +103,18 @@ Public Function ValidateData() As Boolean
         wsReport.Range("A4").Value = "No errors found - data is ready for submission!"
         wsReport.Range("A4").Font.Color = RGB(0, 128, 0)
         wsReport.Range("A4").Font.Bold = True
-        
-        Dim elapsed As Double
-        elapsed = Timer - startTime
-        
-        MsgBox "Validation passed successfully!" & vbCrLf & vbCrLf & _
-               "Elapsed time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & _
-               "Ready to submit to database.", _
-               vbInformation, "Validation Passed"
-        
+
+        ' Only show success message if requested (suppress during automated workflows)
+        If showSuccessMessage Then
+            Dim elapsed As Double
+            elapsed = Timer - startTime
+
+            MsgBox "Validation passed successfully!" & vbCrLf & vbCrLf & _
+                   "Elapsed time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & _
+                   "Ready to submit to database.", _
+                   vbInformation, "Validation Passed"
+        End If
+
         ValidateData = True
     End If
     

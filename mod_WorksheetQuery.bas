@@ -60,9 +60,9 @@ Public Sub Nav_RefreshArchive()
     ' Build SQL query with site filter
     sql = "SELECT * FROM dbo.vw_pif_approved_wide"
 
-    ' Add site filter (Fleet sees all)
-    If UCase(selectedSite) <> "FLEET" Then
-        sql = sql & " WHERE site = '" & selectedSite & "'"
+    ' Add site filter (Fleet sees all sites, others see only their site)
+    If UCase(Trim(selectedSite)) <> "FLEET" Then
+        sql = sql & " WHERE UPPER(site) = '" & UCase(selectedSite) & "'"
     End If
 
     sql = sql & " ORDER BY approval_date DESC, pif_id, project_id"
@@ -144,9 +144,9 @@ Public Sub Nav_RefreshInflight()
     ' Build SQL query with site filter
     sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
 
-    ' Add site filter (Fleet sees all)
-    If UCase(selectedSite) <> "FLEET" Then
-        sql = sql & " WHERE site = '" & selectedSite & "'"
+    ' Add site filter (Fleet sees all sites, others see only their site)
+    If UCase(Trim(selectedSite)) <> "FLEET" Then
+        sql = sql & " WHERE UPPER(site) = '" & UCase(selectedSite) & "'"
     End If
 
     sql = sql & " ORDER BY submission_date DESC, pif_id, project_id"
@@ -195,9 +195,11 @@ End Sub
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshBothWorksheets
 ' Purpose: Refresh both Archive and Inflight worksheets
+' Parameters:
+'   Optional showSuccessMessage - Set to False to suppress success message
 ' Usage: Call after submission/archival to update both views
 ' ----------------------------------------------------------------------------
-Public Sub Nav_RefreshAll()
+Public Sub Nav_RefreshAll(Optional ByVal showSuccessMessage As Boolean = True)
     On Error GoTo ErrHandler
 
     Application.ScreenUpdating = False
@@ -208,8 +210,11 @@ Public Sub Nav_RefreshAll()
 
     Application.ScreenUpdating = True
 
-    MsgBox "Both Archive and Inflight worksheets have been refreshed.", _
-           vbInformation, "Refresh Complete"
+    ' Only show success message if requested (suppress during automated workflows)
+    If showSuccessMessage Then
+        MsgBox "Both Archive and Inflight worksheets have been refreshed.", _
+               vbInformation, "Refresh Complete"
+    End If
 
     Exit Sub
 
@@ -511,8 +516,8 @@ Private Sub RefreshArchiveWorksheetSilent()
     Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE, "Archive (Read-Only)")
 
     sql = "SELECT * FROM dbo.vw_pif_approved_wide"
-    If UCase(selectedSite) <> "FLEET" Then
-        sql = sql & " WHERE site = '" & selectedSite & "'"
+    If UCase(Trim(selectedSite)) <> "FLEET" Then
+        sql = sql & " WHERE UPPER(site) = '" & UCase(selectedSite) & "'"
     End If
     sql = sql & " ORDER BY approval_date DESC, pif_id, project_id"
 
@@ -544,8 +549,8 @@ Private Sub RefreshInflightWorksheetSilent()
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
 
     sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
-    If UCase(selectedSite) <> "FLEET" Then
-        sql = sql & " WHERE site = '" & selectedSite & "'"
+    If UCase(Trim(selectedSite)) <> "FLEET" Then
+        sql = sql & " WHERE UPPER(site) = '" & UCase(selectedSite) & "'"
     End If
     sql = sql & " ORDER BY submission_date DESC, pif_id, project_id"
 

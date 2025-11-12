@@ -106,7 +106,7 @@ Public Sub DB_SaveSnapshot()
 
     ' STEP 3: Validate staging data
     Application.StatusBar = "Running validation checks..."
-    If Not ValidateData() Then
+    If Not ValidateData(showSuccessMessage:=False) Then
         MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
                "Fix all validation errors and try again.", _
                vbExclamation, "Save Snapshot Failed"
@@ -133,9 +133,9 @@ Public Sub DB_SaveSnapshot()
     Application.StatusBar = "Logging submission..."
     Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
-    ' STEP 6: Refresh query worksheets
+    ' STEP 6: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.Nav_RefreshAll
+    Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
@@ -263,7 +263,7 @@ Public Sub DB_FinalizeMonth()
 
     ' STEP 3: Validate staging data
     Application.StatusBar = "Running validation checks..."
-    If Not ValidateData() Then
+    If Not ValidateData(showSuccessMessage:=False) Then
         MsgBox "Validation failed - please check the Validation_Report sheet for errors." & vbCrLf & vbCrLf & _
                "Fix all validation errors and try again.", _
                vbExclamation, "Finalization Failed"
@@ -300,9 +300,9 @@ Public Sub DB_FinalizeMonth()
     Application.StatusBar = "Logging submission..."
     Call LogSubmission()  ' Non-critical, don't fail on logging errors
 
-    ' STEP 7: Refresh query worksheets
+    ' STEP 7: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.Nav_RefreshAll
+    Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
