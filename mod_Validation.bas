@@ -291,11 +291,11 @@ Private Sub ValidateDataTypes(ByVal wsData As Worksheet, ByRef errors As Collect
             errors.Add "Row " & i & "|Field Too Long|PIF_ID exceeds 16 characters (currently " & Len(fieldValue) & " chars)"
         End If
 
-        ' Check PROJECT_ID length (database limit: VARCHAR(10))
-        If Not IsEmpty(wsData.Cells(i, COL_PROJECT_ID).Value) Then
-            fieldValue = Trim(CStr(wsData.Cells(i, COL_PROJECT_ID).Value))
+        ' Check FUNDING_PROJECT length (database limit: VARCHAR(10) for project_id)
+        If Not IsEmpty(wsData.Cells(i, COL_FUNDING_PROJECT).Value) Then
+            fieldValue = Trim(CStr(wsData.Cells(i, COL_FUNDING_PROJECT).Value))
             If Len(fieldValue) > 10 Then
-                errors.Add "Row " & i & "|Field Too Long|PROJECT_ID exceeds 10 characters (currently " & Len(fieldValue) & " chars)"
+                errors.Add "Row " & i & "|Field Too Long|FUNDING_PROJECT exceeds 10 characters (currently " & Len(fieldValue) & " chars)"
             End If
         End If
 
