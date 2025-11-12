@@ -263,15 +263,16 @@ End Sub
 
 ' ----------------------------------------------------------------------------
 ' Sub: ValidateDataTypes
-' Purpose: Check that numeric fields contain valid numbers
+' Purpose: Check data types and field lengths
 ' ----------------------------------------------------------------------------
 Private Sub ValidateDataTypes(ByVal wsData As Worksheet, ByRef errors As Collection)
     Dim lastRow As Long
     Dim i As Long
+    Dim fieldValue As String
 
     lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
 
-    Application.StatusBar = "Validating data types..."
+    Application.StatusBar = "Validating data types and field lengths..."
 
     ' Start from row 4 - rows 1-3 are headers
     For i = 4 To lastRow
@@ -284,20 +285,48 @@ Private Sub ValidateDataTypes(ByVal wsData As Worksheet, ByRef errors As Collect
             GoTo NextRow
         End If
 
+        ' Check PIF_ID length (database limit: VARCHAR(16))
+        fieldValue = Trim(CStr(wsData.Cells(i, COL_PIF_ID).Value))
+        If Len(fieldValue) > 16 Then
+            errors.Add "Row " & i & "|Field Too Long|PIF_ID exceeds 16 characters (currently " & Len(fieldValue) & " chars)"
+        End If
+
+        ' Check PROJECT_ID length (database limit: VARCHAR(10))
+        If Not IsEmpty(wsData.Cells(i, COL_PROJECT_ID).Value) Then
+            fieldValue = Trim(CStr(wsData.Cells(i, COL_PROJECT_ID).Value))
+            If Len(fieldValue) > 10 Then
+                errors.Add "Row " & i & "|Field Too Long|PROJECT_ID exceeds 10 characters (currently " & Len(fieldValue) & " chars)"
+            End If
+        End If
+
+        ' Check STATUS length (database limit: VARCHAR(58))
+        If Not IsEmpty(wsData.Cells(i, COL_STATUS).Value) Then
+            fieldValue = Trim(CStr(wsData.Cells(i, COL_STATUS).Value))
+            If Len(fieldValue) > 58 Then
+                errors.Add "Row " & i & "|Field Too Long|STATUS exceeds 58 characters (currently " & Len(fieldValue) & " chars)"
+            End If
+        End If
+
+        ' Check SITE length (database limit: VARCHAR(4))
+        If Not IsEmpty(wsData.Cells(i, COL_SITE).Value) Then
+            fieldValue = Trim(CStr(wsData.Cells(i, COL_SITE).Value))
+            If Len(fieldValue) > 4 Then
+                errors.Add "Row " & i & "|Field Too Long|SITE exceeds 4 characters (currently " & Len(fieldValue) & " chars)"
+            End If
+        End If
+
         ' Check SEG (should be numeric)
         If Not IsEmpty(wsData.Cells(i, COL_SEG).Value) Then
             If Not IsNumeric(wsData.Cells(i, COL_SEG).Value) Then
                 errors.Add "Row " & i & "|Invalid Data Type|SEG must be numeric"
             End If
         End If
-        
-        ' Add additional data type checks as needed
-        
+
         ' Progress indicator
         If i Mod 50 = 0 Then
             Application.StatusBar = "Validating data types... Row " & i & " of " & lastRow
         End If
-        
+
 NextRow:
     Next i
 End Sub
