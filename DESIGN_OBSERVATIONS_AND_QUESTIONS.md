@@ -25,13 +25,14 @@
 - These connections held open sessions in SQL Server
 
 **Solution Implemented** (2025-11-12):
-- Added connection cleanup logic BEFORE deleting QueryTables (lines 258-270)
-- Iterates through `ThisWorkbook.Connections` collection in reverse
-- Identifies OLEDB connections matching `SQL_SERVER` and `SQL_DATABASE`
-- Explicitly calls `conn.Delete` to close and remove connections
+- Added two-pass connection cleanup logic BEFORE deleting QueryTables (lines 264-306)
+- Pass 1: Identifies connections used by QueryTables on THIS worksheet only
+- Pass 2: Deletes only the identified connections (worksheet-specific)
+- SAFETY: Does NOT delete connections used by other worksheets or Power Query
+- Explicitly calls `conn.Delete` to close and remove orphaned connections
 - Ensures clean slate before creating new QueryTable connections
 
-**Code Location**: `mod_WorksheetQuery.bas:258-270`
+**Code Location**: `mod_WorksheetQuery.bas:264-306`
 
 **Impact**:
 - ✅ Prevents connection pool exhaustion in SQL Server
