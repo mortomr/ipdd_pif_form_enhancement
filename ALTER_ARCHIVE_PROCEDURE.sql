@@ -114,7 +114,7 @@ BEGIN
         @ApprovedCount AS ProjectsArchived,
         @CostCount AS CostRecordsArchived;
 
-        RETURN @ApprovedCount;
+        RETURN 0;  -- Success (VBA expects 0 = success, -1 = error)
 
     END TRY
     BEGIN CATCH

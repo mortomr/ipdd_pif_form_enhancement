@@ -288,9 +288,18 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
 
     ' Convert QueryTable result to Excel Table for better user experience
     ' Find the data range (QueryTable's ResultRange)
+    Dim qtResultRange As Range
     If Not qt.ResultRange Is Nothing Then
+        ' Store the result range before deleting QueryTable
+        Set qtResultRange = qt.ResultRange
+
+        ' Delete the QueryTable to prevent overlap conflicts with the Table
+        ' The data remains in the worksheet
+        qt.Delete
+        Set qt = Nothing
+
         On Error Resume Next
-        Set tbl = ws.ListObjects.Add(xlSrcRange, qt.ResultRange, , xlYes)
+        Set tbl = ws.ListObjects.Add(xlSrcRange, qtResultRange, , xlYes)
         On Error GoTo ErrHandler
 
         If Not tbl Is Nothing Then
@@ -299,6 +308,30 @@ Private Sub CreateOrRefreshQueryTable(ByVal ws As Worksheet, _
 
             ' Disable table autoexpand (prevents issues with refresh)
             tbl.ShowAutoFilter = True
+
+            ' Re-create QueryTable connection on the table for refresh capability
+            On Error Resume Next
+            Set qt = ws.QueryTables.Add( _
+                Connection:=connStr, _
+                Destination:=tbl.Range.Cells(1, 1), _
+                sql:=sql)
+
+            If Not qt Is Nothing Then
+                With qt
+                    .Name = queryName
+                    .FieldNames = True
+                    .RowNumbers = False
+                    .RefreshOnFileOpen = False
+                    .BackgroundQuery = False
+                    .RefreshStyle = xlOverwriteCells  ' Changed from xlInsertDeleteCells to avoid overlap
+                    .SavePassword = False
+                    .SaveData = True
+                    .AdjustColumnWidth = True
+                    .RefreshPeriod = 0
+                    .PreserveColumnInfo = True
+                End With
+            End If
+            On Error GoTo ErrHandler
         End If
     End If
 
