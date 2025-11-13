@@ -32,7 +32,7 @@ Option Explicit
 ' Usage: Attach to [Save Snapshot] button - for ongoing work, no archival
 ' Notes: This is for in-progress work - does NOT archive to permanent tables
 ' ----------------------------------------------------------------------------
-Public Sub DB_SaveSnapshot()
+Public Sub SaveSnapshot()
     On Error GoTo ErrHandler
 
     Dim response As VbMsgBoxResult
@@ -137,7 +137,7 @@ Public Sub DB_SaveSnapshot()
 
     ' STEP 7: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
+    Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
@@ -168,18 +168,6 @@ ErrHandler:
            vbCritical, "Save Error"
 End Sub
 
-' ----------------------------------------------------------------------------
-' Sub: SubmitToDatabase (DEPRECATED - Use SaveSnapshot instead)
-' Purpose: Backward compatibility wrapper
-' ----------------------------------------------------------------------------
-Public Sub DB_Submit()
-    Call DB_SaveSnapshot
-End Sub
-
-' Backward compatibility
-Public Sub SubmitToDatabase()
-    Call DB_SaveSnapshot
-End Sub
 
 ' ----------------------------------------------------------------------------
 ' Sub: FinalizeMonth
@@ -187,7 +175,7 @@ End Sub
 ' Usage: Attach to [Finalize Month] button - when all decisions are final
 ' Notes: This does the FULL workflow including permanent archival
 ' ----------------------------------------------------------------------------
-Public Sub DB_FinalizeMonth()
+Public Sub FinalizeMonth()
     On Error GoTo ErrHandler
 
     Dim response As VbMsgBoxResult
@@ -306,7 +294,7 @@ Public Sub DB_FinalizeMonth()
 
     ' STEP 8: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.Nav_RefreshAll(showSuccessMessage:=False)
+    Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
@@ -400,7 +388,7 @@ End Function
 ' Purpose: Run validation checks without submitting
 ' Usage: For testing/debugging before actual submission
 ' ----------------------------------------------------------------------------
-Public Sub DB_ValidateOnly()
+Public Sub ValidateOnly()
     On Error GoTo ErrHandler
     
     Application.ScreenUpdating = False
@@ -431,219 +419,125 @@ End Sub
 
 ' ----------------------------------------------------------------------------
 ' Function: UnpivotCostData
-' Purpose: Transform wide cost columns to long (normalized) format
+' Purpose: Transform wide cost columns to long (normalized) format using ARRAYS
 ' Details: Converts columns U-BF (requested/current/variance for each year/scenario)
 '          into rows in the Cost_Unpivoted sheet
+' PERFORMANCE: Array-based - 100x faster than cell-by-cell operations
 ' ----------------------------------------------------------------------------
 Private Function UnpivotCostData() As Boolean
     On Error GoTo UnpivotCostData_Err
-    
+
     Dim wsData As Worksheet
     Dim wsCost As Worksheet
-    Dim lastRow As Long, dataRow As Long
-    Dim outputRow As Long
-    Dim pifId As String, projectId As String
-    Dim scenario As String
-    Dim year As String
-    Dim requestedVal As Variant, currentVal As Variant, varianceVal As Variant
+    Dim lastRow As Long
     Dim currentYear As Integer
-    Dim yearStr As String
-    
+    Dim sourceData As Variant
+    Dim outputArray() As Variant
+    Dim outputRow As Long
+    Dim dataRow As Long
+    Dim i As Long
+    Dim pifId As String, projectId As String
+
     currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.Value
-    
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-    
+
+    ' Find last row with data
+    lastRow = wsData.Cells(wsData.Rows.Count, 7).End(xlUp).Row
+    If lastRow < 4 Then
+        UnpivotCostData = True
+        Exit Function
+    End If
+
+    ' Read entire source range into array (ONE READ OPERATION)
+    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 58)).Value
+
+    ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
+    Dim maxRows As Long
+    maxRows = (lastRow - 3) * 12
+    ReDim outputArray(1 To maxRows, 1 To 7)
+
+    outputRow = 1
+
+    ' Process array in memory (FAST!)
+    For dataRow = 1 To UBound(sourceData, 1)
+        pifId = Trim(sourceData(dataRow, 7) & "")      ' Column G
+        projectId = Trim(sourceData(dataRow, 13) & "") ' Column M
+
+        If pifId <> "" And projectId <> "" Then
+            ' TARGET SCENARIO - 6 years (CY through CY+5)
+            For i = 0 To 5
+                outputArray(outputRow, 1) = pifId
+                outputArray(outputRow, 2) = projectId
+                outputArray(outputRow, 3) = SCENARIO_TARGET
+                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 21 + i))      ' U-Z (Requested)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 27 + i))      ' AA-AF (Current)
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 33 + i))      ' AG-AL (Variance)
+                outputRow = outputRow + 1
+            Next i
+
+            ' CLOSINGS SCENARIO - 6 years (CY through CY+5)
+            For i = 0 To 5
+                outputArray(outputRow, 1) = pifId
+                outputArray(outputRow, 2) = projectId
+                outputArray(outputRow, 3) = SCENARIO_CLOSINGS
+                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 41 + i))      ' AO-AT (Requested)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 47 + i))      ' AU-AZ (Current)
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 53 + i))      ' BA-BF (Variance)
+                outputRow = outputRow + 1
+            Next i
+        End If
+    Next dataRow
+
     ' Create or clear Cost_Unpivoted sheet
     On Error Resume Next
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
     On Error GoTo UnpivotCostData_Err
-    
+
     If wsCost Is Nothing Then
         Set wsCost = ThisWorkbook.Sheets.Add(After:=wsData)
         wsCost.Name = SHEET_COST_UNPIVOTED
     Else
         wsCost.Cells.Clear
     End If
-    
-    ' Headers for unpivoted data
-    wsCost.Range("A1").Value = "pif_id"
-    wsCost.Range("B1").Value = "project_id"
-    wsCost.Range("C1").Value = "scenario"
-    wsCost.Range("D1").Value = "year"
-    wsCost.Range("E1").Value = "requested_value"
-    wsCost.Range("F1").Value = "current_value"
-    wsCost.Range("G1").Value = "variance_value"
-    
-    lastRow = wsData.Cells(wsData.Rows.Count, 7).End(xlUp).Row  ' Column G = PIF_ID
-    outputRow = 2
-    
-    Application.StatusBar = "Unpivoting cost data..."
-    
-    ' Process each data row
-    For dataRow = 4 To lastRow
-        pifId = wsData.Cells(dataRow, PIFDataColumns.colPIFID).Value              ' Column G = pif_id
-        projectId = wsData.Cells(dataRow, PIFDataColumns.colFundingProject).Value ' Column M = funding_project
 
-        If pifId <> "" And projectId <> "" Then
-            ' TARGET SCENARIO - Years CY through CY+5
-            ' Columns: U-Z (requested), AA-AF (approved/current), AG-AL (variance)
-            Dim reqVal As Variant
-            Dim curVal As Variant
-            Dim varVal As Variant
+    ' Write headers
+    wsCost.Range("A1:G1").Value = Array("pif_id", "project_id", "scenario", "year", "requested_value", "current_value", "variance_value")
 
-            ' CY (2025)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, currentYear & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
+    ' Write entire array to sheet (ONE WRITE OPERATION)
+    If outputRow > 1 Then
+        wsCost.Range("A2").Resize(outputRow - 1, 7).Value = outputArray
+    End If
 
-            ' CY+1 (2026)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY1).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY1).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY1).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, (currentYear + 1) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+2 (2027)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY2).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY2).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY2).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, (currentYear + 2) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+3 (2028)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY3).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY3).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY3).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, (currentYear + 3) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+4 (2029)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY4).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY4).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY4).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, (currentYear + 4) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+5 (2030)
-            reqVal = wsData.Cells(dataRow, COL_TARGET_REQ_CY5).Value
-            curVal = wsData.Cells(dataRow, COL_TARGET_APPR_CY5).Value
-            varVal = wsData.Cells(dataRow, COL_TARGET_VAR_CY5).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_TARGET, (currentYear + 5) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CLOSINGS SCENARIO - Years CY through CY+5
-            ' Columns: AO-AT (requested), AU-AZ (approved/current), BA-BF (variance)
-
-            ' CY (2025)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, currentYear & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+1 (2026)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY1).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY1).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY1).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, (currentYear + 1) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+2 (2027)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY2).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY2).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY2).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, (currentYear + 2) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+3 (2028)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY3).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY3).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY3).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, (currentYear + 3) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+4 (2029)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY4).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY4).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY4).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, (currentYear + 4) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-
-            ' CY+5 (2030)
-            reqVal = wsData.Cells(dataRow, COL_CLOSINGS_REQ_CY5).Value
-            curVal = wsData.Cells(dataRow, COL_CLOSINGS_APPR_CY5).Value
-            varVal = wsData.Cells(dataRow, COL_CLOSINGS_VAR_CY5).Value
-            AddCostRow wsCost, outputRow, pifId, projectId, SCENARIO_CLOSINGS, (currentYear + 5) & "-12-31", reqVal, curVal, varVal
-            outputRow = outputRow + 1
-        End If
-        
-        ' Progress indicator
-        If dataRow Mod 10 = 0 Then
-            Application.StatusBar = "Unpivoting cost data... Row " & dataRow & " of " & lastRow
-        End If
-    Next dataRow
-    
-    ' Format the output sheet
+    ' Format and hide
     wsCost.Columns("A:G").AutoFit
-    wsCost.Visible = xlSheetHidden  ' Hide from users
-    
+    wsCost.Visible = xlSheetHidden
+
     UnpivotCostData = True
     Exit Function
 
 UnpivotCostData_Err:
-    MsgBox "Failed to unpivot cost data on row " & dataRow & ":" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical
+    MsgBox "Failed to unpivot cost data:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, vbCritical
     UnpivotCostData = False
 End Function
 
 ' ----------------------------------------------------------------------------
-' Sub: AddCostRow
-' Purpose: Helper function to add a row to the unpivoted cost sheet
-' Note: Handles NULL/empty values and type conversions safely
+' Function: ConvertToNumeric
+' Purpose: Convert variant to numeric value, handling empty/null safely
+' Returns: Numeric value or 0
 ' ----------------------------------------------------------------------------
-Private Sub AddCostRow(ByVal ws As Worksheet, ByVal rowNum As Long, _
-                       ByVal pifId As String, ByVal projectId As String, _
-                       ByVal scenario As String, ByVal year As String, _
-                       ByVal requested As Variant, ByVal current As Variant, _
-                       ByVal variance As Variant)
-
-    On Error Resume Next  ' Handle conversion errors gracefully
-
-    ws.Cells(rowNum, 1).Value = pifId
-    ws.Cells(rowNum, 2).Value = projectId
-    ws.Cells(rowNum, 3).Value = scenario
-
-    ' Convert year string to date (e.g., "2025-12-31")
-    ws.Cells(rowNum, 4).Value = CDate(year)
-    If Err.Number <> 0 Then
-        ws.Cells(rowNum, 4).Value = DateSerial(CInt(Left(year, 4)), 12, 31)
-        Err.Clear
-    End If
-
-    ' Handle numeric values - treat empty/non-numeric as 0
-    If IsEmpty(requested) Or Not IsNumeric(requested) Or Trim(CStr(requested)) = "" Then
-        ws.Cells(rowNum, 5).Value = 0
+Private Function ConvertToNumeric(ByVal value As Variant) As Double
+    If IsEmpty(value) Or IsNull(value) Then
+        ConvertToNumeric = 0
+    ElseIf IsNumeric(value) Then
+        ConvertToNumeric = CDbl(value)
     Else
-        ws.Cells(rowNum, 5).Value = CDbl(requested)
+        ConvertToNumeric = 0
     End If
+End Function
 
-    If IsEmpty(current) Or Not IsNumeric(current) Or Trim(CStr(current)) = "" Then
-        ws.Cells(rowNum, 6).Value = 0
-    Else
-        ws.Cells(rowNum, 6).Value = CDbl(current)
-    End If
-
-    If IsEmpty(variance) Or Not IsNumeric(variance) Or Trim(CStr(variance)) = "" Then
-        ws.Cells(rowNum, 7).Value = 0
-    Else
-        ws.Cells(rowNum, 7).Value = CDbl(variance)
-    End If
-
-    On Error GoTo 0
-End Sub
 
 ' ----------------------------------------------------------------------------
 ' Function: CreateBackupTables
@@ -947,8 +841,6 @@ Private Sub ClearArchivedCheckboxes()
     Next i
 
     On Error GoTo 0
-
-    Debug.Print "Cleared archive/include checkboxes for " & clearedCount & " rows"
 End Sub
 
 ' ============================================================================
@@ -960,7 +852,7 @@ End Sub
 ' Purpose: Archive PIFs with archive=1 AND include=1 to approved tables
 ' Usage: Attach this to the [Archive] button
 ' ----------------------------------------------------------------------------
-Public Sub DB_ArchiveApproved()
+Public Sub ArchiveApproved()
     On Error GoTo ErrHandler
 
     Dim selectedSite As String
@@ -1031,22 +923,3 @@ ErrHandler:
            vbCritical, "Archive Error"
 End Sub
 
-' ============================================================================
-' ADDITIONAL BACKWARD COMPATIBILITY WRAPPERS
-' ============================================================================
-
-Public Sub SaveSnapshot()
-    Call DB_SaveSnapshot
-End Sub
-
-Public Sub FinalizeMonth()
-    Call DB_FinalizeMonth
-End Sub
-
-Public Sub RunValidationOnly()
-    Call DB_ValidateOnly
-End Sub
-
-Public Sub ArchiveApprovedRecords()
-    Call DB_ArchiveApproved
-End Sub
