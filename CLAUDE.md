@@ -50,6 +50,13 @@ The system follows a staging → inflight → approved pattern:
   - Without cleanup, each refresh would leave orphaned connections in SQL Server
   - Native Excel refresh works: right-click "Refresh" or "Data > Refresh All"
 
+- **mod_ArchiveCleanup.bas**: Archive cleanup for monthly data entry cycle
+  - Deletes archived records from PIF worksheet to prep for next month's entries
+  - Enabled for SITE contexts only (ANO, GGN, RBS, WF3, HQN) - disabled for Fleet
+  - Uses database validation to ensure only archived records are deleted
+  - Query-based matching: compares PIF_ID+Project_ID from worksheet against approved table
+  - Workflow: [Finalize Month] → [View Archive] → [Delete Archived Records] → Ready for next month
+
 ### Cost Data Transformation
 
 The system transforms wide-format Excel cost columns into a normalized structure:
@@ -131,6 +138,25 @@ Edit `ValidateBusinessRules()` function in mod_Validation.bas:
 errors.Add "Row " & i & "|Business Rule Violation|Your error message"
 ```
 
+### Cleaning Up Archived Records (Monthly Workflow)
+
+After finalizing a month's submissions, site users can clean up archived records from the PIF worksheet:
+
+1. Complete month's submissions (all PIFs approved/dispositioned)
+2. Navigate to **PIF_Archive** sheet to confirm records are captured
+3. Click **[Delete Archived Records]** button
+4. System queries database to identify archived records for current site
+5. Confirmation dialog shows count of records to be deleted
+6. Upon confirmation, archived records are removed from PIF worksheet
+
+**Important Notes:**
+- Only enabled for individual sites (ANO, GGN, RBS, WF3, HQN)
+- Disabled for Fleet context (read-only view)
+- Records remain safely stored in database approved tables
+- Uses `tbl_pif_projects_approved` table for validation
+- Matching logic: PIF_ID + Project_ID composite key
+- See `ARCHIVE_CLEANUP_SETUP.md` for detailed setup and troubleshooting
+
 ## Important Code Locations
 
 - Database connection config: mod_Database.bas:24-26
@@ -138,6 +164,8 @@ errors.Add "Row " & i & "|Business Rule Violation|Your error message"
 - Cost unpivot logic: mod_Submit.bas:173-323
 - Approval archival: mod_Submit.bas:484-533
 - Business rules validation: mod_Validation.bas:294-327
+- Archive cleanup logic: mod_ArchiveCleanup.bas:50-145
+- Site context validation: mod_SiteSetup.bas:165-198
 
 ## Data Maintenance
 
