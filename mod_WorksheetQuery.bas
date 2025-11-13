@@ -182,14 +182,15 @@ End Sub
 
 ' ----------------------------------------------------------------------------
 ' Sub: CreateExcelTableFromQuery
-' Purpose: Create Excel Table (ListObject) from SQL query
+' Purpose: Create Excel Table with QueryTable connection (REFRESHABLE!)
 ' Parameters:
 '   ws - Target worksheet
 '   tableName - Name for the Excel Table
 '   sql - SQL query string
 '   connStr - Connection string
 '   title - Title for header
-' Notes: Creates native Excel Table with full sorting/filtering capability
+' Notes: Keeps QueryTable connection for native Excel refresh capability
+'        Right-click table > Refresh to update data from database
 ' ----------------------------------------------------------------------------
 Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
                                      ByVal tableName As String, _
@@ -205,14 +206,14 @@ Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
     ' Clear worksheet
     ws.Cells.Clear
 
+    ' Delete existing ListObjects (Tables) first
+    For i = ws.ListObjects.Count To 1 Step -1
+        ws.ListObjects(i).Delete
+    Next i
+
     ' Delete existing QueryTables
     For i = ws.QueryTables.Count To 1 Step -1
         ws.QueryTables(i).Delete
-    Next i
-
-    ' Delete existing ListObjects (Tables)
-    For i = ws.ListObjects.Count To 1 Step -1
-        ws.ListObjects(i).Delete
     Next i
 
     ' Add title in row 1
@@ -221,24 +222,24 @@ Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
     ws.Range("B1").Font.Size = 14
 
     ' Add instructions in row 2
-    ws.Range("B2").Value = "Use Excel's native filter and sort features on the table below"
+    ws.Range("B2").Value = "Right-click table > Refresh to update from database"
     ws.Range("B2").Font.Italic = True
     ws.Range("B2").Font.Size = 9
     ws.Range("B2").Font.Color = RGB(0, 128, 0)
 
-    ' Create QueryTable starting at B4
+    ' Create QueryTable starting at B4 with Table format
     Set qt = ws.QueryTables.Add( _
         Connection:=connStr, _
         Destination:=ws.Range("B4"), _
         sql:=sql)
 
-    ' Configure QueryTable properties
+    ' Configure QueryTable properties for optimal behavior
     With qt
         .Name = tableName & "_Query"
         .FieldNames = True
         .RowNumbers = False
         .FillAdjacentFormulas = False
-        .PreserveFormatting = False
+        .PreserveFormatting = True  ' KEY: Preserve formatting on refresh!
         .RefreshOnFileOpen = False
         .BackgroundQuery = False
         .RefreshStyle = xlInsertDeleteCells
@@ -252,13 +253,13 @@ Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
         .Refresh BackgroundQuery:=False
     End With
 
-    ' Convert QueryTable result to Excel Table (ListObject)
+    ' Convert QueryTable result to Excel Table (keeps QueryTable connection!)
     If Not qt.ResultRange Is Nothing Then
         Set tbl = ws.ListObjects.Add(xlSrcRange, qt.ResultRange, , xlYes)
         tbl.Name = tableName
         tbl.TableStyle = "TableStyleMedium2"
 
-        ' Format the table
+        ' Format the table header
         With tbl.HeaderRowRange
             .Font.Bold = True
             .Font.Size = 11
@@ -271,8 +272,8 @@ Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
         tbl.Range.Columns.AutoFit
     End If
 
-    ' Delete the QueryTable (we only needed it to import data)
-    qt.Delete
+    ' DON'T delete the QueryTable - keep it for refresh capability!
+    ' The ListObject and QueryTable work together now
 
     Exit Sub
 
