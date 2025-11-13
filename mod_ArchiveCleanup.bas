@@ -90,8 +90,8 @@ Public Sub Archive_DeleteArchivedRecords()
 
         MsgBox "No archived records found in the database for site: " & selectedSite & vbCrLf & vbCrLf & _
                "This could mean:" & vbCrLf & _
-               "  • No records have been approved/dispositioned yet" & vbCrLf & _
-               "  • All archived records have already been removed from the PIF sheet" & vbCrLf & vbCrLf & _
+               "  - No records have been approved/dispositioned yet" & vbCrLf & _
+               "  - All archived records have already been removed from the PIF sheet" & vbCrLf & vbCrLf & _
                "TIP: Refresh the Archive sheet to see all archived records.", _
                vbInformation, "No Archived Records"
         Exit Sub
@@ -125,9 +125,9 @@ Public Sub Archive_DeleteArchivedRecords()
                  "These records have been APPROVED or DISPOSITIONED and are safely stored " & _
                  "in the database archive." & vbCrLf & vbCrLf & _
                  "This action will:" & vbCrLf & _
-                 "  • Remove archived records from the PIF worksheet" & vbCrLf & _
-                 "  • Prepare the worksheet for next month's data entry" & vbCrLf & _
-                 "  • NOT affect archived records in the database" & vbCrLf & vbCrLf & _
+                 "  - Remove archived records from the PIF worksheet" & vbCrLf & _
+                 "  - Prepare the worksheet for next month's data entry" & vbCrLf & _
+                 "  - NOT affect archived records in the database" & vbCrLf & vbCrLf & _
                  "WARNING: This cannot be undone!" & vbCrLf & vbCrLf & _
                  "Do you want to proceed?"
 
@@ -226,11 +226,11 @@ Private Function GetArchivedRecordsForSite(ByVal siteName As String) As Collecti
     End If
 
     ' Build SQL query - get distinct PIF_ID + Project_ID combinations
-    ' Filter by site and only approved/dispositioned status
+    ' Note: Records in tbl_pif_projects_approved are already approved by definition
+    '       No need to filter by status - if it's in this table, it's archived
     sql = "SELECT DISTINCT pif_id, project_id " & _
           "FROM dbo.tbl_pif_projects_approved " & _
           "WHERE UPPER(site) = '" & UCase(Trim(siteName)) & "' " & _
-          "AND status IN (" & mod_SharedConstants.GetApprovedStatusList() & ") " & _
           "ORDER BY pif_id, project_id"
 
     ' Execute query
