@@ -46,10 +46,11 @@ The system follows a staging → inflight → approved pattern:
   - Archives approved PIFs after each submission
   - Public API: SaveSnapshot(), FinalizeMonth(), ValidateOnly(), ArchiveApproved()
 
-- **mod_WorksheetQuery.bas**: Manages Archive and Inflight Excel Tables (STREAMLINED)
-  - Creates Excel Tables (ListObjects) for fleet-wide monitoring (ALL SITES)
-  - No site-specific filtering - full fleet visibility for corporate analysis
-  - Native Excel table filtering and sorting
+- **mod_WorksheetQuery.bas**: Manages Archive and Inflight Excel Tables (REFRESH-ONLY MODE)
+  - Refreshes user-created tables with data connections (does NOT recreate tables)
+  - Preserves all user formatting, filters, column widths, and customization
+  - NO header text modifications or pane freezing
+  - User manually creates PIF_Archive and PIF_Inflight sheets with data connections
   - Auto-refreshes Inflight table on workbook open
   - Public API: RefreshArchive(), RefreshInflight(), RefreshAll()
 

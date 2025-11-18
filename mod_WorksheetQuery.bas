@@ -1,68 +1,51 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_WorksheetQuery"
 ' ============================================================================
-' MODULE: mod_WorksheetQuery (STREAMLINED & OPTIMIZED)
+' MODULE: mod_WorksheetQuery (REFRESH-ONLY MODE)
 ' ============================================================================
-' Purpose: Create and refresh Archive and Inflight FLEET-WIDE views
+' Purpose: Refresh user-created Archive and Inflight tables
 ' Author: Data Architecture Team
-' Date: 2025-11-13
+' Date: 2025-11-18
 '
 ' FEATURES:
-'   - Fleet-wide views (ALL SITES visible)
-'   - Excel Tables (ListObjects) for native filtering/sorting
-'   - No site-specific filtering
-'   - No freeze panes
-'   - Auto-refresh on workbook open (Inflight only)
+'   - REFRESH-ONLY mode - does NOT recreate tables
+'   - User manually creates tables with data connections
+'   - Code only refreshes existing connections
+'   - NO header text modifications
+'   - NO pane freezing
+'   - Preserves all user formatting and customization
 ' ============================================================================
 
 Option Explicit
 
-' Sheet name constants
+' Sheet and table name constants
 Private Const SHEET_ARCHIVE As String = "PIF_Archive"
 Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
+Private Const TABLE_ARCHIVE As String = "ArchiveTable"
+Private Const TABLE_INFLIGHT As String = "InflightTable"
 
 ' ============================================================================
-' PUBLIC FUNCTIONS - WORKSHEET CREATION AND REFRESH
+' PUBLIC FUNCTIONS - TABLE REFRESH ONLY
 ' ============================================================================
 
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshArchive
-' Purpose: Create or refresh the Archive worksheet (ALL SITES)
+' Purpose: Refresh user-created ArchiveTable (does NOT recreate!)
 ' Usage: Call from button or manually
+' Notes: User must manually create ArchiveTable with data connection first
 ' ----------------------------------------------------------------------------
 Public Sub RefreshArchive()
     On Error GoTo ErrHandler
 
-    Dim ws As Worksheet
-    Dim sql As String
     Dim startTime As Double
-    Dim connStr As String
     Dim recordCount As Long
 
     startTime = Timer
     Application.ScreenUpdating = False
     Application.StatusBar = "Refreshing Archive..."
 
-    ' Get or create worksheet
-    Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE)
+    ' Refresh the existing table
+    recordCount = RefreshExistingTable(SHEET_ARCHIVE, TABLE_ARCHIVE)
 
-    ' Build SQL query - NO SITE FILTER (fleet-wide view)
-    sql = "SELECT * FROM dbo.vw_pif_approved_wide ORDER BY approval_date DESC, pif_id, project_id"
-
-    ' Build connection string
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    ' Create Excel Table from query
-    Call CreateExcelTableFromQuery(ws, "ArchiveTable", sql, connStr, "PIF Archive - All Sites")
-
-    ' Count records
-    If ws.ListObjects.Count > 0 Then
-        recordCount = ws.ListObjects(1).ListRows.Count
-    End If
-
-    ws.Activate
     Application.ScreenUpdating = True
     Application.StatusBar = False
 
@@ -71,8 +54,7 @@ Public Sub RefreshArchive()
 
     MsgBox "Archive refreshed!" & vbCrLf & vbCrLf & _
            "Records: " & recordCount & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-           "Use native Excel filters and sorting on the table.", _
+           "Time: " & Format(elapsed, "0.0") & " seconds", _
            vbInformation, "Refresh Complete"
 
     Exit Sub
@@ -81,48 +63,31 @@ ErrHandler:
     Application.ScreenUpdating = True
     Application.StatusBar = False
     MsgBox "Failed to refresh Archive:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "Make sure you've manually created '" & TABLE_ARCHIVE & "' on the '" & SHEET_ARCHIVE & "' sheet " & _
+           "with a data connection to the database view.", _
            vbCritical, "Refresh Error"
 End Sub
 
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshInflight
-' Purpose: Create or refresh the Inflight worksheet (ALL SITES)
+' Purpose: Refresh user-created InflightTable (does NOT recreate!)
 ' Usage: Call from button, manually, or Workbook_Open event
+' Notes: User must manually create InflightTable with data connection first
 ' ----------------------------------------------------------------------------
 Public Sub RefreshInflight(Optional ByVal showMessage As Boolean = True)
     On Error GoTo ErrHandler
 
-    Dim ws As Worksheet
-    Dim sql As String
     Dim startTime As Double
-    Dim connStr As String
     Dim recordCount As Long
 
     startTime = Timer
     Application.ScreenUpdating = False
     Application.StatusBar = "Refreshing Inflight..."
 
-    ' Get or create worksheet
-    Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT)
+    ' Refresh the existing table
+    recordCount = RefreshExistingTable(SHEET_INFLIGHT, TABLE_INFLIGHT)
 
-    ' Build SQL query - NO SITE FILTER (fleet-wide view)
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide ORDER BY submission_date DESC, pif_id, project_id"
-
-    ' Build connection string
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    ' Create Excel Table from query
-    Call CreateExcelTableFromQuery(ws, "InflightTable", sql, connStr, "PIF Inflight - All Sites")
-
-    ' Count records
-    If ws.ListObjects.Count > 0 Then
-        recordCount = ws.ListObjects(1).ListRows.Count
-    End If
-
-    ws.Activate
     Application.ScreenUpdating = True
     Application.StatusBar = False
 
@@ -132,8 +97,7 @@ Public Sub RefreshInflight(Optional ByVal showMessage As Boolean = True)
 
         MsgBox "Inflight refreshed!" & vbCrLf & vbCrLf & _
                "Records: " & recordCount & vbCrLf & _
-               "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-               "Use native Excel filters and sorting on the table.", _
+               "Time: " & Format(elapsed, "0.0") & " seconds", _
                vbInformation, "Refresh Complete"
     End If
 
@@ -144,14 +108,16 @@ ErrHandler:
     Application.StatusBar = False
     If showMessage Then
         MsgBox "Failed to refresh Inflight:" & vbCrLf & vbCrLf & _
-               "Error: " & Err.Number & " - " & Err.Description, _
+               "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+               "Make sure you've manually created '" & TABLE_INFLIGHT & "' on the '" & SHEET_INFLIGHT & "' sheet " & _
+               "with a data connection to the database view.", _
                vbCritical, "Refresh Error"
     End If
 End Sub
 
 ' ----------------------------------------------------------------------------
 ' Sub: RefreshAll
-' Purpose: Refresh both Archive and Inflight worksheets
+' Purpose: Refresh both Archive and Inflight tables
 ' ----------------------------------------------------------------------------
 Public Sub RefreshAll(Optional ByVal showSuccessMessage As Boolean = True)
     On Error GoTo ErrHandler
@@ -164,7 +130,7 @@ Public Sub RefreshAll(Optional ByVal showSuccessMessage As Boolean = True)
     Application.ScreenUpdating = True
 
     If showSuccessMessage Then
-        MsgBox "Both Archive and Inflight worksheets refreshed.", _
+        MsgBox "Both Archive and Inflight tables refreshed.", _
                vbInformation, "Refresh Complete"
     End If
 
@@ -172,7 +138,7 @@ Public Sub RefreshAll(Optional ByVal showSuccessMessage As Boolean = True)
 
 ErrHandler:
     Application.ScreenUpdating = True
-    MsgBox "Error refreshing worksheets:" & vbCrLf & vbCrLf & _
+    MsgBox "Error refreshing tables:" & vbCrLf & vbCrLf & _
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical, "Refresh Error"
 End Sub
@@ -182,135 +148,84 @@ End Sub
 ' ============================================================================
 
 ' ----------------------------------------------------------------------------
-' Sub: CreateExcelTableFromQuery
-' Purpose: Create Excel Table with QueryTable connection (REFRESHABLE!)
+' Function: RefreshExistingTable
+' Purpose: Refresh an existing Excel Table or QueryTable (does NOT create!)
 ' Parameters:
-'   ws - Target worksheet
-'   tableName - Name for the Excel Table
-'   sql - SQL query string
-'   connStr - Connection string
-'   title - Title for header
-' Notes: Keeps QueryTable connection for native Excel refresh capability
-'        Right-click table > Refresh to update data from database
+'   sheetName - Name of worksheet containing the table
+'   tableName - Name of the Excel Table to refresh
+' Returns: Number of records in the table after refresh
+' Notes: Looks for QueryTable connections and refreshes them
+'        Preserves all user formatting and customization
 ' ----------------------------------------------------------------------------
-Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
-                                     ByVal tableName As String, _
-                                     ByVal sql As String, _
-                                     ByVal connStr As String, _
-                                     ByVal title As String)
+Private Function RefreshExistingTable(ByVal sheetName As String, _
+                                     ByVal tableName As String) As Long
     On Error GoTo ErrHandler
 
-    Dim qt As QueryTable
+    Dim ws As Worksheet
     Dim tbl As ListObject
+    Dim qt As QueryTable
     Dim i As Integer
+    Dim refreshed As Boolean
 
-    ' Clear worksheet
-    ws.Cells.Clear
+    ' Get worksheet
+    Set ws = ThisWorkbook.Sheets(sheetName)
 
-    ' Delete existing ListObjects (Tables) first
-    For i = ws.ListObjects.Count To 1 Step -1
-        ws.ListObjects(i).Delete
+    ' Try to find and refresh QueryTable first (most common for data connections)
+    refreshed = False
+    For i = 1 To ws.QueryTables.Count
+        Set qt = ws.QueryTables(i)
+        ' Refresh any QueryTable on this sheet
+        qt.Refresh BackgroundQuery:=False
+        refreshed = True
     Next i
 
-    ' Delete existing QueryTables
-    For i = ws.QueryTables.Count To 1 Step -1
-        ws.QueryTables(i).Delete
-    Next i
+    ' If no QueryTable found, try to refresh ListObject data connection
+    If Not refreshed Then
+        On Error Resume Next
+        Set tbl = ws.ListObjects(tableName)
+        On Error GoTo ErrHandler
 
-    ' Add title in row 1
-    ws.Range("B1").Value = title
-    ws.Range("B1").Font.Bold = True
-    ws.Range("B1").Font.Size = 14
-
-    ' Add instructions in row 2
-    ws.Range("B2").Value = "Right-click table > Refresh to update from database"
-    ws.Range("B2").Font.Italic = True
-    ws.Range("B2").Font.Size = 9
-    ws.Range("B2").Font.Color = RGB(0, 128, 0)
-
-    ' Create QueryTable starting at B4 with Table format
-    Set qt = ws.QueryTables.Add( _
-        Connection:=connStr, _
-        Destination:=ws.Range("B4"), _
-        sql:=sql)
-
-    ' Configure QueryTable properties for optimal behavior
-    With qt
-        .Name = tableName & "_Query"
-        .FieldNames = True
-        .RowNumbers = False
-        .FillAdjacentFormulas = False
-        .PreserveFormatting = True  ' KEY: Preserve formatting on refresh!
-        .RefreshOnFileOpen = False
-        .BackgroundQuery = False
-        .RefreshStyle = xlInsertDeleteCells
-        .SavePassword = False
-        .SaveData = True
-        .AdjustColumnWidth = True
-        .RefreshPeriod = 0
-        .PreserveColumnInfo = True
-
-        ' Refresh to populate data
-        .Refresh BackgroundQuery:=False
-    End With
-
-    ' Convert QueryTable result to Excel Table (keeps QueryTable connection!)
-    If Not qt.ResultRange Is Nothing Then
-        Set tbl = ws.ListObjects.Add(xlSrcRange, qt.ResultRange, , xlYes)
-        tbl.Name = tableName
-        tbl.TableStyle = "TableStyleMedium2"
-
-        ' Format the table header
-        With tbl.HeaderRowRange
-            .Font.Bold = True
-            .Font.Size = 11
-            .Interior.Color = RGB(68, 114, 196)
-            .Font.Color = RGB(255, 255, 255)
-            .HorizontalAlignment = xlCenter
-        End With
-
-        ' Auto-fit columns
-        tbl.Range.Columns.AutoFit
+        If Not tbl Is Nothing Then
+            If tbl.QueryTable Is Nothing Then
+                ' Table exists but has no data connection
+                Err.Raise vbObjectError + 1001, "RefreshExistingTable", _
+                    "Table '" & tableName & "' exists but has no data connection. " & _
+                    "Please create a table with a data connection to the database view."
+            Else
+                ' Refresh via ListObject's QueryTable
+                tbl.QueryTable.Refresh BackgroundQuery:=False
+                refreshed = True
+            End If
+        End If
     End If
 
-    ' DON'T delete the QueryTable - keep it for refresh capability!
-    ' The ListObject and QueryTable work together now
+    ' Verify we found something to refresh
+    If Not refreshed Then
+        Err.Raise vbObjectError + 1002, "RefreshExistingTable", _
+            "No table or data connection found on sheet '" & sheetName & "'. " & _
+            "Please manually create '" & tableName & "' with a data connection first."
+    End If
 
-    Exit Sub
+    ' Count records in the table (if it's a ListObject)
+    On Error Resume Next
+    Set tbl = ws.ListObjects(tableName)
+    If Not tbl Is Nothing Then
+        RefreshExistingTable = tbl.ListRows.Count
+    Else
+        ' Fallback: count rows in QueryTable result range
+        For i = 1 To ws.QueryTables.Count
+            If Not ws.QueryTables(i).ResultRange Is Nothing Then
+                RefreshExistingTable = ws.QueryTables(i).ResultRange.Rows.Count - 1 ' Subtract header
+                Exit For
+            End If
+        Next i
+    End If
+    On Error GoTo 0
+
+    Exit Function
 
 ErrHandler:
-    MsgBox "Error creating Excel Table:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbExclamation, "Table Creation Error"
-End Sub
-
-' ----------------------------------------------------------------------------
-' Function: GetOrCreateWorksheet
-' Purpose: Get existing worksheet or create new one
-' Parameters:
-'   sheetName - Name of worksheet
-' Returns: Worksheet object
-' ----------------------------------------------------------------------------
-Private Function GetOrCreateWorksheet(ByVal sheetName As String) As Worksheet
-    Dim ws As Worksheet
-
-    ' Try to get existing worksheet
-    On Error Resume Next
-    Set ws = ThisWorkbook.Sheets(sheetName)
-    On Error GoTo 0
-
-    ' Create if doesn't exist
-    If ws Is Nothing Then
-        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-        ws.Name = sheetName
-    End If
-
-    ' Unprotect if protected
-    On Error Resume Next
-    ws.Unprotect
-    On Error GoTo 0
-
-    Set GetOrCreateWorksheet = ws
+    Err.Raise Err.Number, Err.Source, Err.Description
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -319,21 +234,7 @@ End Function
 ' ----------------------------------------------------------------------------
 Private Sub RefreshArchiveSilent()
     On Error Resume Next
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim connStr As String
-
-    Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE)
-
-    sql = "SELECT * FROM dbo.vw_pif_approved_wide ORDER BY approval_date DESC, pif_id, project_id"
-
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    Call CreateExcelTableFromQuery(ws, "ArchiveTable", sql, connStr, "PIF Archive - All Sites")
-
+    Call RefreshExistingTable(SHEET_ARCHIVE, TABLE_ARCHIVE)
     On Error GoTo 0
 End Sub
 
@@ -343,383 +244,6 @@ End Sub
 ' ----------------------------------------------------------------------------
 Private Sub RefreshInflightSilent()
     On Error Resume Next
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim connStr As String
-
-    Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT)
-
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide ORDER BY submission_date DESC, pif_id, project_id"
-
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    Call CreateExcelTableFromQuery(ws, "InflightTable", sql, connStr, "PIF Inflight - All Sites")
-
+    Call RefreshExistingTable(SHEET_INFLIGHT, TABLE_INFLIGHT)
     On Error GoTo 0
 End Sub
-=======
-Attribute VB_Name = "mod_WorksheetQuery"
-' ============================================================================
-' MODULE: mod_WorksheetQuery (STREAMLINED & OPTIMIZED)
-' ============================================================================
-' Purpose: Create and refresh Archive and Inflight FLEET-WIDE views
-' Author: Data Architecture Team
-' Date: 2025-11-13
-'
-' FEATURES:
-'   - Fleet-wide views (ALL SITES visible)
-'   - Excel Tables (ListObjects) for native filtering/sorting
-'   - No site-specific filtering
-'   - No freeze panes
-'   - Auto-refresh on workbook open (Inflight only)
-' ============================================================================
-
-Option Explicit
-
-' Sheet name constants
-Private Const SHEET_ARCHIVE As String = "PIF_Archive"
-Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
-
-' ============================================================================
-' PUBLIC FUNCTIONS - WORKSHEET CREATION AND REFRESH
-' ============================================================================
-
-' ----------------------------------------------------------------------------
-' Sub: RefreshArchive
-' Purpose: Create or refresh the Archive worksheet (ALL SITES)
-' Usage: Call from button or manually
-' ----------------------------------------------------------------------------
-Public Sub RefreshArchive()
-    On Error GoTo ErrHandler
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim startTime As Double
-    Dim connStr As String
-    Dim recordCount As Long
-
-    startTime = Timer
-    Application.ScreenUpdating = False
-    Application.StatusBar = "Refreshing Archive..."
-
-    ' Get or create worksheet
-    Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE)
-
-    ' Build SQL query - NO SITE FILTER (fleet-wide view)
-    sql = "SELECT * FROM dbo.vw_pif_approved_wide ORDER BY approval_date DESC, pif_id, project_id"
-
-    ' Build connection string
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    ' Create Excel Table from query
-    Call CreateExcelTableFromQuery(ws, "ArchiveTable", sql, connStr, "PIF Archive - All Sites")
-
-    ' Count records
-    If ws.ListObjects.Count > 0 Then
-        recordCount = ws.ListObjects(1).ListRows.Count
-    End If
-
-    ws.Activate
-    Application.ScreenUpdating = True
-    Application.StatusBar = False
-
-    Dim elapsed As Double
-    elapsed = Timer - startTime
-
-    MsgBox "Archive refreshed!" & vbCrLf & vbCrLf & _
-           "Records: " & recordCount & vbCrLf & _
-           "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-           "Use native Excel filters and sorting on the table.", _
-           vbInformation, "Refresh Complete"
-
-    Exit Sub
-
-ErrHandler:
-    Application.ScreenUpdating = True
-    Application.StatusBar = False
-    MsgBox "Failed to refresh Archive:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical, "Refresh Error"
-End Sub
-
-' ----------------------------------------------------------------------------
-' Sub: RefreshInflight
-' Purpose: Create or refresh the Inflight worksheet (ALL SITES)
-' Usage: Call from button, manually, or Workbook_Open event
-' ----------------------------------------------------------------------------
-Public Sub RefreshInflight(Optional ByVal showMessage As Boolean = True)
-    On Error GoTo ErrHandler
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim startTime As Double
-    Dim connStr As String
-    Dim recordCount As Long
-
-    startTime = Timer
-    Application.ScreenUpdating = False
-    Application.StatusBar = "Refreshing Inflight..."
-
-    ' Get or create worksheet
-    Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT)
-
-    ' Build SQL query - NO SITE FILTER (fleet-wide view)
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide ORDER BY submission_date DESC, pif_id, project_id"
-
-    ' Build connection string
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    ' Create Excel Table from query
-    Call CreateExcelTableFromQuery(ws, "InflightTable", sql, connStr, "PIF Inflight - All Sites")
-
-    ' Count records
-    If ws.ListObjects.Count > 0 Then
-        recordCount = ws.ListObjects(1).ListRows.Count
-    End If
-
-    ws.Activate
-    Application.ScreenUpdating = True
-    Application.StatusBar = False
-
-    If showMessage Then
-        Dim elapsed As Double
-        elapsed = Timer - startTime
-
-        MsgBox "Inflight refreshed!" & vbCrLf & vbCrLf & _
-               "Records: " & recordCount & vbCrLf & _
-               "Time: " & Format(elapsed, "0.0") & " seconds" & vbCrLf & vbCrLf & _
-               "Use native Excel filters and sorting on the table.", _
-               vbInformation, "Refresh Complete"
-    End If
-
-    Exit Sub
-
-ErrHandler:
-    Application.ScreenUpdating = True
-    Application.StatusBar = False
-    If showMessage Then
-        MsgBox "Failed to refresh Inflight:" & vbCrLf & vbCrLf & _
-               "Error: " & Err.Number & " - " & Err.Description, _
-               vbCritical, "Refresh Error"
-    End If
-End Sub
-
-' ----------------------------------------------------------------------------
-' Sub: RefreshAll
-' Purpose: Refresh both Archive and Inflight worksheets
-' ----------------------------------------------------------------------------
-Public Sub RefreshAll(Optional ByVal showSuccessMessage As Boolean = True)
-    On Error GoTo ErrHandler
-
-    Application.ScreenUpdating = False
-
-    Call RefreshArchiveSilent
-    Call RefreshInflightSilent
-
-    Application.ScreenUpdating = True
-
-    If showSuccessMessage Then
-        MsgBox "Both Archive and Inflight worksheets refreshed.", _
-               vbInformation, "Refresh Complete"
-    End If
-
-    Exit Sub
-
-ErrHandler:
-    Application.ScreenUpdating = True
-    MsgBox "Error refreshing worksheets:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical, "Refresh Error"
-End Sub
-
-' ============================================================================
-' PRIVATE HELPER FUNCTIONS
-' ============================================================================
-
-' ----------------------------------------------------------------------------
-' Sub: CreateExcelTableFromQuery
-' Purpose: Create Excel Table with QueryTable connection (REFRESHABLE!)
-' Parameters:
-'   ws - Target worksheet
-'   tableName - Name for the Excel Table
-'   sql - SQL query string
-'   connStr - Connection string
-'   title - Title for header
-' Notes: Keeps QueryTable connection for native Excel refresh capability
-'        Right-click table > Refresh to update data from database
-' ----------------------------------------------------------------------------
-Private Sub CreateExcelTableFromQuery(ByVal ws As Worksheet, _
-                                     ByVal tableName As String, _
-                                     ByVal sql As String, _
-                                     ByVal connStr As String, _
-                                     ByVal title As String)
-    On Error GoTo ErrHandler
-
-    Dim qt As QueryTable
-    Dim tbl As ListObject
-    Dim i As Integer
-
-    ' Clear worksheet
-    ws.Cells.Clear
-
-    ' Delete existing ListObjects (Tables) first
-    For i = ws.ListObjects.Count To 1 Step -1
-        ws.ListObjects(i).Delete
-    Next i
-
-    ' Delete existing QueryTables
-    For i = ws.QueryTables.Count To 1 Step -1
-        ws.QueryTables(i).Delete
-    Next i
-
-    ' Add title in row 1
-    ws.Range("B1").Value = title
-    ws.Range("B1").Font.Bold = True
-    ws.Range("B1").Font.Size = 14
-
-    ' Add instructions in row 2
-    ws.Range("B2").Value = "Right-click table > Refresh to update from database"
-    ws.Range("B2").Font.Italic = True
-    ws.Range("B2").Font.Size = 9
-    ws.Range("B2").Font.Color = RGB(0, 128, 0)
-
-    ' Create QueryTable starting at B4 with Table format
-    Set qt = ws.QueryTables.Add( _
-        Connection:=connStr, _
-        Destination:=ws.Range("B4"), _
-        sql:=sql)
-
-    ' Configure QueryTable properties for optimal behavior
-    With qt
-        .Name = tableName & "_Query"
-        .FieldNames = True
-        .RowNumbers = False
-        .FillAdjacentFormulas = False
-        .PreserveFormatting = True  ' KEY: Preserve formatting on refresh!
-        .RefreshOnFileOpen = False
-        .BackgroundQuery = False
-        .RefreshStyle = xlInsertDeleteCells
-        .SavePassword = False
-        .SaveData = True
-        .AdjustColumnWidth = True
-        .RefreshPeriod = 0
-        .PreserveColumnInfo = True
-
-        ' Refresh to populate data
-        .Refresh BackgroundQuery:=False
-    End With
-
-    ' Convert QueryTable result to Excel Table (keeps QueryTable connection!)
-    If Not qt.ResultRange Is Nothing Then
-        Set tbl = ws.ListObjects.Add(xlSrcRange, qt.ResultRange, , xlYes)
-        tbl.Name = tableName
-        tbl.TableStyle = "TableStyleMedium2"
-
-        ' Format the table header
-        With tbl.HeaderRowRange
-            .Font.Bold = True
-            .Font.Size = 11
-            .Interior.Color = RGB(68, 114, 196)
-            .Font.Color = RGB(255, 255, 255)
-            .HorizontalAlignment = xlCenter
-        End With
-
-        ' Auto-fit columns
-        tbl.Range.Columns.AutoFit
-    End If
-
-    ' DON'T delete the QueryTable - keep it for refresh capability!
-    ' The ListObject and QueryTable work together now
-
-    Exit Sub
-
-ErrHandler:
-    MsgBox "Error creating Excel Table:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbExclamation, "Table Creation Error"
-End Sub
-
-' ----------------------------------------------------------------------------
-' Function: GetOrCreateWorksheet
-' Purpose: Get existing worksheet or create new one
-' Parameters:
-'   sheetName - Name of worksheet
-' Returns: Worksheet object
-' ----------------------------------------------------------------------------
-Private Function GetOrCreateWorksheet(ByVal sheetName As String) As Worksheet
-    Dim ws As Worksheet
-
-    ' Try to get existing worksheet
-    On Error Resume Next
-    Set ws = ThisWorkbook.Sheets(sheetName)
-    On Error GoTo 0
-
-    ' Create if doesn't exist
-    If ws Is Nothing Then
-        Set ws = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-        ws.Name = sheetName
-    End If
-
-    ' Unprotect if protected
-    On Error Resume Next
-    ws.Unprotect
-    On Error GoTo 0
-
-    Set GetOrCreateWorksheet = ws
-End Function
-
-' ----------------------------------------------------------------------------
-' Sub: RefreshArchiveSilent
-' Purpose: Refresh Archive without messagebox (for batch operations)
-' ----------------------------------------------------------------------------
-Private Sub RefreshArchiveSilent()
-    On Error Resume Next
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim connStr As String
-
-    Set ws = GetOrCreateWorksheet(SHEET_ARCHIVE)
-
-    sql = "SELECT * FROM dbo.vw_pif_approved_wide ORDER BY approval_date DESC, pif_id, project_id"
-
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    Call CreateExcelTableFromQuery(ws, "ArchiveTable", sql, connStr, "PIF Archive - All Sites")
-
-    On Error GoTo 0
-End Sub
-
-' ----------------------------------------------------------------------------
-' Sub: RefreshInflightSilent
-' Purpose: Refresh Inflight without messagebox (for batch operations)
-' ----------------------------------------------------------------------------
-Private Sub RefreshInflightSilent()
-    On Error Resume Next
-
-    Dim ws As Worksheet
-    Dim sql As String
-    Dim connStr As String
-
-    Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT)
-
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide ORDER BY submission_date DESC, pif_id, project_id"
-
-    connStr = "OLEDB;Provider=SQLOLEDB;Data Source=" & mod_Database.SQL_SERVER & _
-              ";Initial Catalog=" & mod_Database.SQL_DATABASE & _
-              ";Integrated Security=SSPI;"
-
-    Call CreateExcelTableFromQuery(ws, "InflightTable", sql, connStr, "PIF Inflight - All Sites")
-
-    On Error GoTo 0
-End Sub
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663
