@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_Diagnostic"
 ' ============================================================================
 ' MODULE: mod_Diagnostic
@@ -257,7 +256,6 @@ End Sub
 Public Sub TestParameterTypes()
     Call Diag_TestParameters
 End Sub
-=======
 Attribute VB_Name = "mod_Diagnostic"
 ' ============================================================================
 ' MODULE: mod_Diagnostic
@@ -516,4 +514,3 @@ End Sub
 Public Sub TestParameterTypes()
     Call Diag_TestParameters
 End Sub
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663

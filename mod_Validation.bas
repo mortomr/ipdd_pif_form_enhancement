@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_Validation"
 ' ============================================================================
 ' MODULE: mod_Validation (PERFORMANCE OPTIMIZED)
@@ -332,7 +331,6 @@ Private Sub WriteErrorsToReport(ByVal wsReport As Worksheet, ByRef errors As Col
     wsReport.Columns("A:C").AutoFit
     wsReport.Range("A2:C" & rowNum - 1).AutoFilter
 End Sub
-=======
 Attribute VB_Name = "mod_Validation"
 ' ============================================================================
 ' MODULE: mod_Validation (PERFORMANCE OPTIMIZED)
@@ -666,4 +664,3 @@ Private Sub WriteErrorsToReport(ByVal wsReport As Worksheet, ByRef errors As Col
     wsReport.Columns("A:C").AutoFit
     wsReport.Range("A2:C" & rowNum - 1).AutoFilter
 End Sub
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663

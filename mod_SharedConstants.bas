@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_SharedConstants"
 ' ============================================================================
 ' MODULE: mod_SharedConstants
@@ -209,7 +208,6 @@ End Function
 Public Function GetModuleVersion() As String
     GetModuleVersion = MODULE_VERSION
 End Function
-=======
 Attribute VB_Name = "mod_SharedConstants"
 ' ============================================================================
 ' MODULE: mod_SharedConstants
@@ -420,4 +418,3 @@ End Function
 Public Function GetModuleVersion() As String
     GetModuleVersion = MODULE_VERSION
 End Function
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663

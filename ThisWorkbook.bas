@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "ThisWorkbook"
 ' ============================================================================
 ' CLASS MODULE: ThisWorkbook
@@ -26,7 +25,6 @@ Private Sub Workbook_Open()
 
     On Error GoTo 0
 End Sub
-=======
 Attribute VB_Name = "ThisWorkbook"
 ' ============================================================================
 ' CLASS MODULE: ThisWorkbook
@@ -54,4 +52,3 @@ Private Sub Workbook_Open()
 
     On Error GoTo 0
 End Sub
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663

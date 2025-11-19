@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_ArchiveCleanup"
 ' ============================================================================
 ' MODULE: mod_ArchiveCleanup
@@ -444,7 +443,6 @@ End Sub
 Public Sub DeleteArchivedRecords()
     Call Archive_DeleteArchivedRecords
 End Sub
-=======
 Attribute VB_Name = "mod_ArchiveCleanup"
 ' ============================================================================
 ' MODULE: mod_ArchiveCleanup
@@ -890,4 +888,3 @@ End Sub
 Public Sub DeleteArchivedRecords()
     Call Archive_DeleteArchivedRecords
 End Sub
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663

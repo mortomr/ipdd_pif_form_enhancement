@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 Attribute VB_Name = "mod_Database"
 ' ============================================================================
 ' MODULE: mod_Database (SECURITY HARDENED)
@@ -1293,7 +1292,6 @@ Public Function SafeDate(ByVal cellValue As Variant) As Variant
         SafeDate = Null
     End If
 End Function
-=======
 Attribute VB_Name = "mod_Database"
 ' ============================================================================
 ' MODULE: mod_Database (SECURITY HARDENED)
@@ -2588,4 +2586,3 @@ Public Function SafeDate(ByVal cellValue As Variant) As Variant
         SafeDate = Null
     End If
 End Function
->>>>>>> 254c5f99beb56416a0a77e8c6100e047b5b2e663
