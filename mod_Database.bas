@@ -34,7 +34,8 @@ Private Const MODULE_VERSION As String = "2.0.0"
 ' ============================================================================
 ' CONFIGURATION - UPDATE THESE VALUES
 ' ============================================================================
-Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002"
+'Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002" 'TEST
+Public Const SQL_SERVER As String = "JDCDBETSP1000\PVRN120002" 'PROD
 Public Const SQL_DATABASE As String = "IPDD"
 Public Const SQL_TRUSTED As Boolean = True  ' True = Windows Auth only
 
