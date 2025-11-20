@@ -729,73 +729,77 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         ' Check if row has data (skip empty rows) - use PIF_ID column (G=7)
         If Not IsEmpty(wsData.Cells(actualRow, 7).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
-                ReDim params(0 To 19) ' 20 parameters for usp_insert_project_staging
-                ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 7).Value)   ' pif_id (G) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 13).Value)  ' project_id (M) - VARCHAR
-                params(2) = SafeString(wsData.Cells(actualRow, 18).Value)  ' status (R) - VARCHAR
-                params(3) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 19).Value)  ' category (S) - VARCHAR
-                params(6) = SafeInteger(wsData.Cells(actualRow, 8).Value)  ' seg (H) - INT
-                params(7) = SafeString(wsData.Cells(actualRow, 9).Value)   ' opco (I) - VARCHAR
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' site (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' strategic_rank (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 13).Value) ' funding_project (M) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' project_name (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' original_fp_isd (O) - VARCHAR
-                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' revised_fp_isd (P) - VARCHAR
-                params(14) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AM) - CHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 17).Value) ' lcm_issue (Q) - VARCHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 20).Value) ' justification (T) - VARCHAR
-                params(17) = SafeDecimal(wsData.Cells(actualRow, 40).Value) ' prior_year_spend (AN) - DECIMAL
-                params(18) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+                ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+                params(14) = SafeString(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 40).Value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
-                                            "@status", adVarChar, adParamInput, 58, params(2), _
-                                            "@change_type", adVarChar, adParamInput, 12, params(3), _
-                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
-                                            "@category", adVarChar, adParamInput, 26, params(5), _
-                                            "@seg", adInteger, adParamInput, 0, params(6), _
-                                            "@opco", adVarChar, adParamInput, 4, params(7), _
-                                            "@site", adVarChar, adParamInput, 4, params(8), _
-                                            "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
-                                            "@funding_project", adVarChar, adParamInput, 10, params(10), _
-                                            "@project_name", adVarChar, adParamInput, 35, params(11), _
-                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(12), _
-                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(13), _
-                                            "@moving_isd_year", adChar, adParamInput, 1, params(14), _
-                                            "@lcm_issue", adVarChar, adParamInput, 20, params(15), _
-                                            "@justification", adVarChar, adParamInput, 192, params(16), _
-                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
-                                            "@archive_flag", adTinyInt, adParamInput, 0, params(18), _
-                                            "@include_flag", adTinyInt, adParamInput, 0, params(19)) Then
+                                            "@line_item", adInteger, adParamInput, 0, params(2), _
+                                            "@status", adVarChar, adParamInput, 58, params(3), _
+                                            "@change_type", adVarChar, adParamInput, 12, params(4), _
+                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+                                            "@category", adVarChar, adParamInput, 26, params(6), _
+                                            "@seg", adInteger, adParamInput, 0, params(7), _
+                                            "@opco", adVarChar, adParamInput, 4, params(8), _
+                                            "@site", adVarChar, adParamInput, 4, params(9), _
+                                            "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+                                            "@funding_project", adVarChar, adParamInput, 10, params(11), _
+                                            "@project_name", adVarChar, adParamInput, 35, params(12), _
+                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+                                            "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+                                            "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+                                            "@justification", adVarChar, adParamInput, 192, params(17), _
+                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+                                            "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+                                            "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
                 End If
             ElseIf tableName = "tbl_pif_cost_staging" Then
-                ReDim params(0 To 6) ' 7 parameters for usp_insert_cost_staging
-                ' Cost_Unpivoted sheet has columns A-G with proper type conversion
+                ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
+                ' Cost_Unpivoted sheet has columns A-H with proper type conversion
                 params(0) = SafeString(wsData.Cells(actualRow, 1).Value)  ' pif_id (A) - VARCHAR
                 params(1) = SafeString(wsData.Cells(actualRow, 2).Value)  ' project_id (B) - VARCHAR
-                params(2) = SafeString(wsData.Cells(actualRow, 3).Value)  ' scenario (C) - VARCHAR
-                params(3) = SafeDate(wsData.Cells(actualRow, 4).Value)    ' year (D) - DATE
-                params(4) = SafeDecimal(wsData.Cells(actualRow, 5).Value) ' requested_value (E) - DECIMAL
-                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' current_value (F) - DECIMAL
-                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' variance_value (G) - DECIMAL
+                params(2) = SafeInteger(wsData.Cells(actualRow, 3).Value) ' line_item (C) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 4).Value)  ' scenario (D) - VARCHAR
+                params(4) = SafeDate(wsData.Cells(actualRow, 5).Value)    ' year (E) - DATE
+                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' requested_value (F) - DECIMAL
+                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' current_value (G) - DECIMAL
+                params(7) = SafeDecimal(wsData.Cells(actualRow, 8).Value) ' variance_value (H) - DECIMAL
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_cost_staging", _
                                             "@pif_id", 200, 1, 16, params(0), _
                                             "@project_id", 200, 1, 10, params(1), _
-                                            "@scenario", 200, 1, 12, params(2), _
-                                            "@year", 7, 1, 0, params(3), _
-                                            "@requested_value", 131, 1, 0, params(4), _
-                                            "@current_value", 131, 1, 0, params(5), _
-                                            "@variance_value", 131, 1, 0, params(6)) Then
+                                            "@line_item", 3, 1, 0, params(2), _
+                                            "@scenario", 200, 1, 12, params(3), _
+                                            "@year", 7, 1, 0, params(4), _
+                                            "@requested_value", 131, 1, 0, params(5), _
+                                            "@current_value", 131, 1, 0, params(6), _
+                                            "@variance_value", 131, 1, 0, params(7)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
@@ -2023,73 +2027,77 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         ' Check if row has data (skip empty rows) - use PIF_ID column (G=7)
         If Not IsEmpty(wsData.Cells(actualRow, 7).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
-                ReDim params(0 To 19) ' 20 parameters for usp_insert_project_staging
-                ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 7).Value)   ' pif_id (G) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 13).Value)  ' project_id (M) - VARCHAR
-                params(2) = SafeString(wsData.Cells(actualRow, 18).Value)  ' status (R) - VARCHAR
-                params(3) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 19).Value)  ' category (S) - VARCHAR
-                params(6) = SafeInteger(wsData.Cells(actualRow, 8).Value)  ' seg (H) - INT
-                params(7) = SafeString(wsData.Cells(actualRow, 9).Value)   ' opco (I) - VARCHAR
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' site (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' strategic_rank (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 13).Value) ' funding_project (M) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' project_name (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' original_fp_isd (O) - VARCHAR
-                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' revised_fp_isd (P) - VARCHAR
-                params(14) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AM) - CHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 17).Value) ' lcm_issue (Q) - VARCHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 20).Value) ' justification (T) - VARCHAR
-                params(17) = SafeDecimal(wsData.Cells(actualRow, 40).Value) ' prior_year_spend (AN) - DECIMAL
-                params(18) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+                ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+                params(14) = SafeString(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 40).Value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
-                                            "@status", adVarChar, adParamInput, 58, params(2), _
-                                            "@change_type", adVarChar, adParamInput, 12, params(3), _
-                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(4), _
-                                            "@category", adVarChar, adParamInput, 26, params(5), _
-                                            "@seg", adInteger, adParamInput, 0, params(6), _
-                                            "@opco", adVarChar, adParamInput, 4, params(7), _
-                                            "@site", adVarChar, adParamInput, 4, params(8), _
-                                            "@strategic_rank", adVarChar, adParamInput, 26, params(9), _
-                                            "@funding_project", adVarChar, adParamInput, 10, params(10), _
-                                            "@project_name", adVarChar, adParamInput, 35, params(11), _
-                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(12), _
-                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(13), _
-                                            "@moving_isd_year", adChar, adParamInput, 1, params(14), _
-                                            "@lcm_issue", adVarChar, adParamInput, 20, params(15), _
-                                            "@justification", adVarChar, adParamInput, 192, params(16), _
-                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(17), _
-                                            "@archive_flag", adTinyInt, adParamInput, 0, params(18), _
-                                            "@include_flag", adTinyInt, adParamInput, 0, params(19)) Then
+                                            "@line_item", adInteger, adParamInput, 0, params(2), _
+                                            "@status", adVarChar, adParamInput, 58, params(3), _
+                                            "@change_type", adVarChar, adParamInput, 12, params(4), _
+                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+                                            "@category", adVarChar, adParamInput, 26, params(6), _
+                                            "@seg", adInteger, adParamInput, 0, params(7), _
+                                            "@opco", adVarChar, adParamInput, 4, params(8), _
+                                            "@site", adVarChar, adParamInput, 4, params(9), _
+                                            "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+                                            "@funding_project", adVarChar, adParamInput, 10, params(11), _
+                                            "@project_name", adVarChar, adParamInput, 35, params(12), _
+                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+                                            "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+                                            "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+                                            "@justification", adVarChar, adParamInput, 192, params(17), _
+                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+                                            "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+                                            "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
                 End If
             ElseIf tableName = "tbl_pif_cost_staging" Then
-                ReDim params(0 To 6) ' 7 parameters for usp_insert_cost_staging
-                ' Cost_Unpivoted sheet has columns A-G with proper type conversion
+                ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
+                ' Cost_Unpivoted sheet has columns A-H with proper type conversion
                 params(0) = SafeString(wsData.Cells(actualRow, 1).Value)  ' pif_id (A) - VARCHAR
                 params(1) = SafeString(wsData.Cells(actualRow, 2).Value)  ' project_id (B) - VARCHAR
-                params(2) = SafeString(wsData.Cells(actualRow, 3).Value)  ' scenario (C) - VARCHAR
-                params(3) = SafeDate(wsData.Cells(actualRow, 4).Value)    ' year (D) - DATE
-                params(4) = SafeDecimal(wsData.Cells(actualRow, 5).Value) ' requested_value (E) - DECIMAL
-                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' current_value (F) - DECIMAL
-                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' variance_value (G) - DECIMAL
+                params(2) = SafeInteger(wsData.Cells(actualRow, 3).Value) ' line_item (C) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 4).Value)  ' scenario (D) - VARCHAR
+                params(4) = SafeDate(wsData.Cells(actualRow, 5).Value)    ' year (E) - DATE
+                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' requested_value (F) - DECIMAL
+                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' current_value (G) - DECIMAL
+                params(7) = SafeDecimal(wsData.Cells(actualRow, 8).Value) ' variance_value (H) - DECIMAL
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_cost_staging", _
                                             "@pif_id", 200, 1, 16, params(0), _
                                             "@project_id", 200, 1, 10, params(1), _
-                                            "@scenario", 200, 1, 12, params(2), _
-                                            "@year", 7, 1, 0, params(3), _
-                                            "@requested_value", 131, 1, 0, params(4), _
-                                            "@current_value", 131, 1, 0, params(5), _
-                                            "@variance_value", 131, 1, 0, params(6)) Then
+                                            "@line_item", 3, 1, 0, params(2), _
+                                            "@scenario", 200, 1, 12, params(3), _
+                                            "@year", 7, 1, 0, params(4), _
+                                            "@requested_value", 131, 1, 0, params(5), _
+                                            "@current_value", 131, 1, 0, params(6), _
+                                            "@variance_value", 131, 1, 0, params(7)) Then
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function

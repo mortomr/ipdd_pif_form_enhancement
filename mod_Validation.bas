@@ -21,20 +21,21 @@ Private Const COL_ARCHIVE As Integer = 3            ' C
 Private Const COL_INCLUDE As Integer = 4            ' D
 Private Const COL_ACCOUNTING As Integer = 5         ' E
 Private Const COL_CHANGE_TYPE As Integer = 6        ' F
-Private Const COL_PIF_ID As Integer = 7             ' G
-Private Const COL_SEG As Integer = 8                ' H
-Private Const COL_OPCO As Integer = 9               ' I
-Private Const COL_SITE As Integer = 10              ' J
-Private Const COL_STRATEGIC_RANK As Integer = 11    ' K
-Private Const COL_FROM_BLANKET As Integer = 12      ' L
-Private Const COL_FUNDING_PROJECT As Integer = 13   ' M
-Private Const COL_PROJECT_NAME As Integer = 14      ' N
-Private Const COL_ORIGINAL_ISD As Integer = 15      ' O
-Private Const COL_REVISED_ISD As Integer = 16       ' P
-Private Const COL_LCM_ISSUE As Integer = 17         ' Q
-Private Const COL_STATUS As Integer = 18            ' R
-Private Const COL_CATEGORY As Integer = 19          ' S
-Private Const COL_JUSTIFICATION As Integer = 20     ' T
+Private Const COL_LINE_ITEM As Integer = 7          ' G (NEW - Line Item Number)
+Private Const COL_PIF_ID As Integer = 8             ' H
+Private Const COL_SEG As Integer = 9                ' I
+Private Const COL_OPCO As Integer = 10              ' J
+Private Const COL_SITE As Integer = 11              ' K
+Private Const COL_STRATEGIC_RANK As Integer = 12    ' L
+Private Const COL_FROM_BLANKET As Integer = 13      ' M
+Private Const COL_FUNDING_PROJECT As Integer = 14   ' N
+Private Const COL_PROJECT_NAME As Integer = 15      ' O
+Private Const COL_ORIGINAL_ISD As Integer = 16      ' P
+Private Const COL_REVISED_ISD As Integer = 17       ' Q
+Private Const COL_LCM_ISSUE As Integer = 18         ' R
+Private Const COL_STATUS As Integer = 19            ' S
+Private Const COL_CATEGORY As Integer = 20          ' T
+Private Const COL_JUSTIFICATION As Integer = 21     ' U
 
 ' ============================================================================
 ' PUBLIC FUNCTIONS
@@ -97,13 +98,15 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
     End If
 
     ' Read entire data range into array (ONE READ OPERATION - FAST!)
-    dataArray = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 20)).Value
+    dataArray = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 21)).Value
 
     ' SINGLE-PASS VALIDATION (ALL RULES IN ONE LOOP - SUPER FAST!)
+    Dim lineItem As Variant
     For rowNum = 1 To UBound(dataArray, 1)
         actualRow = rowNum + 3 ' Offset for header rows
 
         ' Get key fields
+        lineItem = dataArray(rowNum, COL_LINE_ITEM)
         pifId = Trim(dataArray(rowNum, COL_PIF_ID) & "")
         projectId = Trim(dataArray(rowNum, COL_FUNDING_PROJECT) & "")
 
@@ -120,6 +123,17 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
         changeType = Trim(dataArray(rowNum, COL_CHANGE_TYPE) & "")
         If changeType = "" Then
             errors.Add "Row " & actualRow & "|Missing Required Field|Change Type is required"
+        End If
+
+        ' Validate Line Item (must be positive integer, defaults to 1 if blank)
+        If IsEmpty(lineItem) Or lineItem = "" Then
+            lineItem = 1  ' Default to 1 if blank
+        ElseIf Not IsNumeric(lineItem) Then
+            errors.Add "Row " & actualRow & "|Invalid Data Type|Line Item must be a number"
+        ElseIf CLng(lineItem) < 1 Then
+            errors.Add "Row " & actualRow & "|Invalid Data Type|Line Item must be 1 or greater"
+        Else
+            lineItem = CLng(lineItem)  ' Convert to Long
         End If
 
         ' -------------------------------------------------------------------
@@ -162,13 +176,13 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
         End If
 
         ' -------------------------------------------------------------------
-        ' VALIDATION RULE 4: Duplicate Detection
+        ' VALIDATION RULE 4: Duplicate Detection (PIF + Project + LineItem)
         ' -------------------------------------------------------------------
         If pifId <> "" And projectId <> "" Then
-            key = pifId & "|" & projectId
+            key = pifId & "|" & projectId & "|" & CStr(lineItem)
             If seenKeys.Exists(key) Then
                 errors.Add "Row " & actualRow & "|Duplicate Entry|PIF " & pifId & " + Project " & projectId & _
-                          " appears multiple times (first occurrence: Row " & seenKeys(key) & ")"
+                          " + Line " & lineItem & " appears multiple times (first occurrence: Row " & seenKeys(key) & ")"
             Else
                 seenKeys.Add key, actualRow
             End If

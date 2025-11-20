@@ -437,42 +437,52 @@ Private Function UnpivotCostData() As Boolean
     Dim dataRow As Long
     Dim i As Long
     Dim pifId As String, projectId As String
+    Dim lineItem As Variant
 
     currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.Value
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
 
-    ' Find last row with data
-    lastRow = wsData.Cells(wsData.Rows.Count, 7).End(xlUp).Row
+    ' Find last row with data (PIF_ID now in column H)
+    lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
     If lastRow < 4 Then
         UnpivotCostData = True
         Exit Function
     End If
 
-    ' Read entire source range into array (ONE READ OPERATION)
-    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 58)).Value
+    ' Read entire source range into array (ONE READ OPERATION) - extended to column BO
+    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 67)).Value
 
     ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
     Dim maxRows As Long
     maxRows = (lastRow - 3) * 12
-    ReDim outputArray(1 To maxRows, 1 To 7)
+    ReDim outputArray(1 To maxRows, 1 To 8)  ' Now 8 columns (added line_item)
 
     outputRow = 1
 
     ' Process array in memory (FAST!)
     For dataRow = 1 To UBound(sourceData, 1)
-        pifId = Trim(sourceData(dataRow, 7) & "")      ' Column G
-        projectId = Trim(sourceData(dataRow, 13) & "") ' Column M
+        pifId = Trim(sourceData(dataRow, 8) & "")       ' Column H (was G)
+        projectId = Trim(sourceData(dataRow, 14) & "")  ' Column N (was M)
+        lineItem = sourceData(dataRow, 7)               ' Column G (NEW - Line Item)
+
+        ' Default line_item to 1 if blank
+        If IsEmpty(lineItem) Or lineItem = "" Then
+            lineItem = 1
+        Else
+            lineItem = CLng(lineItem)
+        End If
 
         If pifId <> "" And projectId <> "" Then
             ' TARGET SCENARIO - 6 years (CY through CY+5)
             For i = 0 To 5
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
-                outputArray(outputRow, 3) = SCENARIO_TARGET
-                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 21 + i))      ' U-Z (Requested)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 27 + i))      ' AA-AF (Current)
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 33 + i))      ' AG-AL (Variance)
+                outputArray(outputRow, 3) = lineItem
+                outputArray(outputRow, 4) = SCENARIO_TARGET
+                outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 22 + i))      ' V-AA (Requested) - shifted +1
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 28 + i))      ' AB-AG (Current) - shifted +1
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 34 + i))      ' AH-AM (Variance) - shifted +1
                 outputRow = outputRow + 1
             Next i
 
@@ -480,11 +490,12 @@ Private Function UnpivotCostData() As Boolean
             For i = 0 To 5
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
-                outputArray(outputRow, 3) = SCENARIO_CLOSINGS
-                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 41 + i))      ' AO-AT (Requested)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 47 + i))      ' AU-AZ (Current)
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 53 + i))      ' BA-BF (Variance)
+                outputArray(outputRow, 3) = lineItem
+                outputArray(outputRow, 4) = SCENARIO_CLOSINGS
+                outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 42 + i))      ' AP-AU (Requested) - shifted +1
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 48 + i))      ' AV-BA (Current) - shifted +1
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 54 + i))      ' BB-BG (Variance) - shifted +1
                 outputRow = outputRow + 1
             Next i
         End If
@@ -502,16 +513,16 @@ Private Function UnpivotCostData() As Boolean
         wsCost.Cells.Clear
     End If
 
-    ' Write headers
-    wsCost.Range("A1:G1").Value = Array("pif_id", "project_id", "scenario", "year", "requested_value", "current_value", "variance_value")
+    ' Write headers (now 8 columns)
+    wsCost.Range("A1:H1").Value = Array("pif_id", "project_id", "line_item", "scenario", "year", "requested_value", "current_value", "variance_value")
 
     ' Write entire array to sheet (ONE WRITE OPERATION)
     If outputRow > 1 Then
-        wsCost.Range("A2").Resize(outputRow - 1, 7).Value = outputArray
+        wsCost.Range("A2").Resize(outputRow - 1, 8).Value = outputArray
     End If
 
     ' Format and hide
-    wsCost.Columns("A:G").AutoFit
+    wsCost.Columns("A:H").AutoFit
     wsCost.Visible = xlSheetHidden
 
     UnpivotCostData = True
@@ -1362,42 +1373,52 @@ Private Function UnpivotCostData() As Boolean
     Dim dataRow As Long
     Dim i As Long
     Dim pifId As String, projectId As String
+    Dim lineItem As Variant
 
     currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.Value
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
 
-    ' Find last row with data
-    lastRow = wsData.Cells(wsData.Rows.Count, 7).End(xlUp).Row
+    ' Find last row with data (PIF_ID now in column H)
+    lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
     If lastRow < 4 Then
         UnpivotCostData = True
         Exit Function
     End If
 
-    ' Read entire source range into array (ONE READ OPERATION)
-    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 58)).Value
+    ' Read entire source range into array (ONE READ OPERATION) - extended to column BO
+    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 67)).Value
 
     ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
     Dim maxRows As Long
     maxRows = (lastRow - 3) * 12
-    ReDim outputArray(1 To maxRows, 1 To 7)
+    ReDim outputArray(1 To maxRows, 1 To 8)  ' Now 8 columns (added line_item)
 
     outputRow = 1
 
     ' Process array in memory (FAST!)
     For dataRow = 1 To UBound(sourceData, 1)
-        pifId = Trim(sourceData(dataRow, 7) & "")      ' Column G
-        projectId = Trim(sourceData(dataRow, 13) & "") ' Column M
+        pifId = Trim(sourceData(dataRow, 8) & "")       ' Column H (was G)
+        projectId = Trim(sourceData(dataRow, 14) & "")  ' Column N (was M)
+        lineItem = sourceData(dataRow, 7)               ' Column G (NEW - Line Item)
+
+        ' Default line_item to 1 if blank
+        If IsEmpty(lineItem) Or lineItem = "" Then
+            lineItem = 1
+        Else
+            lineItem = CLng(lineItem)
+        End If
 
         If pifId <> "" And projectId <> "" Then
             ' TARGET SCENARIO - 6 years (CY through CY+5)
             For i = 0 To 5
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
-                outputArray(outputRow, 3) = SCENARIO_TARGET
-                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 21 + i))      ' U-Z (Requested)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 27 + i))      ' AA-AF (Current)
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 33 + i))      ' AG-AL (Variance)
+                outputArray(outputRow, 3) = lineItem
+                outputArray(outputRow, 4) = SCENARIO_TARGET
+                outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 22 + i))      ' V-AA (Requested) - shifted +1
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 28 + i))      ' AB-AG (Current) - shifted +1
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 34 + i))      ' AH-AM (Variance) - shifted +1
                 outputRow = outputRow + 1
             Next i
 
@@ -1405,11 +1426,12 @@ Private Function UnpivotCostData() As Boolean
             For i = 0 To 5
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
-                outputArray(outputRow, 3) = SCENARIO_CLOSINGS
-                outputArray(outputRow, 4) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 5) = ConvertToNumeric(sourceData(dataRow, 41 + i))      ' AO-AT (Requested)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 47 + i))      ' AU-AZ (Current)
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 53 + i))      ' BA-BF (Variance)
+                outputArray(outputRow, 3) = lineItem
+                outputArray(outputRow, 4) = SCENARIO_CLOSINGS
+                outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 42 + i))      ' AP-AU (Requested) - shifted +1
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 48 + i))      ' AV-BA (Current) - shifted +1
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 54 + i))      ' BB-BG (Variance) - shifted +1
                 outputRow = outputRow + 1
             Next i
         End If
@@ -1427,16 +1449,16 @@ Private Function UnpivotCostData() As Boolean
         wsCost.Cells.Clear
     End If
 
-    ' Write headers
-    wsCost.Range("A1:G1").Value = Array("pif_id", "project_id", "scenario", "year", "requested_value", "current_value", "variance_value")
+    ' Write headers (now 8 columns)
+    wsCost.Range("A1:H1").Value = Array("pif_id", "project_id", "line_item", "scenario", "year", "requested_value", "current_value", "variance_value")
 
     ' Write entire array to sheet (ONE WRITE OPERATION)
     If outputRow > 1 Then
-        wsCost.Range("A2").Resize(outputRow - 1, 7).Value = outputArray
+        wsCost.Range("A2").Resize(outputRow - 1, 8).Value = outputArray
     End If
 
     ' Format and hide
-    wsCost.Columns("A:G").AutoFit
+    wsCost.Columns("A:H").AutoFit
     wsCost.Visible = xlSheetHidden
 
     UnpivotCostData = True
