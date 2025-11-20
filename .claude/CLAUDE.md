@@ -61,6 +61,15 @@ The system follows a staging → inflight → approved pattern:
   - Query-based matching: compares PIF_ID+Project_ID from worksheet against approved table
   - Workflow: [Finalize Month] → [View Archive] → [Delete Archived Records] → Ready for next month
 
+- **mod_CopyButtons.bas**: Copy functionality for Summary Cost Data (USER INTERFACE HELPER)
+  - Provides copy buttons on PIF_Inflight and PIF worksheets
+  - Two button types per worksheet: Copy Picture (linked image) and Copy Data (range values)
+  - Fleet View: Copies 'Summary Cost Data'!A2:U8 (PIF_Inflight worksheet)
+  - Site View: Copies 'Summary Cost Data'!A13:U15 (PIF worksheet)
+  - Public API: CopyFleetViewPicture(), CopyFleetViewData(), CopySiteViewPicture(), CopySiteViewData()
+  - Setup utility: SetupCopyButtons() creates all buttons with one click
+  - See `COPY_BUTTONS_SETUP.md` for detailed setup and usage instructions
+
 ### Cost Data Transformation
 
 The system transforms wide-format Excel cost columns into a normalized structure:
@@ -194,6 +203,8 @@ After finalizing a month's submissions, site users can clean up archived records
 - Business rules validation: mod_Validation.bas:294-327
 - Archive cleanup logic: mod_ArchiveCleanup.bas:50-145
 - Site context validation: mod_SiteSetup.bas:165-198
+- Copy button functionality: mod_CopyButtons.bas (all functions)
+- Copy button setup: COPY_BUTTONS_SETUP.md
 
 ## Data Maintenance
 
