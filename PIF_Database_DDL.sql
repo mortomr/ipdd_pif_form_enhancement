@@ -955,18 +955,6 @@ BEGIN
     FROM dbo.tbl_pif_cost_staging
     WHERE scenario NOT IN ('Target', 'Closings');
 
-    -- Check 7: Variance threshold warning (WARNING - does not block submission)
-    INSERT INTO @Errors
-        (error_severity, error_type, error_message, record_identifier)
-    SELECT
-        'WARNING',
-        'Variance Threshold Exceeded',
-        'Variance exceeds -$1M threshold: ' + FORMAT(variance_value, 'C', 'en-US'),
-        'PIF ' + pif_id + ', Project ' + project_id + ', Year ' + CAST(YEAR(year) AS VARCHAR(4))
-    FROM dbo.tbl_pif_cost_staging
-    WHERE variance_value < -1000000;
-    -- $1M threshold
-
     -- Return separate counts for critical errors and warnings
     SELECT @ErrorCount = COUNT(*)
     FROM @Errors
