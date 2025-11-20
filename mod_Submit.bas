@@ -602,16 +602,16 @@ Private Function UploadProjectData() As Boolean
     Dim lastDataRow As Long
     
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-    
-    ' Find the last row with data in Column G (PIF_ID) to define the extent of project data
-    lastDataRow = wsData.Cells(wsData.Rows.Count, "G").End(xlUp).Row
-    
+
+    ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
+    lastDataRow = wsData.Cells(wsData.Rows.Count, "H").End(xlUp).Row
+
     ' Ensure we don't include header rows or start before the actual data
     If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
-    
+
     ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
-    ' Assuming project data spans from column C to AN (40)
-    Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AN"))
+    ' Assuming project data spans from column C to AO (41) - extended for line_item field
+    Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
     
     UploadProjectData = BulkInsertProjects(dataRange)
     
@@ -644,8 +644,8 @@ Private Function UploadCostData() As Boolean
     If lastDataRow < 2 Then lastDataRow = 1 ' If no data, set to just above data start
     
     ' Define the data range from row 2 (first data row) to the last data row, across relevant columns
-    ' Assuming cost data spans from column A to G
-    Set dataRange = wsCost.Range(wsCost.Cells(2, "A"), wsCost.Cells(lastDataRow, "G"))
+    ' Assuming cost data spans from column A to H (8 columns with line_item)
+    Set dataRange = wsCost.Range(wsCost.Cells(2, "A"), wsCost.Cells(lastDataRow, "H"))
     
     UploadCostData = BulkInsertCosts(dataRange)
     
