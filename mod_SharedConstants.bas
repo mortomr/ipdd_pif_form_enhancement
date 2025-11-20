@@ -61,19 +61,25 @@ Public Const SCENARIO_CLOSINGS As String = "Closings"
 ' COLUMN MAPPINGS (EXCEL LAYOUT)
 ' ============================================================================
 ' IMPROVEMENT: Enum for type safety and IntelliSense support
+' NOTE: Updated for line_item field added at column G
 Public Enum PIFDataColumns
-    colArchive = 3           ' C
-    colInclude = 4           ' D
-    colAccounting = 5        ' E
-    colChangeType = 6        ' F
-    colPIFID = 7            ' G
-    colSEG = 8              ' H
-    colOpco = 9             ' I
-    colSite = 10            ' J
-    colStrategicRank = 11   ' K
-    colFromBlanket = 12     ' L
-    colFundingProject = 13  ' M (also used as project_id in database)
-    colProjectName = 14     ' N
-    colOriginalISD = 15     ' O
-    colRevisedISD = 16      ' P
-    colLCMIssue = 17        ' Q
+    colArchive = 3              ' C
+    colInclude = 4              ' D
+    colAccounting = 5           ' E
+    colChangeType = 6           ' F
+    colLineItem = 7             ' G (NEW - Line Item Number)
+    colPIFID = 8                ' H (was G)
+    colSEG = 9                  ' I (was H)
+    colOpco = 10                ' J (was I)
+    colSite = 11                ' K (was J)
+    colStrategicRank = 12       ' L (was K)
+    colFromBlanket = 13         ' M (was L)
+    colFundingProject = 14      ' N (was M) - also used as project_id in database
+    colProjectName = 15         ' O (was N)
+    colOriginalISD = 16         ' P (was O)
+    colRevisedISD = 17          ' Q (was P)
+    colLCMIssue = 18            ' R (was Q)
+    colStatus = 19              ' S (was R)
+    colCategory = 20            ' T (was S)
+    colJustification = 21       ' U (was T)
+End Enum
