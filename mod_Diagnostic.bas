@@ -238,3 +238,5 @@ Public Sub Diag_TestParameters()
     testVal = SafeBoolean(True)
     msg = msg & "SafeBoolean(TRUE): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
 
+    MsgBox msg, vbInformation, "Parameter Type Tests"
+End Sub
