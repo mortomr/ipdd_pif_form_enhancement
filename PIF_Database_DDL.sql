@@ -40,6 +40,7 @@ CREATE TABLE dbo.tbl_pif_projects_staging
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
 
     -- Status & classification
     status VARCHAR(58) NULL,
@@ -82,6 +83,7 @@ CREATE TABLE dbo.tbl_pif_cost_staging
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     -- 'Target' or 'Closings'
     year DATE NOT NULL,
@@ -112,6 +114,7 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
     submission_date DATE NOT NULL,
     -- When this batch was submitted
 
@@ -146,7 +149,7 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     include_flag BIT NULL,
 
     -- Constraints
-    CONSTRAINT UQ_inflight_pif_project UNIQUE (pif_id, project_id)
+    CONSTRAINT UQ_inflight_pif_project_line UNIQUE (pif_id, project_id, line_item)
 );
 GO
 
@@ -159,6 +162,7 @@ CREATE TABLE dbo.tbl_pif_cost_inflight
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     year DATE NOT NULL,
 
@@ -171,7 +175,7 @@ GO
 
 -- PERFORMANCE: Index for cost lookups and joins
 CREATE NONCLUSTERED INDEX IX_inflight_cost_lookup
-    ON dbo.tbl_pif_cost_inflight (pif_id, project_id, scenario, year);
+    ON dbo.tbl_pif_cost_inflight (pif_id, project_id, line_item, scenario, year);
 GO
 
 -- ============================================================================
@@ -189,6 +193,7 @@ CREATE TABLE dbo.tbl_pif_projects_approved
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
     submission_date DATE NOT NULL,
     approval_date DATE NOT NULL,
     -- When archived to approved
@@ -227,7 +232,7 @@ GO
 
 -- PERFORMANCE: Index for common queries
 CREATE NONCLUSTERED INDEX IX_approved_pif_project
-    ON dbo.tbl_pif_projects_approved (pif_id, project_id);
+    ON dbo.tbl_pif_projects_approved (pif_id, project_id, line_item);
 GO
 
 CREATE NONCLUSTERED INDEX IX_approved_dates
@@ -243,6 +248,7 @@ CREATE TABLE dbo.tbl_pif_cost_approved
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
+    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     year DATE NOT NULL,
     approval_date DATE NOT NULL,
@@ -256,7 +262,7 @@ GO
 
 -- PERFORMANCE: Index for variance analysis
 CREATE NONCLUSTERED INDEX IX_approved_cost_lookup
-    ON dbo.tbl_pif_cost_approved (pif_id, project_id, scenario, year);
+    ON dbo.tbl_pif_cost_approved (pif_id, project_id, line_item, scenario, year);
 GO
 
 CREATE NONCLUSTERED INDEX IX_approved_cost_variance
@@ -729,6 +735,7 @@ GO
 CREATE PROCEDURE dbo.usp_insert_project_staging
     @pif_id VARCHAR(16),
     @project_id VARCHAR(10),
+    @line_item INT = 1,  -- NEW PARAMETER: Line item number
     @status VARCHAR(58) = NULL,
     @change_type VARCHAR(12) = NULL,
     @accounting_treatment VARCHAR(14) = NULL,
@@ -758,14 +765,14 @@ BEGIN
         -- Insert into staging table
         INSERT INTO dbo.tbl_pif_projects_staging
         (
-        pif_id, project_id, status, change_type, accounting_treatment,
+        pif_id, project_id, line_item, status, change_type, accounting_treatment,
         category, seg, opco, site, strategic_rank, funding_project,
         project_name, original_fp_isd, revised_fp_isd, moving_isd_year,
         lcm_issue, justification, prior_year_spend, archive_flag, include_flag
         )
     VALUES
         (
-            @pif_id, @project_id, @status, @change_type, @accounting_treatment,
+            @pif_id, @project_id, @line_item, @status, @change_type, @accounting_treatment,
             @category, @seg, @opco, @site, @strategic_rank, @funding_project,
             @project_name, @original_fp_isd, @revised_fp_isd, @moving_isd_year,
             @lcm_issue, @justification, @prior_year_spend, @archive_flag, @include_flag
@@ -799,6 +806,7 @@ GO
 CREATE PROCEDURE dbo.usp_insert_cost_staging
     @pif_id VARCHAR(16),
     @project_id VARCHAR(10),
+    @line_item INT = 1,  -- NEW PARAMETER: Line item number
     @scenario VARCHAR(12),
     @year DATE,
     @requested_value DECIMAL(18,2) = NULL,
@@ -812,12 +820,12 @@ BEGIN
     BEGIN TRY
         INSERT INTO dbo.tbl_pif_cost_staging
         (
-        pif_id, project_id, scenario, year,
+        pif_id, project_id, line_item, scenario, year,
         requested_value, current_value, variance_value
         )
     VALUES
         (
-            @pif_id, @project_id, @scenario, @year,
+            @pif_id, @project_id, @line_item, @scenario, @year,
             @requested_value, @current_value, @variance_value
         );
 
@@ -884,7 +892,7 @@ BEGIN
         'CRITICAL',
         'Missing Change Type',
         'Missing required field: Change Type',
-        'PIF ' + pif_id + ', Project ' + project_id
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10))
     FROM dbo.tbl_pif_projects_staging
     WHERE pif_id IS NOT NULL
         AND project_id IS NOT NULL
@@ -897,25 +905,36 @@ BEGIN
         'CRITICAL',
         'Invalid Data Type',
         'SEG must be a valid positive integer',
-        'PIF ' + pif_id + ', Project ' + project_id
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10))
     FROM dbo.tbl_pif_projects_staging
     WHERE seg IS NOT NULL
         AND (seg < 0 OR seg > 99999);
     -- IMPROVEMENT: Range validation
 
-    -- Check 3: Duplicate detection (CRITICAL)
+    -- Check 2b: Line item validation (CRITICAL)
+    INSERT INTO @Errors
+        (error_severity, error_type, error_message, record_identifier)
+    SELECT
+        'CRITICAL',
+        'Invalid Line Item',
+        'Line item must be a positive integer (1, 2, 3, etc.)',
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10))
+    FROM dbo.tbl_pif_projects_staging
+    WHERE line_item IS NULL OR line_item < 1;
+
+    -- Check 3: Duplicate detection (UPDATED TO INCLUDE LINE_ITEM)
     INSERT INTO @Errors
         (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Duplicate',
-        'Duplicate PIF+Project combination (appears ' + CAST(cnt AS VARCHAR(10)) + ' times)',
-        'PIF ' + pif_id + ', Project ' + project_id
+        'Duplicate PIF+Project+Line combination (appears ' + CAST(cnt AS VARCHAR(10)) + ' times)',
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10))
     FROM (
-        SELECT pif_id, project_id, COUNT(*) as cnt
+        SELECT pif_id, project_id, line_item, COUNT(*) as cnt
         FROM dbo.tbl_pif_projects_staging
         WHERE pif_id IS NOT NULL AND project_id IS NOT NULL
-        GROUP BY pif_id, project_id
+        GROUP BY pif_id, project_id, line_item
         HAVING COUNT(*) > 1
     ) dups;
 
@@ -926,22 +945,22 @@ BEGIN
         'CRITICAL',
         'Missing Justification',
         'Approved or Dispositioned status requires justification',
-        'PIF ' + pif_id + ', Project ' + project_id
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10))
     FROM dbo.tbl_pif_projects_staging
     WHERE status IN ('Approved', 'Dispositioned')
         AND (justification IS NULL OR LTRIM(RTRIM(justification)) = '');
 
-    -- Check 5: Orphan cost records (CRITICAL)
+    -- Check 5: Orphan cost records (UPDATED TO INCLUDE LINE_ITEM)
     INSERT INTO @Errors
         (error_severity, error_type, error_message, record_identifier)
     SELECT
         'CRITICAL',
         'Orphan Cost Record',
         'Cost record exists without matching project record',
-        'PIF ' + c.pif_id + ', Project ' + c.project_id
+        'PIF ' + c.pif_id + ', Project ' + c.project_id + ', Line ' + CAST(c.line_item AS VARCHAR(10))
     FROM dbo.tbl_pif_cost_staging c
         LEFT JOIN dbo.tbl_pif_projects_staging p
-        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
     WHERE p.pif_id IS NULL;
 
     -- Check 6: Invalid scenario values (CRITICAL)
@@ -951,7 +970,7 @@ BEGIN
         'CRITICAL',
         'Invalid Scenario',
         'Scenario must be ''Target'' or ''Closings'' (found: ''' + ISNULL(scenario, 'NULL') + ''')',
-        'PIF ' + pif_id + ', Project ' + project_id + ', Year ' + CAST(YEAR(year) AS VARCHAR(4))
+        'PIF ' + pif_id + ', Project ' + project_id + ', Line ' + CAST(line_item AS VARCHAR(10)) + ', Year ' + CAST(YEAR(year) AS VARCHAR(4))
     FROM dbo.tbl_pif_cost_staging
     WHERE scenario NOT IN ('Target', 'Closings');
 
@@ -1014,16 +1033,16 @@ BEGIN
     WHERE name = 'IX_staging_cost_lookup')
         DROP INDEX IX_staging_cost_lookup ON dbo.tbl_pif_cost_staging;
 
-    -- Create indexes for validation queries
+    -- Create indexes for validation queries (UPDATED TO INCLUDE LINE_ITEM)
     CREATE NONCLUSTERED INDEX IX_staging_pif_proj
-        ON dbo.tbl_pif_projects_staging (pif_id, project_id);
+        ON dbo.tbl_pif_projects_staging (pif_id, project_id, line_item);
 
     CREATE NONCLUSTERED INDEX IX_staging_status
         ON dbo.tbl_pif_projects_staging (status)
-        INCLUDE (pif_id, project_id, justification);
+        INCLUDE (pif_id, project_id, line_item, justification);
 
     CREATE NONCLUSTERED INDEX IX_staging_cost_lookup
-        ON dbo.tbl_pif_cost_staging (pif_id, project_id);
+        ON dbo.tbl_pif_cost_staging (pif_id, project_id, line_item);
 
     RETURN 0;
 END;
@@ -1057,7 +1076,7 @@ BEGIN
         DELETE c
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
         WHERE p.site = @site;
 
         -- Delete projects for selected site
@@ -1067,7 +1086,7 @@ BEGIN
         -- Step 2: Move validated data from staging to inflight
         INSERT INTO dbo.tbl_pif_projects_inflight
         (
-        pif_id, project_id, submission_date, status, change_type,
+        pif_id, project_id, line_item, submission_date, status, change_type,
         accounting_treatment, category, seg, opco, site, strategic_rank,
         funding_project, project_name, original_fp_isd, revised_fp_isd,
         moving_isd_year, lcm_issue, justification, prior_year_spend,
@@ -1076,6 +1095,7 @@ BEGIN
     SELECT
         s.pif_id,
         s.project_id,
+        s.line_item,
         GETDATE(), -- This is the value for submission_date
         s.status,
         s.change_type,
@@ -1102,15 +1122,15 @@ BEGIN
 
         INSERT INTO dbo.tbl_pif_cost_inflight
         (
-        pif_id, project_id, scenario, year,
+        pif_id, project_id, line_item, scenario, year,
         requested_value, current_value, variance_value
         )
     SELECT
-        c.pif_id, c.project_id, c.scenario, c.year,
+        c.pif_id, c.project_id, c.line_item, c.scenario, c.year,
         c.requested_value, c.current_value, c.variance_value
     FROM dbo.tbl_pif_cost_staging c
     INNER JOIN dbo.tbl_pif_projects_staging p
-        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
     WHERE p.site = @site;
 
         SET @CostCount = @@ROWCOUNT;
@@ -1171,12 +1191,13 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- Step 1: UPSERT approved projects for specified site using MERGE
-        -- If PIF+Project exists, UPDATE it. If not, INSERT it.
+        -- If PIF+Project+Line exists, UPDATE it. If not, INSERT it.
         MERGE dbo.tbl_pif_projects_approved AS target
         USING (
             SELECT
                 p.pif_id,
                 p.project_id,
+                p.line_item,
                 p.submission_date,
                 p.status,
                 p.change_type,
@@ -1199,7 +1220,7 @@ BEGIN
             FROM dbo.tbl_pif_projects_inflight p
             WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site
         ) AS source
-        ON target.pif_id = source.pif_id AND target.project_id = source.project_id
+        ON target.pif_id = source.pif_id AND target.project_id = source.project_id AND target.line_item = source.line_item
         WHEN MATCHED THEN
             UPDATE SET
                 submission_date = source.submission_date,
@@ -1224,7 +1245,7 @@ BEGIN
                 include_flag = source.include_flag
         WHEN NOT MATCHED THEN
             INSERT (
-                pif_id, project_id, submission_date, approval_date, status,
+                pif_id, project_id, line_item, submission_date, approval_date, status,
                 change_type, accounting_treatment, category, seg, opco, site,
                 strategic_rank, funding_project, project_name, original_fp_isd,
                 revised_fp_isd, moving_isd_year, lcm_issue, justification,
@@ -1233,6 +1254,7 @@ BEGIN
             VALUES (
                 source.pif_id,
                 source.project_id,
+                source.line_item,
                 source.submission_date,
                 GETDATE(),
                 source.status,
@@ -1266,6 +1288,7 @@ BEGIN
             FROM dbo.tbl_pif_projects_inflight p
             WHERE p.pif_id = c.pif_id
                 AND p.project_id = c.project_id
+                AND p.line_item = c.line_item
                 AND p.archive_flag = 1
                 AND p.include_flag = 1
                 AND p.site = @site
@@ -1274,15 +1297,15 @@ BEGIN
         -- Then, insert new/updated cost records
         INSERT INTO dbo.tbl_pif_cost_approved
         (
-        pif_id, project_id, scenario, year,
+        pif_id, project_id, line_item, scenario, year,
         requested_value, current_value, variance_value, approval_date
         )
     SELECT
-        c.pif_id, c.project_id, c.scenario, c.year,
+        c.pif_id, c.project_id, c.line_item, c.scenario, c.year,
         c.requested_value, c.current_value, c.variance_value, GETDATE()
     FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
     WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site;
 
         SET @CostCount = @@ROWCOUNT;
@@ -1291,7 +1314,7 @@ BEGIN
         DELETE c
         FROM dbo.tbl_pif_cost_inflight c
         INNER JOIN dbo.tbl_pif_projects_inflight p
-        ON c.pif_id = p.pif_id AND c.project_id = p.project_id
+        ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
         WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site;
 
         DELETE FROM dbo.tbl_pif_projects_inflight
