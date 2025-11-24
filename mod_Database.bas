@@ -727,8 +727,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         ' Calculate actual worksheet row
         actualRow = dataRange.Row + i - 1
 
-        ' Check if row has data (skip empty rows) - use PIF_ID column (G=7)
-        If Not IsEmpty(wsData.Cells(actualRow, 7).Value) Then
+        ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
+        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
