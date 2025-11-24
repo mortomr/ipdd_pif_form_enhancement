@@ -612,13 +612,23 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     ' Execute the stored procedure
     dbCommand.Execute recordsAffected
 
+    ' Check for SQL Server errors FIRST (before checking return value)
+    If dbConnection.Errors.Count > 0 Then
+        Debug.Print "  SQL Server Errors detected (" & dbConnection.Errors.Count & "):"
+        Dim sqlErr As ADODB.Error
+        For Each sqlErr In dbConnection.Errors
+            Debug.Print "    Error " & sqlErr.Number & ": " & sqlErr.Description
+            Debug.Print "    SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
+        Next sqlErr
+    End If
 
     ' Check return value (stored procs return 0 on success, -1 on error)
     Dim returnValue As Long
     returnValue = dbCommand.Parameters(0).Value  ' First parameter is return value
-
+    Debug.Print "  Stored procedure return value: " & returnValue
 
     If returnValue <> 0 Then
+        Debug.Print "  ERROR: Stored procedure returned non-zero value: " & returnValue
         Call LogTechnicalError("ExecuteStoredProcedureNonQuery", returnValue, _
                               "Stored procedure returned error code", _
                               "Procedure: " & procedureName)
@@ -640,6 +650,21 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Exit Function
 
 ErrHandler:
+    Debug.Print "  EXCEPTION in ExecuteStoredProcedureNonQuery:"
+    Debug.Print "    VBA Error: " & Err.Number & " - " & Err.Description
+
+    ' Check for SQL Server errors
+    If Not dbConnection Is Nothing Then
+        If dbConnection.Errors.Count > 0 Then
+            Debug.Print "    SQL Server Errors (" & dbConnection.Errors.Count & "):"
+            Dim sqlErr As ADODB.Error
+            For Each sqlErr In dbConnection.Errors
+                Debug.Print "      Error " & sqlErr.Number & ": " & sqlErr.Description
+                Debug.Print "      SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
+            Next sqlErr
+        End If
+    End If
+
     Application.ScreenUpdating = True  ' Ensure error message is visible
 
     Dim errMsg As String
