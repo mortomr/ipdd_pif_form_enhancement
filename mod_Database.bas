@@ -530,6 +530,8 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Dim i As Long
     Dim paramCount As Long
     Dim recordsAffected As Long
+    Dim returnValue As Long
+    Dim sqlErr As ADODB.Error  ' Declare at function level to avoid duplicate declarations
 
     ' Validate parameter count
     If UBound(params) >= LBound(params) Then
@@ -614,7 +616,6 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     ' Check for SQL Server errors FIRST (before checking return value)
     If dbConnection.Errors.Count > 0 Then
         Debug.Print "  SQL Server Errors detected (" & dbConnection.Errors.Count & "):"
-        Dim sqlErr As ADODB.Error
         For Each sqlErr In dbConnection.Errors
             Debug.Print "    Error " & sqlErr.Number & ": " & sqlErr.Description
             Debug.Print "    SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
@@ -622,7 +623,6 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     End If
 
     ' Check return value (stored procs return 0 on success, -1 on error)
-    Dim returnValue As Long
     returnValue = dbCommand.Parameters(0).Value  ' First parameter is return value
     Debug.Print "  Stored procedure return value: " & returnValue
 
@@ -656,7 +656,6 @@ ErrHandler:
     If Not dbConnection Is Nothing Then
         If dbConnection.Errors.Count > 0 Then
             Debug.Print "    SQL Server Errors (" & dbConnection.Errors.Count & "):"
-            Dim sqlErr As ADODB.Error
             For Each sqlErr In dbConnection.Errors
                 Debug.Print "      Error " & sqlErr.Number & ": " & sqlErr.Description
                 Debug.Print "      SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
