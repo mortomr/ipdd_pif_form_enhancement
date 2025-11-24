@@ -700,21 +700,29 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
     startTime = Timer
 
+    Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
+    Debug.Print "Data range rows: " & dataRange.Rows.Count
+
     ' Get the worksheet reference for absolute column access
     Set wsData = dataRange.Worksheet
 
     Set conn = GetDBConnection()
     If conn Is Nothing Then
+        Debug.Print "ERROR: GetDBConnection returned Nothing!"
         BulkInsertToStaging = False
         Exit Function
     End If
+    Debug.Print "Database connection established"
 
     ' Truncate staging table first
     Application.StatusBar = "Truncating " & tableName & "..."
+    Debug.Print "Truncating " & tableName & "..."
     If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
+        Debug.Print "ERROR: Failed to truncate table"
         BulkInsertToStaging = False
         Exit Function
     End If
+    Debug.Print "Table truncated successfully"
 
     ' Loop through Excel range and add records
     Application.StatusBar = "Uploading to " & tableName & "..."
@@ -722,6 +730,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     rowCount = 0
 
     conn.BeginTrans
+    Debug.Print "Transaction started"
 
     For i = 1 To dataRange.Rows.Count
         ' Calculate actual worksheet row
@@ -729,6 +738,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8, not G since line_item is now at G)
         If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+            Debug.Print "Processing row " & actualRow & ", PIF_ID: " & wsData.Cells(actualRow, 8).Value & ", line_item: " & wsData.Cells(actualRow, 7).Value
             If tableName = "tbl_pif_projects_staging" Then
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
@@ -754,6 +764,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
                 params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
+                Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
+
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
@@ -776,10 +788,12 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                             "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
                                             "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
                                             "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+                    Debug.Print "  ERROR: ExecuteStoredProcedureNonQuery returned False!"
                     conn.RollbackTrans
                     BulkInsertToStaging = False
                     Exit Function
                 End If
+                Debug.Print "  Row inserted successfully"
             ElseIf tableName = "tbl_pif_cost_staging" Then
                 ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
                 ' Cost_Unpivoted sheet has columns A-H with proper type conversion
@@ -808,38 +822,51 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
             End If
             
             rowCount = rowCount + 1
-            
+
             ' Progress indicator every 100 rows
             If rowCount Mod 100 = 0 Then
                 Application.StatusBar = "Uploaded " & rowCount & " rows to " & tableName & "..."
+                Debug.Print "Progress: " & rowCount & " rows uploaded"
             End If
+        Else
+            Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
         End If
     Next i
 
+    Debug.Print "Loop completed. Total rows processed: " & rowCount
+    Debug.Print "Committing transaction..."
     conn.CommitTrans
+    Debug.Print "Transaction committed"
 
     conn.Close
     Set conn = Nothing
-    
+
     Application.StatusBar = False
     Application.ScreenUpdating = True
 
     Dim elapsed As Double
     elapsed = Timer - startTime
 
-    ' IMPROVEMENT: Removed excessive messagebox - caller will display final result
-    ' Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+    Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+    Debug.Print "=== BulkInsertToStaging COMPLETED SUCCESSFULLY ==="
 
     BulkInsertToStaging = True
     Exit Function
     
 ErrHandler:
+    Debug.Print "=== ERROR in BulkInsertToStaging ==="
+    Debug.Print "Error Number: " & Err.Number
+    Debug.Print "Error Description: " & Err.Description
+    Debug.Print "Table: " & tableName
+    Debug.Print "Rows processed before error: " & rowCount
+
     Application.StatusBar = False
     Application.ScreenUpdating = True
 
     If Not conn Is Nothing Then
         If conn.State = adStateOpen Then
             On Error Resume Next
+            Debug.Print "Rolling back transaction..."
             conn.RollbackTrans
             On Error GoTo 0
             conn.Close
