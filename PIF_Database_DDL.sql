@@ -40,7 +40,8 @@ CREATE TABLE dbo.tbl_pif_projects_staging
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number for multiple detail lines per PIF+Project
 
     -- Status & classification
     status VARCHAR(58) NULL,
@@ -65,7 +66,7 @@ CREATE TABLE dbo.tbl_pif_projects_staging
 
     -- Context
     lcm_issue VARCHAR(20) NULL,
-    justification VARCHAR(192) NULL,
+    justification VARCHAR(max) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
@@ -83,7 +84,8 @@ CREATE TABLE dbo.tbl_pif_cost_staging
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     -- 'Target' or 'Closings'
     year DATE NOT NULL,
@@ -114,7 +116,8 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number for multiple detail lines per PIF+Project
     submission_date DATE NOT NULL,
     -- When this batch was submitted
 
@@ -141,7 +144,7 @@ CREATE TABLE dbo.tbl_pif_projects_inflight
 
     -- Context
     lcm_issue VARCHAR(20) NULL,
-    justification VARCHAR(192) NULL,
+    justification VARCHAR(max) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
@@ -162,7 +165,8 @@ CREATE TABLE dbo.tbl_pif_cost_inflight
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     year DATE NOT NULL,
 
@@ -193,7 +197,8 @@ CREATE TABLE dbo.tbl_pif_projects_approved
     pif_project_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number for multiple detail lines per PIF+Project
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number for multiple detail lines per PIF+Project
     submission_date DATE NOT NULL,
     approval_date DATE NOT NULL,
     -- When archived to approved
@@ -221,7 +226,7 @@ CREATE TABLE dbo.tbl_pif_projects_approved
 
     -- Context
     lcm_issue VARCHAR(20) NULL,
-    justification VARCHAR(192) NULL,
+    justification VARCHAR(max) NULL,
     prior_year_spend DECIMAL(18,2) NULL,
 
     -- Flags
@@ -248,7 +253,8 @@ CREATE TABLE dbo.tbl_pif_cost_approved
     pif_cost_id INT IDENTITY(1,1) PRIMARY KEY CLUSTERED,
     pif_id VARCHAR(16) NOT NULL,
     project_id VARCHAR(10) NOT NULL,
-    line_item INT NOT NULL DEFAULT 1,  -- Line item number (links to projects table)
+    line_item INT NOT NULL DEFAULT 1,
+    -- Line item number (links to projects table)
     scenario VARCHAR(12) NOT NULL,
     year DATE NOT NULL,
     approval_date DATE NOT NULL,
@@ -493,49 +499,52 @@ GO
 
 CREATE VIEW dbo.vw_pif_inflight_wide
 AS
-    WITH cost_pivot AS (
-        SELECT
-            pif_id,
-            project_id,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Target_Req_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Target_Req_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Target_Req_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Target_Req_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Target_Req_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Target_Req_CY5,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN current_value END) AS Target_Curr_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Target_Curr_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Target_Curr_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Target_Curr_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Target_Curr_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Target_Curr_CY5,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Target_Var_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Target_Var_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Target_Var_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Target_Var_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Target_Var_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Target_Var_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Closings_Req_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Closings_Req_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Closings_Req_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Closings_Req_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Closings_Req_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Closings_Req_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN current_value END) AS Closings_Curr_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Closings_Curr_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Closings_Curr_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Closings_Curr_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Closings_Curr_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Closings_Curr_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Closings_Var_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Closings_Var_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Closings_Var_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Closings_Var_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Closings_Var_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Closings_Var_CY5
-        FROM dbo.tbl_pif_cost_inflight
-        GROUP BY pif_id, project_id
-    )
+    WITH
+        cost_pivot
+        AS
+        (
+            SELECT
+                pif_id,
+                project_id,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Target_Req_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Target_Req_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Target_Req_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Target_Req_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Target_Req_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Target_Req_CY5,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN current_value END) AS Target_Curr_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Target_Curr_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Target_Curr_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Target_Curr_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Target_Curr_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Target_Curr_CY5,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Target_Var_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Target_Var_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Target_Var_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Target_Var_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Target_Var_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Target_Var_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Closings_Req_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Closings_Req_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Closings_Req_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Closings_Req_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Closings_Req_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Closings_Req_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN current_value END) AS Closings_Curr_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Closings_Curr_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Closings_Curr_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Closings_Curr_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Closings_Curr_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Closings_Curr_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Closings_Var_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Closings_Var_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Closings_Var_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Closings_Var_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Closings_Var_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Closings_Var_CY5
+            FROM dbo.tbl_pif_cost_inflight
+            GROUP BY pif_id, project_id
+        )
     SELECT
         p.archive_flag,
         p.include_flag,
@@ -612,49 +621,52 @@ GO
 
 CREATE VIEW dbo.vw_pif_approved_wide
 AS
-    WITH cost_pivot AS (
-        SELECT
-            pif_id,
-            project_id,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Target_Req_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Target_Req_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Target_Req_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Target_Req_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Target_Req_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Target_Req_CY5,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN current_value END) AS Target_Curr_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Target_Curr_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Target_Curr_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Target_Curr_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Target_Curr_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Target_Curr_CY5,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Target_Var_CY,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Target_Var_CY1,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Target_Var_CY2,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Target_Var_CY3,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Target_Var_CY4,
-            MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Target_Var_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Closings_Req_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Closings_Req_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Closings_Req_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Closings_Req_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Closings_Req_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Closings_Req_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN current_value END) AS Closings_Curr_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Closings_Curr_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Closings_Curr_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Closings_Curr_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Closings_Curr_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Closings_Curr_CY5,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Closings_Var_CY,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Closings_Var_CY1,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Closings_Var_CY2,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Closings_Var_CY3,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Closings_Var_CY4,
-            MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Closings_Var_CY5
-        FROM dbo.tbl_pif_cost_approved
-        GROUP BY pif_id, project_id
-    )
+    WITH
+        cost_pivot
+        AS
+        (
+            SELECT
+                pif_id,
+                project_id,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Target_Req_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Target_Req_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Target_Req_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Target_Req_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Target_Req_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Target_Req_CY5,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN current_value END) AS Target_Curr_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Target_Curr_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Target_Curr_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Target_Curr_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Target_Curr_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Target_Curr_CY5,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Target_Var_CY,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Target_Var_CY1,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Target_Var_CY2,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Target_Var_CY3,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Target_Var_CY4,
+                MAX(CASE WHEN scenario = 'Target' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Target_Var_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN requested_value END) AS Closings_Req_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN requested_value END) AS Closings_Req_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN requested_value END) AS Closings_Req_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN requested_value END) AS Closings_Req_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN requested_value END) AS Closings_Req_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN requested_value END) AS Closings_Req_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN current_value END) AS Closings_Curr_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN current_value END) AS Closings_Curr_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN current_value END) AS Closings_Curr_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN current_value END) AS Closings_Curr_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN current_value END) AS Closings_Curr_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN current_value END) AS Closings_Curr_CY5,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() THEN variance_value END) AS Closings_Var_CY,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 1 THEN variance_value END) AS Closings_Var_CY1,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 2 THEN variance_value END) AS Closings_Var_CY2,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 3 THEN variance_value END) AS Closings_Var_CY3,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 4 THEN variance_value END) AS Closings_Var_CY4,
+                MAX(CASE WHEN scenario = 'Closings' AND YEAR(year) = dbo.CY() + 5 THEN variance_value END) AS Closings_Var_CY5
+            FROM dbo.tbl_pif_cost_approved
+            GROUP BY pif_id, project_id
+        )
     SELECT
         p.archive_flag,
         p.include_flag,
@@ -735,7 +747,8 @@ GO
 CREATE PROCEDURE dbo.usp_insert_project_staging
     @pif_id VARCHAR(16),
     @project_id VARCHAR(10),
-    @line_item INT = 1,  -- NEW PARAMETER: Line item number
+    @line_item INT = 1,
+    -- NEW PARAMETER: Line item number
     @status VARCHAR(58) = NULL,
     @change_type VARCHAR(12) = NULL,
     @accounting_treatment VARCHAR(14) = NULL,
@@ -752,7 +765,7 @@ CREATE PROCEDURE dbo.usp_insert_project_staging
     -- Corrected length
     @moving_isd_year CHAR(1) = NULL,
     @lcm_issue VARCHAR(20) = NULL,
-    @justification VARCHAR(192) = NULL,
+    @justification VARCHAR(MAX) = NULL,
     @prior_year_spend DECIMAL(18,2) = NULL,
     @archive_flag BIT = NULL,
     @include_flag BIT = NULL
@@ -806,7 +819,8 @@ GO
 CREATE PROCEDURE dbo.usp_insert_cost_staging
     @pif_id VARCHAR(16),
     @project_id VARCHAR(10),
-    @line_item INT = 1,  -- NEW PARAMETER: Line item number
+    @line_item INT = 1,
+    -- NEW PARAMETER: Line item number
     @scenario VARCHAR(12),
     @year DATE,
     @requested_value DECIMAL(18,2) = NULL,
@@ -1129,7 +1143,7 @@ BEGIN
         c.pif_id, c.project_id, c.line_item, c.scenario, c.year,
         c.requested_value, c.current_value, c.variance_value
     FROM dbo.tbl_pif_cost_staging c
-    INNER JOIN dbo.tbl_pif_projects_staging p
+        INNER JOIN dbo.tbl_pif_projects_staging p
         ON c.pif_id = p.pif_id AND c.project_id = p.project_id AND c.line_item = p.line_item
     WHERE p.site = @site;
 
@@ -1195,30 +1209,30 @@ BEGIN
         MERGE dbo.tbl_pif_projects_approved AS target
         USING (
             SELECT
-                p.pif_id,
-                p.project_id,
-                p.line_item,
-                p.submission_date,
-                p.status,
-                p.change_type,
-                p.accounting_treatment,
-                p.category,
-                p.seg,
-                p.opco,
-                p.site,
-                p.strategic_rank,
-                p.funding_project,
-                p.project_name,
-                p.original_fp_isd,
-                p.revised_fp_isd,
-                p.moving_isd_year,
-                p.lcm_issue,
-                p.justification,
-                p.prior_year_spend,
-                p.archive_flag,
-                p.include_flag
-            FROM dbo.tbl_pif_projects_inflight p
-            WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site
+        p.pif_id,
+        p.project_id,
+        p.line_item,
+        p.submission_date,
+        p.status,
+        p.change_type,
+        p.accounting_treatment,
+        p.category,
+        p.seg,
+        p.opco,
+        p.site,
+        p.strategic_rank,
+        p.funding_project,
+        p.project_name,
+        p.original_fp_isd,
+        p.revised_fp_isd,
+        p.moving_isd_year,
+        p.lcm_issue,
+        p.justification,
+        p.prior_year_spend,
+        p.archive_flag,
+        p.include_flag
+    FROM dbo.tbl_pif_projects_inflight p
+    WHERE p.archive_flag = 1 AND p.include_flag = 1 AND p.site = @site
         ) AS source
         ON target.pif_id = source.pif_id AND target.project_id = source.project_id AND target.line_item = source.line_item
         WHEN MATCHED THEN
@@ -1285,13 +1299,13 @@ BEGIN
         FROM dbo.tbl_pif_cost_approved c
         WHERE EXISTS (
             SELECT 1
-            FROM dbo.tbl_pif_projects_inflight p
-            WHERE p.pif_id = c.pif_id
-                AND p.project_id = c.project_id
-                AND p.line_item = c.line_item
-                AND p.archive_flag = 1
-                AND p.include_flag = 1
-                AND p.site = @site
+    FROM dbo.tbl_pif_projects_inflight p
+    WHERE p.pif_id = c.pif_id
+        AND p.project_id = c.project_id
+        AND p.line_item = c.line_item
+        AND p.archive_flag = 1
+        AND p.include_flag = 1
+        AND p.site = @site
         );
 
         -- Then, insert new/updated cost records

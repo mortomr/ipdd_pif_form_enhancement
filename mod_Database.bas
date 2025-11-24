@@ -790,6 +790,31 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
 
+
+                Debug.Print " EXEC dbo.usp_insert_project_staging"
+                Debug.Print " @pif_id = "				params(0)
+                Debug.Print " @project_id = "           params(1)
+                Debug.Print " @line_item = "            params(2)
+                Debug.Print " @status = "               params(3)
+                Debug.Print " @change_type = "          params(4)
+                Debug.Print " @accounting_treatment = " params(5)
+                Debug.Print " @category = "             params(6)
+                Debug.Print " @seg = "                  params(7)
+                Debug.Print " @opco = "                 params(8)
+                Debug.Print " @site = "                 params(9)
+                Debug.Print " @strategic_rank = "       params(10)
+                Debug.Print " @funding_project = "      params(11)
+                Debug.Print " @project_name = "         params(12)
+                Debug.Print " @original_fp_isd = "      params(13)
+                Debug.Print " @revised_fp_isd = "       params(14)
+                Debug.Print " @moving_isd_year = "      params(15)
+                Debug.Print " @lcm_issue = "            params(16)
+                Debug.Print " @justification = "        params(17)
+                Debug.Print " @prior_year_spend = "     params(18)
+                Debug.Print " @archive_flag = "         params(19)
+                Debug.Print " @include_flag = "         params(20)
+
+
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                                             "@pif_id", adVarChar, adParamInput, 16, params(0), _
                                             "@project_id", adVarChar, adParamInput, 10, params(1), _
