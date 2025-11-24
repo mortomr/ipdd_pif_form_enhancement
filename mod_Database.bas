@@ -657,11 +657,11 @@ ErrHandler:
     If Not dbConnection Is Nothing Then
         If dbConnection.Errors.Count > 0 Then
             Debug.Print "    SQL Server Errors (" & dbConnection.Errors.Count & "):"
-            Dim sqlErr As ADODB.Error
-            For Each sqlErr In dbConnection.Errors
-                Debug.Print "      Error " & sqlErr.Number & ": " & sqlErr.Description
-                Debug.Print "      SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
-            Next sqlErr
+            Dim sqlErr2 As ADODB.Error
+            For Each sqlErr2 In dbConnection.Errors
+                Debug.Print "      Error " & sqlErr2.Number & ": " & sqlErr2.Description
+                Debug.Print "      SQLState: " & sqlErr2.SQLState & ", NativeError: " & sqlErr2.NativeError
+            Next sqlErr2
         End If
     End If
 
