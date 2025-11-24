@@ -26,6 +26,7 @@ Private Const SHEET_DATA As String = "PIF"
 ' Purpose: Insert a new blank data row above the totals row
 ' Usage: Attach to [Add Row] button on PIF sheet
 ' Notes: Automatically copies formulas and formatting from previous row
+' Rev to accomodate New Line # Column @ "G"
 ' ----------------------------------------------------------------------------
 Public Sub Edit_AddRow()
     On Error GoTo ErrHandler
@@ -41,7 +42,7 @@ Public Sub Edit_AddRow()
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
 
     ' Find last row with data (look for PIF_ID in column G)
-    lastDataRow = ws.Cells(ws.Rows.Count, 7).End(xlUp).Row  ' Column G = PIF_ID
+    lastDataRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row  ' Column G = PIF_ID
 
     ' Check if we're on a valid data area (should be row 4 or higher)
     If lastDataRow < 4 Then
@@ -66,7 +67,7 @@ Public Sub Edit_AddRow()
                  (InStr(1, cellFormula, "AGGREGATE(") > 0)
 
     ' Also check if PIF_ID column is empty (another indicator of total row)
-    If Trim(CStr(ws.Cells(sourceRow, 7).Value)) = "" Then
+    If Trim(CStr(ws.Cells(sourceRow, 7).value)) = "" Then
         isTotalRow = True
     End If
 
@@ -109,7 +110,7 @@ Public Sub Edit_AddRow()
     ' Clear columns C-T (3-20) - data entry columns
     ' Note: We don't clear calculated columns like variance columns
     Dim clearColumns As Variant
-    clearColumns = Array(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)
+    clearColumns = Array(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)
 
     Dim col As Variant
     For Each col In clearColumns
@@ -119,46 +120,46 @@ Public Sub Edit_AddRow()
         End If
     Next col
 
-    ' Clear Target Requested columns (U-Z, columns 21-26)
+    ' Clear Target Requested columns (V-AA, columns 22-27)
     Dim i As Integer
-    For i = 21 To 26
+    For i = 22 To 27
         If Not ws.Cells(newRow, i).HasFormula Then
             ws.Cells(newRow, i).ClearContents
         End If
     Next i
 
-    ' Clear Closings Requested columns (AO-AT, columns 41-46)
-    For i = 41 To 46
+    ' Clear Closings Requested columns (AP-AU, columns 42-47)
+    For i = 42 To 47
         If Not ws.Cells(newRow, i).HasFormula Then
             ws.Cells(newRow, i).ClearContents
         End If
     Next i
 
-    ' Clear Moving ISD Year (AM, column 39)
-    If Not ws.Cells(newRow, 39).HasFormula Then
-        ws.Cells(newRow, 39).ClearContents
-    End If
-
-    ' Clear Prior Year Spend (AN, column 40)
+    ' Clear Moving ISD Year (AN, column 40)
     If Not ws.Cells(newRow, 40).HasFormula Then
         ws.Cells(newRow, 40).ClearContents
     End If
 
+    ' Clear Prior Year Spend (AO, column 41)
+    If Not ws.Cells(newRow, 41).HasFormula Then
+        ws.Cells(newRow, 41).ClearContents
+    End If
+
     ' Set default values for checkboxes (Archive and Include in columns C and D)
-    ws.Cells(newRow, 3).Value = False  ' Archive checkbox
-    ws.Cells(newRow, 4).Value = False  ' Include checkbox
+    ws.Cells(newRow, 3).value = False  ' Archive checkbox
+    ws.Cells(newRow, 4).value = False  ' Include checkbox
 
     ' Auto-populate site from Instructions sheet if available
     On Error Resume Next
     Dim selectedSite As String
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     If selectedSite <> "" And UCase(selectedSite) <> "FLEET" Then
-        ws.Cells(newRow, 10).Value = selectedSite  ' Column J = Site
+        ws.Cells(newRow, 11).value = selectedSite  ' Column K = Site
     End If
     On Error GoTo ErrHandler
 
-    ' Select the PIF ID cell (Column G) for user to start entering data
-    ws.Cells(newRow, 7).Select
+    ' Select the PIF ID cell (Column H) for user to start entering data
+    ws.Cells(newRow, 8).Select
 
     Application.ScreenUpdating = True
 
@@ -208,8 +209,8 @@ Public Sub Edit_DeleteRows()
     End If
 
     ' Count rows
-    rowCount = selectedRows.Rows.Count
-    firstRow = selectedRows.Row
+    rowCount = selectedRows.Rows.count
+    firstRow = selectedRows.row
     lastRow = firstRow + rowCount - 1
 
     ' Prevent deletion of header rows (rows 1-3)
@@ -348,10 +349,10 @@ Public Function ValidateDataRow(ByVal ws As Worksheet, ByVal rowNum As Long) As 
     Dim site As String
 
     ' Get required fields
-    pifId = Trim(CStr(ws.Cells(rowNum, 7).Value))          ' Column G
-    projectId = Trim(CStr(ws.Cells(rowNum, 13).Value))     ' Column M
-    changeType = Trim(CStr(ws.Cells(rowNum, 6).Value))     ' Column F
-    site = Trim(CStr(ws.Cells(rowNum, 10).Value))          ' Column J
+    pifId = Trim(CStr(ws.Cells(rowNum, 7).value))          ' Column G
+    projectId = Trim(CStr(ws.Cells(rowNum, 13).value))     ' Column M
+    changeType = Trim(CStr(ws.Cells(rowNum, 6).value))     ' Column F
+    site = Trim(CStr(ws.Cells(rowNum, 10).value))          ' Column J
 
     ' Check if all required fields are present
     If pifId = "" Or projectId = "" Or changeType = "" Or site = "" Then
@@ -385,7 +386,7 @@ Public Sub Tool_HighlightIncomplete()
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
 
     ' Find last row with data
-    lastRow = ws.Cells(ws.Rows.Count, 7).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
 
     highlightCount = 0
 
@@ -395,7 +396,7 @@ Public Sub Tool_HighlightIncomplete()
         If WorksheetFunction.CountA(ws.Rows(i)) = 0 Then GoTo NextRow
 
         ' Skip rows without PIF_ID (likely summary/total rows)
-        If Trim(CStr(ws.Cells(i, 7).Value)) = "" Then GoTo NextRow
+        If Trim(CStr(ws.Cells(i, 7).value)) = "" Then GoTo NextRow
 
         ' Check if row is valid
         If Not ValidateDataRow(ws, i) Then
@@ -444,7 +445,7 @@ Public Sub Tool_ClearHighlights()
     Application.ScreenUpdating = False
 
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
-    lastRow = ws.Cells(ws.Rows.Count, 7).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
 
     ' Clear highlighting from all data rows (start at row 4)
     If lastRow >= 4 Then
