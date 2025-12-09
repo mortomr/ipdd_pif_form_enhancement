@@ -585,10 +585,36 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         Debug.Print "    VarType: " & VarType(paramValue)
 
         ' Create parameter
+        ' Dim parameter As ADODB.Parameter
+        ' On Error Resume Next
+        ' Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
+        
+        ' Modify parameter creation logic in ExecuteStoredProcedureNonQuery
         Dim parameter As ADODB.Parameter
         On Error Resume Next
-        Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
-        
+        Select Case paramType
+            Case adVarChar, adChar
+                ' String parameters
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CStr(paramValue))
+            
+            Case adInteger, adSmallInt, adTinyInt
+                ' Integer parameters
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
+            
+            Case adDecimal, adNumeric
+                ' Decimal parameters
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CDec(paramValue))
+            
+            Case adBit
+                ' Boolean/Bit parameters
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CBool(paramValue))
+            
+            Case Else
+                ' Default case
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
+        End Select
+
+
         ' Capture detailed error if parameter creation fails
         If Err.Number <> 0 Then
             detailedErrorLog = "Parameter Creation Error:" & vbCrLf & _
@@ -674,7 +700,7 @@ End Function
 ' Returns: True if successful, False if failed
 ' ----------------------------------------------------------------------------
 ' Add a new function to validate site
-Private Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal rowSite As String, ByVal pifId As String) As Boolean
+Public Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal rowSite As String, ByVal pifId As String) As Boolean
     ' Convert both to uppercase for case-insensitive comparison
     selectedSite = UCase(Trim(selectedSite))
     rowSite = UCase(Trim(rowSite))
@@ -798,18 +824,32 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(6) = SafeString(wsData.Cells(actualRow, 20).value)  ' category (T) - VARCHAR
                 params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
                 params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
+                ' Validate opco - set to NULL if empty
+                If Trim(CStr(params(8))) = "" Then
+                    params(8) = Null
+                End If                
                 params(9) = SafeString(wsData.Cells(actualRow, 11).value)  ' site (K) - VARCHAR
                 params(10) = SafeString(wsData.Cells(actualRow, 12).value) ' strategic_rank (L) - VARCHAR
                 params(11) = SafeString(wsData.Cells(actualRow, 14).value) ' funding_project (N) - VARCHAR
                 params(12) = SafeString(wsData.Cells(actualRow, 15).value) ' project_name (O) - VARCHAR
                 params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value) ' original_fp_isd (P) - VARCHAR
                 params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
+                ' params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
+                ' Modify the section preparing parameters
+                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+                If IsNull(params(15)) Then
+                    params(15) = "N"  ' Default to "N" if empty
+                End If
+                If Len(CStr(params(15))) > 1 Then
+                    params(15) = Left(CStr(params(15)), 1)
+                End If
                 params(16) = SafeString(wsData.Cells(actualRow, 18).value) ' lcm_issue (R) - VARCHAR
                 params(17) = SafeString(wsData.Cells(actualRow, 21).value) ' justification (U) - VARCHAR
                 params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
                 params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
                 params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
+
+
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
 
@@ -1478,13 +1518,26 @@ End Function
 ' Purpose: Convert cell value to string, handling NULL/Empty
 ' Returns: String value or NULL for SQL
 ' ----------------------------------------------------------------------------
+' Modify SafeString to handle specific cases like moving_isd_year
 Public Function SafeString(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeString = Null
-    ElseIf Trim(CStr(cellValue)) = "" Then
-        SafeString = Null
     Else
-        SafeString = Trim(CStr(cellValue))
+        Dim strValue As String
+        strValue = Trim(CStr(cellValue))
+        
+        ' Special handling for moving_isd_year
+        If Len(strValue) > 1 Then
+            ' Truncate to first character if longer than 1
+            strValue = Left(strValue, 1)
+        End If
+        
+        ' Return NULL if empty after trimming
+        If strValue = "" Then
+            SafeString = Null
+        Else
+            SafeString = strValue
+        End If
     End If
 End Function
 
@@ -1510,13 +1563,13 @@ End Function
 ' Purpose: Convert cell value to Decimal, handling NULL/Empty
 ' Returns: Decimal value or NULL for SQL
 ' ----------------------------------------------------------------------------
+' Modify SafeDecimal to handle precision
 Public Function SafeDecimal(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeDecimal = Null
-    ElseIf Trim(CStr(cellValue)) = "" Then
-        SafeDecimal = Null
     ElseIf IsNumeric(cellValue) Then
-        SafeDecimal = CDbl(cellValue)
+        ' Explicitly round to 2 decimal places and convert to Decimal
+        SafeDecimal = CDec(Round(CDbl(cellValue), 2))
     Else
         SafeDecimal = Null
     End If
@@ -1528,6 +1581,7 @@ End Function
 ' Returns: 1 (True), 0 (False), or NULL for SQL
 ' Notes: Accepts TRUE/FALSE, 1/0, Y/N, Yes/No, T/F
 ' ----------------------------------------------------------------------------
+' Update SafeBoolean to be more robust
 Public Function SafeBoolean(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeBoolean = Null
@@ -1540,15 +1594,12 @@ Public Function SafeBoolean(ByVal cellValue As Variant) As Variant
     If strValue = "" Then
         SafeBoolean = Null
     ElseIf strValue = "TRUE" Or strValue = "1" Or strValue = "Y" Or strValue = "YES" Or strValue = "T" Then
-        SafeBoolean = 1  ' Changed from True to 1 for SQL Server BIT
+        SafeBoolean = 1  ' 1 for SQL Server BIT
     ElseIf strValue = "FALSE" Or strValue = "0" Or strValue = "N" Or strValue = "NO" Or strValue = "F" Then
-        SafeBoolean = 0  ' Changed from False to 0 for SQL Server BIT
+        SafeBoolean = 0  ' 0 for SQL Server BIT
     ElseIf IsNumeric(cellValue) Then
-        If CDbl(cellValue) <> 0 Then
-            SafeBoolean = 1
-        Else
-            SafeBoolean = 0
-        End If
+        ' Convert numeric to bit
+        SafeBoolean = IIf(CDbl(cellValue) <> 0, 1, 0)
     Else
         SafeBoolean = Null
     End If

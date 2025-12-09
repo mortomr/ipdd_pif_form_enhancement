@@ -632,211 +632,211 @@ ErrHandler:
      UploadProjectData = False
  End Function
 
-Public Function BulkInsertToStaging(ByVal dataRange As Range, _
-                                    ByVal tableName As String, _
-                                    Optional ByVal schemaName As String = "dbo", _
-                                    Optional ByVal selectedSite As String = "") As Boolean
-    On Error GoTo LogError
+' Public Function BulkInsertToStaging(ByVal dataRange As Range, _
+'                                     ByVal tableName As String, _
+'                                     Optional ByVal schemaName As String = "dbo", _
+'                                     Optional ByVal selectedSite As String = "") As Boolean
+'     On Error GoTo LogError
 
-    Dim conn As ADODB.Connection
-    Dim j As Long
-    Dim rowCount As Long
-    Dim skippedRowCount As Long
-    Dim startTime As Double
-    Dim params() As Variant
-    Dim wsData As Worksheet
-    Dim actualRow As Long
-    Dim errorDetailLog As String
-    Dim rowSite As String
-    Dim rowPifId As String
-    Dim lastErrorRow As Long
-    Dim lastErrorPifId As String
-    Dim lastErrorProjectId As String
+'     Dim conn As ADODB.Connection
+'     Dim j As Long
+'     Dim rowCount As Long
+'     Dim skippedRowCount As Long
+'     Dim startTime As Double
+'     Dim params() As Variant
+'     Dim wsData As Worksheet
+'     Dim actualRow As Long
+'     Dim errorDetailLog As String
+'     Dim rowSite As String
+'     Dim rowPifId As String
+'     Dim lastErrorRow As Long
+'     Dim lastErrorPifId As String
+'     Dim lastErrorProjectId As String
 
-    startTime = Timer
+'     startTime = Timer
 
-    Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
-    Debug.Print "Data range rows: " & dataRange.Rows.Count
-    Debug.Print "Selected Site: " & IIf(selectedSite = "", "(ALL SITES)", selectedSite)
+'     Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
+'     Debug.Print "Data range rows: " & dataRange.Rows.Count
+'     Debug.Print "Selected Site: " & IIf(selectedSite = "", "(ALL SITES)", selectedSite)
 
-    ' Get the worksheet reference for absolute column access
-    Set wsData = dataRange.Worksheet
+'     ' Get the worksheet reference for absolute column access
+'     Set wsData = dataRange.Worksheet
 
-    Set conn = GetDBConnection()
-    If conn Is Nothing Then
-        Debug.Print "ERROR: GetDBConnection returned Nothing!"
-        errorDetailLog = "Connection failed: GetDBConnection returned Nothing"
-        BulkInsertToStaging = False
-        GoTo LogError
-    End If
-    Debug.Print "Database connection established"
+'     Set conn = GetDBConnection()
+'     If conn Is Nothing Then
+'         Debug.Print "ERROR: GetDBConnection returned Nothing!"
+'         errorDetailLog = "Connection failed: GetDBConnection returned Nothing"
+'         BulkInsertToStaging = False
+'         GoTo LogError
+'     End If
+'     Debug.Print "Database connection established"
 
-    ' Truncate staging table first
-    Application.StatusBar = "Truncating " & tableName & "..."
-    Debug.Print "Truncating " & tableName & "..."
-    If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
-        Debug.Print "ERROR: Failed to truncate table"
-        errorDetailLog = "Failed to truncate table: " & tableName
-        BulkInsertToStaging = False
-        GoTo LogError
-    End If
-    Debug.Print "Table truncated successfully"
+'     ' Truncate staging table first
+'     Application.StatusBar = "Truncating " & tableName & "..."
+'     Debug.Print "Truncating " & tableName & "..."
+'     If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
+'         Debug.Print "ERROR: Failed to truncate table"
+'         errorDetailLog = "Failed to truncate table: " & tableName
+'         BulkInsertToStaging = False
+'         GoTo LogError
+'     End If
+'     Debug.Print "Table truncated successfully"
 
-    ' Loop through Excel range and add records
-    Application.StatusBar = "Uploading to " & tableName & "..."
-    Application.ScreenUpdating = False
-    rowCount = 0
-    skippedRowCount = 0
+'     ' Loop through Excel range and add records
+'     Application.StatusBar = "Uploading to " & tableName & "..."
+'     Application.ScreenUpdating = False
+'     rowCount = 0
+'     skippedRowCount = 0
 
-    conn.BeginTrans
-    Debug.Print "Transaction started"
+'     conn.BeginTrans
+'     Debug.Print "Transaction started"
 
-    For j = 1 To dataRange.Rows.Count
-        ' Calculate actual worksheet row
-        actualRow = dataRange.Row + j - 1
+'     For j = 1 To dataRange.Rows.Count
+'         ' Calculate actual worksheet row
+'         actualRow = dataRange.Row + j - 1
 
-        ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
-        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
-            If tableName = "tbl_pif_projects_staging" Then
-                ' Get row-specific site and PIF ID for validation
-                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
-                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
+'         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
+'         If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+'             If tableName = "tbl_pif_projects_staging" Then
+'                 ' Get row-specific site and PIF ID for validation
+'                 rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
+'                 rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
 
-                ' Validate site consistency if a site is provided
-                If selectedSite <> "" And selectedSite <> "FLEET" Then
-                    If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
-                        skippedRowCount = skippedRowCount + 1
-                        Debug.Print "  SKIPPED row " & actualRow & " (site mismatch)"
-                        GoTo NextRow
-                    End If
-                End If
+'                 ' Validate site consistency if a site is provided
+'                 If selectedSite <> "" And selectedSite <> "FLEET" Then
+'                     If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
+'                         skippedRowCount = skippedRowCount + 1
+'                         Debug.Print "  SKIPPED row " & actualRow & " (site mismatch)"
+'                         GoTo NextRow
+'                     End If
+'                 End If
 
-                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
-                ' Use absolute column references with proper type conversion
-                params(0) = SafeString(rowPifId)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
-                params(9) = SafeString(rowSite)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+'                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+'                 ' Use absolute column references with proper type conversion
+'                 params(0) = SafeString(rowPifId)   ' pif_id (H) - VARCHAR
+'                 params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+'                 params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+'                 params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+'                 params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+'                 params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+'                 params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+'                 params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+'                 params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+'                 params(9) = SafeString(rowSite)  ' site (K) - VARCHAR
+'                 params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+'                 params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+'                 params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+'                 params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+'                 params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+'                 params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+'                 params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+'                 params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+'                 params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+'                 params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+'                 params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
-                Debug.Print "  Attempting to insert row " & actualRow & ": " & _
-                            "PIF=" & params(0) & ", " & _
-                            "Project=" & params(1) & ", " & _
-                            "Line Item=" & params(2) & ", " & _
-                            "Site=" & params(9)
+'                 Debug.Print "  Attempting to insert row " & actualRow & ": " & _
+'                             "PIF=" & params(0) & ", " & _
+'                             "Project=" & params(1) & ", " & _
+'                             "Line Item=" & params(2) & ", " & _
+'                             "Site=" & params(9)
 
-                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
-                    "@pif_id", adVarChar, adParamInput, 16, params(0), _
-                    "@project_id", adVarChar, adParamInput, 10, params(1), _
-                    "@line_item", adInteger, adParamInput, 0, params(2), _
-                    "@status", adVarChar, adParamInput, 58, params(3), _
-                    "@change_type", adVarChar, adParamInput, 12, params(4), _
-                    "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
-                    "@category", adVarChar, adParamInput, 26, params(6), _
-                    "@seg", adInteger, adParamInput, 0, params(7), _
-                    "@opco", adVarChar, adParamInput, 4, params(8), _
-                    "@site", adVarChar, adParamInput, 4, params(9), _
-                    "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
-                    "@funding_project", adVarChar, adParamInput, 10, params(11), _
-                    "@project_name", adVarChar, adParamInput, 35, params(12), _
-                    "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
-                    "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
-                    "@moving_isd_year", adChar, adParamInput, 1, params(15), _
-                    "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
-                    "@justification", adVarChar, adParamInput, 192, params(17), _
-                    "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
-                    "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
-                    "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+'                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+'                     "@pif_id", adVarChar, adParamInput, 16, params(0), _
+'                     "@project_id", adVarChar, adParamInput, 10, params(1), _
+'                     "@line_item", adInteger, adParamInput, 0, params(2), _
+'                     "@status", adVarChar, adParamInput, 58, params(3), _
+'                     "@change_type", adVarChar, adParamInput, 12, params(4), _
+'                     "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+'                     "@category", adVarChar, adParamInput, 26, params(6), _
+'                     "@seg", adInteger, adParamInput, 0, params(7), _
+'                     "@opco", adVarChar, adParamInput, 4, params(8), _
+'                     "@site", adVarChar, adParamInput, 4, params(9), _
+'                     "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+'                     "@funding_project", adVarChar, adParamInput, 10, params(11), _
+'                     "@project_name", adVarChar, adParamInput, 35, params(12), _
+'                     "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+'                     "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+'                     "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+'                     "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+'                     "@justification", adVarChar, adParamInput, 192, params(17), _
+'                     "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+'                     "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+'                     "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
                     
-                    Debug.Print "  ERROR: Failed to insert row " & actualRow
+'                     Debug.Print "  ERROR: Failed to insert row " & actualRow
                     
-                    ' Capture detailed error information
-                    lastErrorRow = actualRow
-                    lastErrorPifId = params(0)
-                    lastErrorProjectId = params(1)
+'                     ' Capture detailed error information
+'                     lastErrorRow = actualRow
+'                     lastErrorPifId = params(0)
+'                     lastErrorProjectId = params(1)
                     
-                    errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
-                                     "PIF ID: " & params(0) & vbCrLf & _
-                                     "Project ID: " & params(1) & vbCrLf & _
-                                     "Line Item: " & params(2) & vbCrLf & _
-                                     "Site: " & params(9)
+'                     errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
+'                                      "PIF ID: " & params(0) & vbCrLf & _
+'                                      "Project ID: " & params(1) & vbCrLf & _
+'                                      "Line Item: " & params(2) & vbCrLf & _
+'                                      "Site: " & params(9)
                     
-                    conn.RollbackTrans
-                    BulkInsertToStaging = False
-                    GoTo LogError
-                End If
+'                     conn.RollbackTrans
+'                     BulkInsertToStaging = False
+'                     GoTo LogError
+'                 End If
 
-                rowCount = rowCount + 1
-            End If
-        Else
-            Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
-        End If
+'                 rowCount = rowCount + 1
+'             End If
+'         Else
+'             Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
+'         End If
         
-NextRow:
-    Next j
+' NextRow:
+'     Next j
 
-    Debug.Print "Loop completed."
-    Debug.Print "  Rows processed: " & rowCount
-    Debug.Print "  Rows skipped: " & skippedRowCount
-    Debug.Print "Committing transaction..."
-    conn.CommitTrans
-    Debug.Print "Transaction committed"
+'     Debug.Print "Loop completed."
+'     Debug.Print "  Rows processed: " & rowCount
+'     Debug.Print "  Rows skipped: " & skippedRowCount
+'     Debug.Print "Committing transaction..."
+'     conn.CommitTrans
+'     Debug.Print "Transaction committed"
 
-    conn.Close
-    Set conn = Nothing
+'     conn.Close
+'     Set conn = Nothing
 
-    Application.StatusBar = False
-    Application.ScreenUpdating = True
+'     Application.StatusBar = False
+'     Application.ScreenUpdating = True
 
-    Dim elapsed As Double
-    elapsed = Timer - startTime
+'     Dim elapsed As Double
+'     elapsed = Timer - startTime
 
-    Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
-    Debug.Print "=== BulkInsertToStaging COMPLETED SUCCESSFULLY ==="
+'     Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+'     Debug.Print "=== BulkInsertToStaging COMPLETED SUCCESSFULLY ==="
 
-    BulkInsertToStaging = True
-    Exit Function
+'     BulkInsertToStaging = True
+'     Exit Function
 
-LogError:
-    ' Enhanced error logging
-    Dim finalErrorMsg As String
-    finalErrorMsg = "Bulk insert failed:" & vbCrLf & _
-                    "Table: " & tableName & vbCrLf & _
-                    "Error Details: " & errorDetailLog & vbCrLf & _
-                    "Last Error Row: " & lastErrorRow & vbCrLf & _
-                    "PIF ID: " & lastErrorPifId & vbCrLf & _
-                    "Project ID: " & lastErrorProjectId
+' LogError:
+'     ' Enhanced error logging
+'     Dim finalErrorMsg As String
+'     finalErrorMsg = "Bulk insert failed:" & vbCrLf & _
+'                     "Table: " & tableName & vbCrLf & _
+'                     "Error Details: " & errorDetailLog & vbCrLf & _
+'                     "Last Error Row: " & lastErrorRow & vbCrLf & _
+'                     "PIF ID: " & lastErrorPifId & vbCrLf & _
+'                     "Project ID: " & lastErrorProjectId
 
-    MsgBox finalErrorMsg, vbCritical, "Upload Error"
+'     MsgBox finalErrorMsg, vbCritical, "Upload Error"
     
-    If Not conn Is Nothing Then
-        If conn.State = adStateOpen Then
-            On Error Resume Next
-            conn.RollbackTrans
-            conn.Close
-            On Error GoTo 0
-        End If
-        Set conn = Nothing
-    End If
+'     If Not conn Is Nothing Then
+'         If conn.State = adStateOpen Then
+'             On Error Resume Next
+'             conn.RollbackTrans
+'             conn.Close
+'             On Error GoTo 0
+'         End If
+'         Set conn = Nothing
+'     End If
 
-    BulkInsertToStaging = False
-End Function
+'     BulkInsertToStaging = False
+' End Function
 
 
 
