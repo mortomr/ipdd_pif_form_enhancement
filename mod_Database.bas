@@ -601,10 +601,17 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
                 ' Integer parameters
                 Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
             
+            ' Case adDecimal, adNumeric
+            '     ' Decimal parameters
+            '     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CDec(paramValue))
             Case adDecimal, adNumeric
-                ' Decimal parameters
-                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CDec(paramValue))
-            
+                ' Decimal parameters with explicit precision and scale
+                Dim decValue As Variant
+                decValue = CDec(paramValue)
+                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, decValue)
+                parameter.Precision = 18
+                parameter.NumericScale = 2
+
             Case adBit
                 ' Boolean/Bit parameters
                 Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CBool(paramValue))
@@ -789,6 +796,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     For j = 1 To dataRange.Rows.count
         ' Calculate actual worksheet row
         actualRow = dataRange.row + j - 1
+
+        PrintDetailedRowData wsData, actualRow
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
         If Not IsEmpty(wsData.Cells(actualRow, 8).value) Then
@@ -1522,23 +1531,41 @@ End Function
 Public Function SafeString(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeString = Null
-    Else
-        Dim strValue As String
-        strValue = Trim(CStr(cellValue))
-        
-        ' Special handling for moving_isd_year
-        If Len(strValue) > 1 Then
-            ' Truncate to first character if longer than 1
-            strValue = Left(strValue, 1)
-        End If
-        
-        ' Return NULL if empty after trimming
-        If strValue = "" Then
-            SafeString = Null
-        Else
-            SafeString = strValue
-        End If
+        Exit Function
     End If
+
+    Dim strValue As String
+    strValue = Trim(CStr(cellValue))
+    
+    ' Return NULL if empty after trimming
+    If strValue = "" Then
+        SafeString = Null
+        Exit Function
+    End If
+    
+    ' Handle specific column length constraints
+    Select Case Len(strValue)
+        Case Is > 192  ' justification
+            SafeString = Left(strValue, 192)
+        Case Is > 58   ' status
+            SafeString = Left(strValue, 58)
+        Case Is > 35   ' project_name
+            SafeString = Left(strValue, 35)
+        Case Is > 26   ' category, strategic_rank
+            SafeString = Left(strValue, 26)
+        Case Is > 20   ' original_fp_isd, revised_fp_isd, lcm_issue
+            SafeString = Left(strValue, 20)
+        Case Is > 14   ' accounting_treatment
+            SafeString = Left(strValue, 14)
+        Case Is > 12   ' change_type
+            SafeString = Left(strValue, 12)
+        Case Is > 10   ' project_id, funding_project
+            SafeString = Left(strValue, 10)
+        Case Is > 4    ' opco, site
+            SafeString = Left(strValue, 4)
+        Case Else
+            SafeString = strValue
+    End Select
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -1549,13 +1576,26 @@ End Function
 Public Function SafeInteger(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeInteger = Null
-    ElseIf Trim(CStr(cellValue)) = "" Then
-        SafeInteger = Null
-    ElseIf IsNumeric(cellValue) Then
-        SafeInteger = CLng(cellValue)
-    Else
-        SafeInteger = Null
+        Exit Function
     End If
+
+    ' Handle different input types
+    Select Case VarType(cellValue)
+        Case vbString
+            ' Try to convert string to integer
+            If IsNumeric(cellValue) Then
+                SafeInteger = CLng(cellValue)
+            Else
+                SafeInteger = Null
+            End If
+        Case vbInteger, vbLong, vbByte
+            SafeInteger = CLng(cellValue)
+        Case vbDouble, vbSingle, vbDecimal
+            ' Round to nearest integer
+            SafeInteger = CLng(Round(CDbl(cellValue), 0))
+        Case Else
+            SafeInteger = Null
+    End Select
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -1567,12 +1607,25 @@ End Function
 Public Function SafeDecimal(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeDecimal = Null
-    ElseIf IsNumeric(cellValue) Then
-        ' Explicitly round to 2 decimal places and convert to Decimal
-        SafeDecimal = CDec(Round(CDbl(cellValue), 2))
-    Else
-        SafeDecimal = Null
+        Exit Function
     End If
+
+    ' Handle different input types
+    Select Case VarType(cellValue)
+        Case vbString
+            ' Try to convert string to decimal
+            If IsNumeric(cellValue) Then
+                SafeDecimal = CDec(Round(CDbl(cellValue), 2))
+            Else
+                SafeDecimal = Null
+            End If
+        Case vbInteger, vbLong, vbByte
+            SafeDecimal = CDec(cellValue)
+        Case vbDouble, vbSingle, vbDecimal
+            SafeDecimal = CDec(Round(CDbl(cellValue), 2))
+        Case Else
+            SafeDecimal = Null
+    End Select
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -1621,3 +1674,30 @@ Public Function SafeDate(ByVal cellValue As Variant) As Variant
         SafeDate = Null
     End If
 End Function
+
+
+' Add a new helper function for additional debugging
+Private Sub PrintDetailedRowData(ByVal wsData As Worksheet, ByVal actualRow As Long)
+    Debug.Print "Detailed Row Data for Row " & actualRow & ":"
+    Debug.Print "  PIF ID: " & wsData.Cells(actualRow, 8).Value
+    Debug.Print "  Project ID: " & wsData.Cells(actualRow, 14).Value
+    Debug.Print "  Line Item: " & wsData.Cells(actualRow, 7).Value
+    Debug.Print "  Status: " & wsData.Cells(actualRow, 19).Value
+    Debug.Print "  Change Type: " & wsData.Cells(actualRow, 6).Value
+    Debug.Print "  Accounting Treatment: " & wsData.Cells(actualRow, 5).Value
+    Debug.Print "  Category: " & wsData.Cells(actualRow, 20).Value
+    Debug.Print "  SEG: " & wsData.Cells(actualRow, 9).Value
+    Debug.Print "  OPCO: " & wsData.Cells(actualRow, 10).Value
+    Debug.Print "  Site: " & wsData.Cells(actualRow, 11).Value
+    Debug.Print "  Strategic Rank: " & wsData.Cells(actualRow, 12).Value
+    Debug.Print "  Funding Project: " & wsData.Cells(actualRow, 14).Value
+    Debug.Print "  Project Name: " & wsData.Cells(actualRow, 15).Value
+    Debug.Print "  Original FP ISD: " & wsData.Cells(actualRow, 16).Value
+    Debug.Print "  Revised FP ISD: " & wsData.Cells(actualRow, 17).Value
+    Debug.Print "  Moving ISD Year: " & wsData.Cells(actualRow, 39).Value
+    Debug.Print "  LCM Issue: " & wsData.Cells(actualRow, 18).Value
+    Debug.Print "  Justification: " & wsData.Cells(actualRow, 21).Value
+    Debug.Print "  Prior Year Spend: " & wsData.Cells(actualRow, 41).Value
+    Debug.Print "  Archive Flag: " & wsData.Cells(actualRow, 3).Value
+    Debug.Print "  Include Flag: " & wsData.Cells(actualRow, 4).Value
+End Sub
