@@ -601,21 +601,25 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
                 ' Integer parameters
                 Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
             
-            ' Case adDecimal, adNumeric
-            '     ' Decimal parameters
-            '     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CDec(paramValue))
             Case adDecimal, adNumeric
                 ' Decimal parameters with explicit precision and scale
                 Dim decValue As Variant
-                decValue = CDec(paramValue)
-                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, decValue)
+                If IsNull(paramValue) Then
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, Null)
+                Else
+                    decValue = CDec(paramValue)
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, decValue)
+                End If
                 parameter.Precision = 18
                 parameter.NumericScale = 2
 
             Case adBit
-                ' Boolean/Bit parameters
-                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CBool(paramValue))
-            
+                ' Bit (boolean) parameters
+                If IsNull(paramValue) Then
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 0, Null)
+                Else
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 0, CBool(paramValue))
+                End If
             Case Else
                 ' Default case
                 Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
@@ -824,13 +828,13 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 8).value)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).value)  ' project_id (N) - VARCHAR
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (H) - VARCHAR(16)
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (N) - VARCHAR(10)
                 params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).value)  ' category (T) - VARCHAR
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (S) - VARCHAR(58)
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value, 12)   ' change_type (F) - VARCHAR(12)
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (E) - VARCHAR(14)
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)  ' category (T) - VARCHAR(26)
                 params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
                 params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
                 ' Validate opco - set to NULL if empty
@@ -857,7 +861,23 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
                 params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
                 params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
+                Dim movingIsdYear As Variant
+                movingIsdYear = wsData.Cells(actualRow, 39).Value
+                If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Then
+                    params(15) = "N"  ' Default to "N"
+                Else
+                    params(15) = Left(UCase(Trim(CStr(movingIsdYear))), 1)
+                End If
 
+                ' Handle empty/null fields
+                If Trim(CStr(wsData.Cells(actualRow, 10).Value)) = "" Then
+                    params(8) = Null  ' OPCO
+                End If
+
+                ' Ensure empty category is handled
+                If Trim(CStr(wsData.Cells(actualRow, 20).Value)) = "" Then
+                    params(6) = Null  ' Category
+                End If
 
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
@@ -1527,8 +1547,7 @@ End Function
 ' Purpose: Convert cell value to string, handling NULL/Empty
 ' Returns: String value or NULL for SQL
 ' ----------------------------------------------------------------------------
-' Modify SafeString to handle specific cases like moving_isd_year
-Public Function SafeString(ByVal cellValue As Variant) As Variant
+Public Function SafeString(ByVal cellValue As Variant, Optional ByVal maxLength As Integer = 0) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeString = Null
         Exit Function
@@ -1543,29 +1562,12 @@ Public Function SafeString(ByVal cellValue As Variant) As Variant
         Exit Function
     End If
     
-    ' Handle specific column length constraints
-    Select Case Len(strValue)
-        Case Is > 192  ' justification
-            SafeString = Left(strValue, 192)
-        Case Is > 58   ' status
-            SafeString = Left(strValue, 58)
-        Case Is > 35   ' project_name
-            SafeString = Left(strValue, 35)
-        Case Is > 26   ' category, strategic_rank
-            SafeString = Left(strValue, 26)
-        Case Is > 20   ' original_fp_isd, revised_fp_isd, lcm_issue
-            SafeString = Left(strValue, 20)
-        Case Is > 14   ' accounting_treatment
-            SafeString = Left(strValue, 14)
-        Case Is > 12   ' change_type
-            SafeString = Left(strValue, 12)
-        Case Is > 10   ' project_id, funding_project
-            SafeString = Left(strValue, 10)
-        Case Is > 4    ' opco, site
-            SafeString = Left(strValue, 4)
-        Case Else
-            SafeString = strValue
-    End Select
+    ' If max length is specified, truncate
+    If maxLength > 0 And Len(strValue) > maxLength Then
+        SafeString = Left(strValue, maxLength)
+    Else
+        SafeString = strValue
+    End If
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -1634,28 +1636,32 @@ End Function
 ' Returns: 1 (True), 0 (False), or NULL for SQL
 ' Notes: Accepts TRUE/FALSE, 1/0, Y/N, Yes/No, T/F
 ' ----------------------------------------------------------------------------
-' Update SafeBoolean to be more robust
 Public Function SafeBoolean(ByVal cellValue As Variant) As Variant
     If IsEmpty(cellValue) Or IsNull(cellValue) Then
         SafeBoolean = Null
         Exit Function
     End If
 
-    Dim strValue As String
-    strValue = UCase(Trim(CStr(cellValue)))
-
-    If strValue = "" Then
-        SafeBoolean = Null
-    ElseIf strValue = "TRUE" Or strValue = "1" Or strValue = "Y" Or strValue = "YES" Or strValue = "T" Then
-        SafeBoolean = 1  ' 1 for SQL Server BIT
-    ElseIf strValue = "FALSE" Or strValue = "0" Or strValue = "N" Or strValue = "NO" Or strValue = "F" Then
-        SafeBoolean = 0  ' 0 for SQL Server BIT
-    ElseIf IsNumeric(cellValue) Then
-        ' Convert numeric to bit
-        SafeBoolean = IIf(CDbl(cellValue) <> 0, 1, 0)
-    Else
-        SafeBoolean = Null
-    End If
+    ' Handle different input types
+    Select Case VarType(cellValue)
+        Case vbBoolean
+            SafeBoolean = IIf(cellValue, 1, 0)
+        Case vbInteger, vbLong, vbByte
+            SafeBoolean = IIf(cellValue <> 0, 1, 0)
+        Case vbString
+            Dim strValue As String
+            strValue = UCase(Trim(cellValue))
+            Select Case strValue
+                Case "TRUE", "1", "Y", "YES", "T"
+                    SafeBoolean = 1
+                Case "FALSE", "0", "N", "NO", "F"
+                    SafeBoolean = 0
+                Case Else
+                    SafeBoolean = Null
+            End Select
+        Case Else
+            SafeBoolean = Null
+    End Select
 End Function
 
 ' ----------------------------------------------------------------------------
