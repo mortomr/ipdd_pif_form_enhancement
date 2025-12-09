@@ -594,134 +594,222 @@ End Function
 ' Function: UploadProjectData
 ' Purpose: Upload project metadata to staging table
 ' ----------------------------------------------------------------------------
-Private Function UploadProjectData() As Boolean
-    On Error GoTo ErrHandler
+Public Function BulkInsertToStaging(ByVal dataRange As Range, _
+                                    ByVal tableName As String, _
+                                    Optional ByVal schemaName As String = "dbo", _
+                                    Optional ByVal selectedSite As String = "") As Boolean
+    On Error GoTo LogError
 
+    Dim conn As ADODB.Connection
+    Dim i As Long
+    Dim rowCount As Long
+    Dim startTime As Double
+    Dim params() As Variant
     Dim wsData As Worksheet
-    Dim dataRange As Range
-    Dim lastDataRow As Long
-    Dim selectedSite As String
+    Dim actualRow As Long
+    Dim errorDetailLog As String  ' Variable to capture detailed error info
 
-    Debug.Print "=== UploadProjectData STARTED ==="
+    startTime = Timer
 
-    ' Validate site selection
-    selectedSite = mod_SiteSetup.GetSelectedSite()
-    If selectedSite = "" Or UCase(selectedSite) = "FLEET" Then
-        MsgBox "Invalid site selection. Please select a specific site on the Instructions sheet.", _
-               vbExclamation, "Site Selection Error"
-        UploadProjectData = False
-        Exit Function
+    Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
+    Debug.Print "Data range rows: " & dataRange.Rows.Count
+
+    ' Get the worksheet reference for absolute column access
+    Set wsData = dataRange.Worksheet
+
+    Set conn = GetDBConnection()
+    If conn Is Nothing Then
+        Debug.Print "ERROR: GetDBConnection returned Nothing!"
+        errorDetailLog = "Connection failed: GetDBConnection returned Nothing"
+        BulkInsertToStaging = False
+        GoTo LogError
     End If
+    Debug.Print "Database connection established"
 
-    Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-
-    ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
-    lastDataRow = wsData.Cells(wsData.Rows.Count, "H").End(xlUp).Row
-    Debug.Print "Last data row found: " & lastDataRow
-
-    ' Ensure we don't include header rows or start before the actual data
-    If lastDataRow < 4 Then
-        MsgBox "No data found to upload. Please enter project data first.", _
-               vbInformation, "No Data"
-        UploadProjectData = False
-        Exit Function
+    ' Truncate staging table first
+    Application.StatusBar = "Truncating " & tableName & "..."
+    Debug.Print "Truncating " & tableName & "..."
+    If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
+        Debug.Print "ERROR: Failed to truncate table"
+        errorDetailLog = "Failed to truncate table: " & tableName
+        BulkInsertToStaging = False
+        GoTo LogError
     End If
+    Debug.Print "Table truncated successfully"
 
-    ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
-    Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
-    Debug.Print "Data range defined: " & dataRange.Address & " (Rows: " & dataRange.Rows.Count & ")"
+    ' Loop through Excel range and add records
+    Application.StatusBar = "Uploading to " & tableName & "..."
+    Application.ScreenUpdating = False
+    rowCount = 0
 
-    Debug.Print "Calling BulkInsertProjects..."
-    UploadProjectData = BulkInsertProjects(dataRange)
-    Debug.Print "BulkInsertProjects returned: " & UploadProjectData
+    conn.BeginTrans
+    Debug.Print "Transaction started"
 
-    Debug.Print "=== UploadProjectData COMPLETED ==="
+    For i = 1 To dataRange.Rows.Count
+        ' Calculate actual worksheet row
+        actualRow = dataRange.Row + i - 1
+
+        ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
+        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+            If tableName = "tbl_pif_projects_staging" Then
+                ' Get row-specific site and PIF ID for validation
+                Dim rowSite As String
+                Dim rowPifId As String
+                
+                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
+                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
+
+                ' Validate site consistency if a site is provided
+                If selectedSite <> "" Then
+                    If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
+                        Debug.Print "  ERROR: Site validation failed for row " & actualRow
+                        
+                        errorDetailLog = "Site Validation Failed:" & vbCrLf & _
+                                         "Selected Site: " & selectedSite & vbCrLf & _
+                                         "Row Site: " & rowSite & vbCrLf & _
+                                         "PIF ID: " & rowPifId
+                        
+                        conn.RollbackTrans
+                        BulkInsertToStaging = False
+                        GoTo LogError
+                    End If
+                End If
+
+                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+                ' Use absolute column references with proper type conversion
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+
+                Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
+
+                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+                    "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                    "@project_id", adVarChar, adParamInput, 10, params(1), _
+                    "@line_item", adInteger, adParamInput, 0, params(2), _
+                    "@status", adVarChar, adParamInput, 58, params(3), _
+                    "@change_type", adVarChar, adParamInput, 12, params(4), _
+                    "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+                    "@category", adVarChar, adParamInput, 26, params(6), _
+                    "@seg", adInteger, adParamInput, 0, params(7), _
+                    "@opco", adVarChar, adParamInput, 4, params(8), _
+                    "@site", adVarChar, adParamInput, 4, params(9), _
+                    "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+                    "@funding_project", adVarChar, adParamInput, 10, params(11), _
+                    "@project_name", adVarChar, adParamInput, 35, params(12), _
+                    "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+                    "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+                    "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+                    "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+                    "@justification", adVarChar, adParamInput, 192, params(17), _
+                    "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+                    "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+                    "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+                    
+                    Debug.Print "  ERROR: Failed to insert row " & actualRow
+                    
+                    ' Capture detailed error information
+                    errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
+                                     "PIF ID: " & params(0) & vbCrLf & _
+                                     "Project ID: " & params(1) & vbCrLf & _
+                                     "Line Item: " & params(2)
+                    
+                    conn.RollbackTrans
+                    BulkInsertToStaging = False
+                    GoTo LogError
+                End If
+
+                rowCount = rowCount + 1
+            End If
+        Else
+            Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
+        End If
+    Next i
+
+    Debug.Print "Loop completed. Total rows processed: " & rowCount
+    Debug.Print "Committing transaction..."
+    conn.CommitTrans
+    Debug.Print "Transaction committed"
+
+    conn.Close
+    Set conn = Nothing
+
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+
+    Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+    Debug.Print "=== BulkInsertToStaging COMPLETED SUCCESSFULLY ==="
+
+    BulkInsertToStaging = True
     Exit Function
 
-ErrHandler:
-    Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
-    MsgBox "Upload failed with unexpected error:" & vbCrLf & _
-           "Error Number: " & Err.Number & vbCrLf & _
-           "Description: " & Err.Description, vbCritical, "Upload Error"
-    UploadProjectData = False
+LogError:
+    ' Enhanced error logging
+    Dim finalErrorMsg As String
+    finalErrorLog = "Bulk insert failed:" & vbCrLf & _
+                    "Table: " & tableName & vbCrLf & _
+                    "Error Details: " & errorDetailLog
+
+    MsgBox finalErrorMsg, vbCritical, "Upload Error"
+    
+    If Not conn Is Nothing Then
+        If conn.State = adStateOpen Then
+            On Error Resume Next
+            conn.RollbackTrans
+            conn.Close
+            On Error GoTo 0
+        End If
+        Set conn = Nothing
+    End If
+
+    BulkInsertToStaging = False
 End Function
 
-' Private Function UploadProjectData() As Boolean
-'     On Error GoTo ErrHandler
-
-'     Dim wsData As Worksheet
-'     Dim dataRange As Range
-'     Dim lastDataRow As Long
-
-'     Debug.Print "=== UploadProjectData STARTED ==="
-
-'     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-
-'     ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
-'     lastDataRow = wsData.Cells(wsData.Rows.Count, "H").End(xlUp).Row
-'     Debug.Print "Last data row found: " & lastDataRow
-
-'     ' Ensure we don't include header rows or start before the actual data
-'     If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
-
-'     ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
-'     ' Assuming project data spans from column C to AO (41) - extended for line_item field
-'     Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
-'     Debug.Print "Data range defined: " & dataRange.Address & " (Rows: " & dataRange.Rows.Count & ")"
-
-'     Debug.Print "Calling BulkInsertProjects..."
-'     UploadProjectData = BulkInsertProjects(dataRange)
-'     Debug.Print "BulkInsertProjects returned: " & UploadProjectData
-
-'     Debug.Print "=== UploadProjectData COMPLETED ==="
-'     Exit Function
-
-' ErrHandler:
-'     Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
-'     MsgBox "Upload failed with error:" & vbCrLf & _
-'            "Error Number: " & Err.Number & vbCrLf & _
-'            "Description: " & Err.Description & vbCrLf & _
-'            "Source: " & Err.Source, vbCritical, "Upload Error"
-'     UploadProjectData = False
-' End Function
-
-' Private Function UploadProjectData() As Boolean
-'     On Error GoTo ErrHandler
-
-'     Dim wsData As Worksheet
-'     Dim dataRange As Range
-'     Dim lastDataRow As Long
-
-'     Debug.Print "=== UploadProjectData STARTED ==="
-
-'     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
-
-'     ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
-'     lastDataRow = wsData.Cells(wsData.Rows.Count, "H").End(xlUp).Row
-'     Debug.Print "Last data row found: " & lastDataRow
-
-'     ' Ensure we don't include header rows or start before the actual data
-'     If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
-
-'     ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
-'     ' Assuming project data spans from column C to AO (41) - extended for line_item field
-'     Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
-'     Debug.Print "Data range defined: " & dataRange.Address & " (Rows: " & dataRange.Rows.Count & ")"
-
-'     Debug.Print "Calling BulkInsertProjects..."
-'     UploadProjectData = BulkInsertProjects(dataRange)
-'     Debug.Print "BulkInsertProjects returned: " & UploadProjectData
-
-'     Debug.Print "=== UploadProjectData COMPLETED ==="
-'     Exit Function
-
-' ErrHandler:
-'     Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
-'     MsgBox "Failed to upload project data:" & vbCrLf & vbCrLf & _
-'            "Error: " & Err.Number & " - " & Err.Description, _
-'            vbCritical
-'     UploadProjectData = False
-' End Function
+' Add this helper function if not already present
+Private Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal rowSite As String, ByVal pifId As String) As Boolean
+    ' Convert both to uppercase for case-insensitive comparison
+    selectedSite = UCase(Trim(selectedSite))
+    rowSite = UCase(Trim(rowSite))
+    
+    ' First, check if the row's site matches the selected site
+    If rowSite <> selectedSite Then
+        Debug.Print "SITE MISMATCH WARNING: " & _
+                    "Selected Site: " & selectedSite & ", " & _
+                    "Row Site: " & rowSite & ", " & _
+                    "PIF ID: " & pifId
+        ValidateSiteConsistency = False
+        Exit Function
+    End If
+    
+    ' Additional PIF ID validation if needed
+    If InStr(1, pifId, selectedSite) = 0 Then
+        Debug.Print "PIF ID SITE MISMATCH WARNING: " & _
+                    "PIF ID: " & pifId & " does not contain site: " & selectedSite
+    End If
+    
+    ValidateSiteConsistency = True
+End Function
 
 ' ----------------------------------------------------------------------------
 ' Function: UploadCostData

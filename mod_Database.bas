@@ -35,7 +35,7 @@ Private Const MODULE_VERSION As String = "2.0.0"
 ' CONFIGURATION - UPDATE THESE VALUES
 ' ============================================================================
 Public Const SQL_SERVER As String = "JDCDBETSP1000\PVRN120002" ' prod
-'Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002" ' test 
+'Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002" ' test
 Public Const SQL_DATABASE As String = "IPDD"
 Public Const SQL_TRUSTED As Boolean = True  ' True = Windows Auth only
 
@@ -143,7 +143,7 @@ Public Function ExecuteSQLSecure(ByRef dbConnection As ADODB.Connection, _
     ' Add parameters with improved type handling and sizing
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params)
-            Dim parameter As ADODB.Parameter
+            Dim parameter As ADODB.parameter
             Dim paramValue As Variant
             Dim paramSize As Long
 
@@ -290,7 +290,7 @@ Public Function GetRecordsetSecure(ByRef dbConnection As ADODB.Connection, _
     ' Add parameters with improved type handling and sizing
     If UBound(params) >= LBound(params) Then
         For i = LBound(params) To UBound(params)
-            Dim parameter As ADODB.Parameter
+            Dim parameter As ADODB.parameter
             Dim paramValue As Variant
             Dim paramSize As Long
 
@@ -460,7 +460,7 @@ Public Function ExecuteStoredProcedure(ByRef dbConnection As ADODB.Connection, _
             ' Find the parameter by name and assign its value
             On Error Resume Next  ' Handle case where parameter name might not be found (shouldn't happen with Refresh)
             With dbCommand.Parameters(paramName)
-                .Value = paramValue
+                .value = paramValue
                 ' Explicitly set type for BIT fields to ensure 0/1 is sent as TinyInt
                 If paramName = "@archive_flag" Or paramName = "@include_flag" Then
                     .Type = adTinyInt
@@ -592,9 +592,9 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
 
                 ' Handle NULL values explicitly for ADODB
                 If IsNull(paramValue) Then
-                    .Value = Null
+                    .value = Null
                 Else
-                    .Value = paramValue
+                    .value = paramValue
                 End If
             End With
 
@@ -613,10 +613,10 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     dbCommand.Execute recordsAffected
 
     ' Check for SQL Server errors FIRST (before checking return value)
-    If dbConnection.Errors.Count > 0 Then
-        Debug.Print "  SQL Server Errors detected (" & dbConnection.Errors.Count & "):"
+    If dbConnection.errors.count > 0 Then
+        Debug.Print "  SQL Server Errors detected (" & dbConnection.errors.count & "):"
         Dim sqlErr As ADODB.Error
-        For Each sqlErr In dbConnection.Errors
+        For Each sqlErr In dbConnection.errors
             Debug.Print "    Error " & sqlErr.Number & ": " & sqlErr.Description
             Debug.Print "    SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
         Next sqlErr
@@ -624,7 +624,7 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
 
     ' Check return value (stored procs return 0 on success, -1 on error)
     Dim returnValue As Long
-    returnValue = dbCommand.Parameters(0).Value  ' First parameter is return value
+    returnValue = dbCommand.Parameters(0).value  ' First parameter is return value
     Debug.Print "  Stored procedure return value: " & returnValue
 
     If returnValue <> 0 Then
@@ -655,10 +655,10 @@ ErrHandler:
 
     ' Check for SQL Server errors
     If Not dbConnection Is Nothing Then
-        If dbConnection.Errors.Count > 0 Then
-            Debug.Print "    SQL Server Errors (" & dbConnection.Errors.Count & "):"
+        If dbConnection.errors.count > 0 Then
+            Debug.Print "    SQL Server Errors (" & dbConnection.errors.count & "):"
             Dim sqlErr2 As ADODB.Error
-            For Each sqlErr2 In dbConnection.Errors
+            For Each sqlErr2 In dbConnection.errors
                 Debug.Print "      Error " & sqlErr2.Number & ": " & sqlErr2.Description
                 Debug.Print "      SQLState: " & sqlErr2.SQLState & ", NativeError: " & sqlErr2.NativeError
             Next sqlErr2
@@ -709,10 +709,35 @@ End Function
 '   columnMapping - Dictionary mapping Excel column index to SQL field name
 ' Returns: True if successful, False if failed
 ' ----------------------------------------------------------------------------
+' Add a new function to validate site
+Private Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal rowSite As String, ByVal pifId As String) As Boolean
+    ' Convert both to uppercase for case-insensitive comparison
+    selectedSite = UCase(Trim(selectedSite))
+    rowSite = UCase(Trim(rowSite))
+    
+    ' First, check if the row's site matches the selected site
+    If rowSite <> selectedSite Then
+        Debug.Print "SITE MISMATCH WARNING: " & _
+                    "Selected Site: " & selectedSite & ", " & _
+                    "Row Site: " & rowSite & ", " & _
+                    "PIF ID: " & pifId
+        ValidateSiteConsistency = False
+        Exit Function
+    End If
+    
+    ' Additional PIF ID validation if needed
+    If InStr(1, pifId, selectedSite) = 0 Then
+        Debug.Print "PIF ID SITE MISMATCH WARNING: " & _
+                    "PIF ID: " & pifId & " does not contain site: " & selectedSite
+    End If
+    
+    ValidateSiteConsistency = True
+End Function
+
 Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                     ByVal tableName As String, _
                                     Optional ByVal schemaName As String = "dbo") As Boolean
-    On Error GoTo ErrHandler
+    On Error GoTo LogError
 
     Dim conn As ADODB.Connection
     Dim i As Long, j As Long
@@ -727,11 +752,40 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     startTime = Timer
 
     Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
-    Debug.Print "Data range rows: " & dataRange.Rows.Count
+    Debug.Print "Data range rows: " & dataRange.Rows.count
 
     ' Get the worksheet reference for absolute column access
     Set wsData = dataRange.Worksheet
+    
+    For i = 1 To dataRange.Rows.Count
+        ' Calculate actual worksheet row
+        actualRow = dataRange.Row + i - 1
 
+        ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
+        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+            If tableName = "tbl_pif_projects_staging" Then
+                ' Get row-specific site and PIF ID for validation
+                Dim rowSite As String
+                Dim rowPifId As String
+                
+                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
+                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
+
+                ' Validate site consistency
+                If selectedSite <> "" Then
+                    If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
+                        Debug.Print "  ERROR: Site validation failed for row " & actualRow
+                        
+                        errorDetailLog = "Site Validation Failed:" & vbCrLf & _
+                                         "Selected Site: " & selectedSite & vbCrLf & _
+                                         "Row Site: " & rowSite & vbCrLf & _
+                                         "PIF ID: " & rowPifId
+                        
+                        conn.RollbackTrans
+                        BulkInsertToStaging = False
+                        GoTo LogError
+                    End If
+                End If
     Set conn = GetDBConnection()
     If conn Is Nothing Then
         Debug.Print "ERROR: GetDBConnection returned Nothing!"
@@ -760,36 +814,36 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     conn.BeginTrans
     Debug.Print "Transaction started"
 
-    For i = 1 To dataRange.Rows.Count
+    For i = 1 To dataRange.Rows.count
         ' Calculate actual worksheet row
-        actualRow = dataRange.Row + i - 1
+        actualRow = dataRange.row + i - 1
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
-        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+        If Not IsEmpty(wsData.Cells(actualRow, 8).value) Then
             If tableName = "tbl_pif_projects_staging" Then
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+                params(0) = SafeString(wsData.Cells(actualRow, 8).value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).value) ' project_name (O) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value) ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
 
@@ -1118,8 +1172,9 @@ End Function
 ' Function: BulkInsertProjects
 ' Purpose: Wrapper to bulk insert project data
 ' ----------------------------------------------------------------------------
-Public Function BulkInsertProjects(ByVal dataRange As Range) As Boolean
-    BulkInsertProjects = BulkInsertToStaging(dataRange, "tbl_pif_projects_staging", "dbo")
+Public Function BulkInsertProjects(ByVal dataRange As Range, Optional ByVal site As String = "") As Boolean
+    ' Pass the site to BulkInsertToStaging
+    BulkInsertProjects = mod_Database.BulkInsertToStaging(dataRange, "tbl_pif_projects_staging", "dbo", site)
 End Function
 
 ' ----------------------------------------------------------------------------
@@ -1161,9 +1216,9 @@ Public Function TestConnection() As Boolean
     resultSet.Open "SELECT @@VERSION AS Version, DB_NAME() AS DatabaseName, SYSTEM_USER AS UserName", dbConnection
 
     If Not resultSet.EOF Then
-        serverVersion = Left(resultSet.Fields("Version").Value, 100)
-        dbName = resultSet.Fields("DatabaseName").Value
-        userName = resultSet.Fields("UserName").Value
+        serverVersion = Left(resultSet.Fields("Version").value, 100)
+        dbName = resultSet.Fields("DatabaseName").value
+        userName = resultSet.Fields("UserName").value
     End If
 
     resultSet.Close
@@ -1226,7 +1281,7 @@ Public Function GetRecordCount(ByVal tableName As String, _
     resultSet.Open sqlStatement, dbConnection, adOpenForwardOnly, adLockReadOnly
 
     If Not resultSet.EOF Then
-        count = resultSet.Fields("RecordCount").Value
+        count = resultSet.Fields("RecordCount").value
     End If
 
     resultSet.Close
@@ -1414,24 +1469,24 @@ Private Sub LogTechnicalError(ByVal functionName As String, _
     On Error GoTo 0
 
     If wsLog Is Nothing Then
-        Set wsLog = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        Set wsLog = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
         wsLog.Name = SHEET_ERROR_LOG
         wsLog.Visible = xlSheetVeryHidden
 
         ' Headers
-        wsLog.Range("A1:E1").Value = Array("Timestamp", "Function", "Error Number", "Description", "Context")
+        wsLog.Range("A1:E1").value = Array("Timestamp", "Function", "Error Number", "Description", "Context")
         wsLog.Rows(1).Font.Bold = True
         wsLog.Rows(1).Interior.Color = RGB(200, 200, 200)
     End If
 
-    lastRow = wsLog.Cells(wsLog.Rows.Count, 1).End(xlUp).Row + 1
+    lastRow = wsLog.Cells(wsLog.Rows.count, 1).End(xlUp).row + 1
 
     ' Log error details
-    wsLog.Cells(lastRow, 1).Value = Now
-    wsLog.Cells(lastRow, 2).Value = functionName
-    wsLog.Cells(lastRow, 3).Value = errorNumber
-    wsLog.Cells(lastRow, 4).Value = errorDescription
-    wsLog.Cells(lastRow, 5).Value = additionalContext
+    wsLog.Cells(lastRow, 1).value = Now
+    wsLog.Cells(lastRow, 2).value = functionName
+    wsLog.Cells(lastRow, 3).value = errorNumber
+    wsLog.Cells(lastRow, 4).value = errorDescription
+    wsLog.Cells(lastRow, 5).value = additionalContext
 
     ' Auto-fit columns
     wsLog.Columns("A:E").AutoFit
