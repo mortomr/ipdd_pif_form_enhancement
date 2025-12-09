@@ -736,18 +736,21 @@ End Function
 
 Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                     ByVal tableName As String, _
-                                    Optional ByVal schemaName As String = "dbo") As Boolean
+                                    Optional ByVal schemaName As String = "dbo", _
+                                    Optional ByVal selectedSite As String = "") As Boolean
     On Error GoTo LogError
 
     Dim conn As ADODB.Connection
+    'Dim selectedSite As String
     Dim i As Long, j As Long
     Dim rowCount As Long
     Dim startTime As Double
     Dim params() As Variant
-    Dim colCount As Integer
     Dim wsData As Worksheet
     Dim actualRow As Long
-    Dim errorDetailLog As String  ' New variable to capture detailed error info
+    Dim errorDetailLog As String  ' Variable to capture detailed error info
+    Dim rowSite As String
+    Dim rowPifId As String
 
     startTime = Timer
 
@@ -756,36 +759,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
     ' Get the worksheet reference for absolute column access
     Set wsData = dataRange.Worksheet
-    
-    For i = 1 To dataRange.Rows.Count
-        ' Calculate actual worksheet row
-        actualRow = dataRange.Row + i - 1
 
-        ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
-        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
-            If tableName = "tbl_pif_projects_staging" Then
-                ' Get row-specific site and PIF ID for validation
-                Dim rowSite As String
-                Dim rowPifId As String
-                
-                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
-                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
-
-                ' Validate site consistency
-                If selectedSite <> "" Then
-                    If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
-                        Debug.Print "  ERROR: Site validation failed for row " & actualRow
-                        
-                        errorDetailLog = "Site Validation Failed:" & vbCrLf & _
-                                         "Selected Site: " & selectedSite & vbCrLf & _
-                                         "Row Site: " & rowSite & vbCrLf & _
-                                         "PIF ID: " & rowPifId
-                        
-                        conn.RollbackTrans
-                        BulkInsertToStaging = False
-                        GoTo LogError
-                    End If
-                End If
     Set conn = GetDBConnection()
     If conn Is Nothing Then
         Debug.Print "ERROR: GetDBConnection returned Nothing!"
@@ -814,15 +788,35 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     conn.BeginTrans
     Debug.Print "Transaction started"
 
-    For i = 1 To dataRange.Rows.count
+    For j = 1 To dataRange.Rows.count
         ' Calculate actual worksheet row
-        actualRow = dataRange.row + i - 1
+        actualRow = dataRange.row + j - 1
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
         If Not IsEmpty(wsData.Cells(actualRow, 8).value) Then
             If tableName = "tbl_pif_projects_staging" Then
+                ' Get row-specific site and PIF ID for validation
+                rowSite = Trim(wsData.Cells(actualRow, 11).value)    ' Column K = Site
+                rowPifId = Trim(wsData.Cells(actualRow, 8).value)    ' Column H = PIF_ID
+
+                ' Validate site consistency if a site is provided
+                If selectedSite <> "" Then
+                    If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
+                        Debug.Print "  ERROR: Site validation failed for row " & actualRow
+                        
+                        errorDetailLog = "Site Validation Failed:" & vbCrLf & _
+                                         "Selected Site: " & selectedSite & vbCrLf & _
+                                         "Row Site: " & rowSite & vbCrLf & _
+                                         "PIF ID: " & rowPifId
+                        
+                        conn.RollbackTrans
+                        BulkInsertToStaging = False
+                        GoTo LogError
+                    End If
+                End If
+
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
-                ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
+                ' Use absolute column references with proper type conversion
                 params(0) = SafeString(wsData.Cells(actualRow, 8).value)   ' pif_id (H) - VARCHAR
                 params(1) = SafeString(wsData.Cells(actualRow, 14).value)  ' project_id (N) - VARCHAR
                 params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
@@ -888,7 +882,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         Else
             Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
         End If
-    Next i
+    Next j
 
     Debug.Print "Loop completed. Total rows processed: " & rowCount
     Debug.Print "Committing transaction..."
@@ -1395,7 +1389,7 @@ Private Sub LogDetailedError(ByVal procedureName As String, ByVal rowNumber As L
 End Sub
 
 ' Helper function to convert Excel date to ISO format
-Private Function FormatDateISO(ByVal dateValue As Variant) As Variant
+Public Function FormatDateISO(ByVal dateValue As Variant) As Variant
     If IsEmpty(dateValue) Or IsNull(dateValue) Or dateValue = "" Then
         FormatDateISO = Null
     ElseIf IsDate(dateValue) Then

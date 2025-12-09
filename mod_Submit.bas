@@ -42,7 +42,7 @@ Public Sub SaveSnapshot()
 
     ' STEP 0: Validate site selection
     On Error Resume Next
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     On Error GoTo ErrHandler
 
     If selectedSite = "" Then
@@ -133,7 +133,7 @@ Public Sub SaveSnapshot()
 
     ' STEP 6: Log submission
     Application.StatusBar = "Logging submission..."
-    Call LogSubmission()  ' Non-critical, don't fail on logging errors
+    Call LogSubmission    ' Non-critical, don't fail on logging errors
 
     ' STEP 7: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
@@ -185,7 +185,7 @@ Public Sub FinalizeMonth()
 
     ' STEP 0: Validate site selection
     On Error Resume Next
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     On Error GoTo ErrHandler
 
     If selectedSite = "" Then
@@ -290,7 +290,7 @@ Public Sub FinalizeMonth()
 
     ' STEP 7: Log submission
     Application.StatusBar = "Logging submission..."
-    Call LogSubmission()  ' Non-critical, don't fail on logging errors
+    Call LogSubmission    ' Non-critical, don't fail on logging errors
 
     ' STEP 8: Refresh query worksheets (silently - final message will report success)
     Application.StatusBar = "Refreshing query worksheets..."
@@ -439,18 +439,18 @@ Private Function UnpivotCostData() As Boolean
     Dim pifId As String, projectId As String
     Dim lineItem As Variant
 
-    currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.Value
+    currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.value
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
 
     ' Find last row with data (PIF_ID now in column H)
-    lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
+    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).row
     If lastRow < 4 Then
         UnpivotCostData = True
         Exit Function
     End If
 
     ' Read entire source range into array (ONE READ OPERATION) - extended to column BO
-    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 67)).Value
+    sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 67)).value
 
     ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
     Dim maxRows As Long
@@ -514,11 +514,11 @@ Private Function UnpivotCostData() As Boolean
     End If
 
     ' Write headers (now 8 columns)
-    wsCost.Range("A1:H1").Value = Array("pif_id", "project_id", "line_item", "scenario", "year", "requested_value", "current_value", "variance_value")
+    wsCost.Range("A1:H1").value = Array("pif_id", "project_id", "line_item", "scenario", "year", "requested_value", "current_value", "variance_value")
 
     ' Write entire array to sheet (ONE WRITE OPERATION)
     If outputRow > 1 Then
-        wsCost.Range("A2").Resize(outputRow - 1, 8).Value = outputArray
+        wsCost.Range("A2").Resize(outputRow - 1, 8).value = outputArray
     End If
 
     ' Format and hide
@@ -594,6 +594,44 @@ End Function
 ' Function: UploadProjectData
 ' Purpose: Upload project metadata to staging table
 ' ----------------------------------------------------------------------------
+ Private Function UploadProjectData() As Boolean
+     On Error GoTo ErrHandler
+
+     Dim wsData As Worksheet
+     Dim dataRange As Range
+     Dim lastDataRow As Long
+
+     Debug.Print "=== UploadProjectData STARTED ==="
+
+     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+
+     ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
+     lastDataRow = wsData.Cells(wsData.Rows.count, "H").End(xlUp).row
+     Debug.Print "Last data row found: " & lastDataRow
+
+     ' Ensure we don't include header rows or start before the actual data
+     If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
+
+     ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
+     ' Assuming project data spans from column C to AO (41) - extended for line_item field
+     Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
+     Debug.Print "Data range defined: " & dataRange.Address & " (Rows: " & dataRange.Rows.count & ")"
+
+     Debug.Print "Calling BulkInsertProjects..."
+     UploadProjectData = BulkInsertProjects(dataRange)
+     Debug.Print "BulkInsertProjects returned: " & UploadProjectData
+
+     Debug.Print "=== UploadProjectData COMPLETED ==="
+     Exit Function
+
+ErrHandler:
+     Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
+     MsgBox "Failed to upload project data:" & vbCrLf & vbCrLf & _
+            "Error: " & Err.Number & " - " & Err.Description, _
+            vbCritical
+     UploadProjectData = False
+ End Function
+
 Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                     ByVal tableName As String, _
                                     Optional ByVal schemaName As String = "dbo", _
@@ -612,7 +650,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     startTime = Timer
 
     Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
-    Debug.Print "Data range rows: " & dataRange.Rows.Count
+    Debug.Print "Data range rows: " & dataRange.Rows.count
 
     ' Get the worksheet reference for absolute column access
     Set wsData = dataRange.Worksheet
@@ -645,19 +683,19 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     conn.BeginTrans
     Debug.Print "Transaction started"
 
-    For i = 1 To dataRange.Rows.Count
+    For i = 1 To dataRange.Rows.count
         ' Calculate actual worksheet row
-        actualRow = dataRange.Row + i - 1
+        actualRow = dataRange.row + i - 1
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
-        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+        If Not IsEmpty(wsData.Cells(actualRow, 8).value) Then
             If tableName = "tbl_pif_projects_staging" Then
                 ' Get row-specific site and PIF ID for validation
                 Dim rowSite As String
                 Dim rowPifId As String
                 
-                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
-                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
+                rowSite = Trim(wsData.Cells(actualRow, 11).value)    ' Column K = Site
+                rowPifId = Trim(wsData.Cells(actualRow, 8).value)    ' Column H = PIF_ID
 
                 ' Validate site consistency if a site is provided
                 If selectedSite <> "" Then
@@ -677,27 +715,27 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+                params(0) = SafeString(wsData.Cells(actualRow, 8).value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).value) ' project_name (O) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value) ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
 
@@ -767,6 +805,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 LogError:
     ' Enhanced error logging
     Dim finalErrorMsg As String
+    Dim finalErrorLog As String
     finalErrorLog = "Bulk insert failed:" & vbCrLf & _
                     "Table: " & tableName & vbCrLf & _
                     "Error Details: " & errorDetailLog
@@ -825,7 +864,7 @@ Private Function UploadCostData() As Boolean
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
     
     ' Find the last row with data in Column A (pif_id) to define the extent of cost data
-    lastDataRow = wsCost.Cells(wsCost.Rows.Count, "A").End(xlUp).Row
+    lastDataRow = wsCost.Cells(wsCost.Rows.count, "A").End(xlUp).row
     
     ' Ensure we don't include header rows or start before the actual data
     If lastDataRow < 2 Then lastDataRow = 1 ' If no data, set to just above data start
@@ -857,7 +896,7 @@ Private Function CommitToInflight() As Boolean
 
     ' Get selected site from Instructions sheet
     On Error Resume Next
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     On Error GoTo ErrHandler
 
     If selectedSite = "" Then
@@ -1020,19 +1059,19 @@ Private Sub ClearArchivedCheckboxes()
     includeCol = PIFDataColumns.colInclude  ' Column D
 
     ' Find last row with data
-    lastRow = wsData.Cells(wsData.Rows.Count, PIFDataColumns.colPIFID).End(xlUp).Row
+    lastRow = wsData.Cells(wsData.Rows.count, PIFDataColumns.colPIFID).End(xlUp).row
 
     clearedCount = 0
 
     ' Loop through data rows (start at row 4, rows 1-3 are headers)
     For i = 4 To lastRow
         ' Skip empty rows
-        If Not IsEmpty(wsData.Cells(i, PIFDataColumns.colPIFID).Value) Then
+        If Not IsEmpty(wsData.Cells(i, PIFDataColumns.colPIFID).value) Then
             ' If both checkboxes are checked, clear them
-            If wsData.Cells(i, archiveCol).Value = True And _
-               wsData.Cells(i, includeCol).Value = True Then
-                wsData.Cells(i, archiveCol).Value = False
-                wsData.Cells(i, includeCol).Value = False
+            If wsData.Cells(i, archiveCol).value = True And _
+               wsData.Cells(i, includeCol).value = True Then
+                wsData.Cells(i, archiveCol).value = False
+                wsData.Cells(i, includeCol).value = False
                 clearedCount = clearedCount + 1
             End If
         End If
@@ -1063,7 +1102,7 @@ Public Sub ArchiveApproved()
 
     ' Validate site selection
     On Error Resume Next
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     On Error GoTo ErrHandler
 
     If selectedSite = "" Then
