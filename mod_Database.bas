@@ -864,23 +864,29 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 If Len(CStr(params(15))) > 1 Then
                     params(15) = Left(CStr(params(15)), 1)
                 End If
-                Dim movingIsdYear As Variant
-                movingIsdYear = wsData.Cells(actualRow, 40).Value
-                If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Then
-                    params(15) = "N"  ' Default to "N"
-                Else
-                    params(15) = Left(UCase(Trim(CStr(movingIsdYear))), 1)
-                End If
-
+                
                 ' Handle empty/null fields
                 If Trim(CStr(wsData.Cells(actualRow, 10).Value)) = "" Then
                     params(8) = Null  ' OPCO
                 End If
 
-                ' Ensure empty category is handled
+                ' Handling category
                 If Trim(CStr(wsData.Cells(actualRow, 20).Value)) = "" Then
                     params(6) = Null  ' Category
+                Else
+                    params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)
                 End If
+
+                ' Handling Moving ISD Year
+                Dim movingIsdYear As Variant
+                movingIsdYear = wsData.Cells(actualRow, 40).Value
+                If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Or movingIsdYear = 0 Then
+                    params(15) = "N"  ' Default to "N"
+                Else
+                    params(15) = Left(UCase(Trim(CStr(movingIsdYear))), 1)
+                End If
+                
+                PrintParameterDetails params
 
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
@@ -908,7 +914,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
                     "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
                     
-                    Debug.Print "  ERROR: Failed to insert row " & actualRow
+                    Debug.Print "ERROR DETAILS FOR ROW " & actualRow & ":"
+                    PrintDetailedRowData wsData, actualRow
                     
                     ' Capture detailed error information
                     errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
@@ -969,6 +976,24 @@ LogError:
 
     BulkInsertToStaging = False
 End Function
+
+Private Sub PrintParameterDetails(ByRef params() As Variant)
+    Dim i As Long
+    Dim paramNames() As Variant
+    
+    paramNames = Array("pif_id", "project_id", "line_item", "status", "change_type", _
+                       "accounting_treatment", "category", "seg", "opco", "site", _
+                       "strategic_rank", "funding_project", "project_name", _
+                       "original_fp_isd", "revised_fp_isd", "moving_isd_year", _
+                       "lcm_issue", "justification", "prior_year_spend", _
+                       "archive_flag", "include_flag")
+    
+    Debug.Print "PARAMETER DETAILS:"
+    For i = 0 To UBound(params)
+        Debug.Print "  " & paramNames(i) & ": " & _
+                    IIf(IsNull(params(i)), "NULL", CStr(params(i)))
+    Next i
+End Sub
 
 ' Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 '                                     ByVal tableName As String, _
