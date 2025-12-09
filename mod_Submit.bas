@@ -639,18 +639,25 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     On Error GoTo LogError
 
     Dim conn As ADODB.Connection
-    Dim i As Long
+    Dim j As Long
     Dim rowCount As Long
+    Dim skippedRowCount As Long
     Dim startTime As Double
     Dim params() As Variant
     Dim wsData As Worksheet
     Dim actualRow As Long
-    Dim errorDetailLog As String  ' Variable to capture detailed error info
+    Dim errorDetailLog As String
+    Dim rowSite As String
+    Dim rowPifId As String
+    Dim lastErrorRow As Long
+    Dim lastErrorPifId As String
+    Dim lastErrorProjectId As String
 
     startTime = Timer
 
     Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
-    Debug.Print "Data range rows: " & dataRange.Rows.count
+    Debug.Print "Data range rows: " & dataRange.Rows.Count
+    Debug.Print "Selected Site: " & IIf(selectedSite = "", "(ALL SITES)", selectedSite)
 
     ' Get the worksheet reference for absolute column access
     Set wsData = dataRange.Worksheet
@@ -679,65 +686,60 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     Application.StatusBar = "Uploading to " & tableName & "..."
     Application.ScreenUpdating = False
     rowCount = 0
+    skippedRowCount = 0
 
     conn.BeginTrans
     Debug.Print "Transaction started"
 
-    For i = 1 To dataRange.Rows.count
+    For j = 1 To dataRange.Rows.Count
         ' Calculate actual worksheet row
-        actualRow = dataRange.row + i - 1
+        actualRow = dataRange.Row + j - 1
 
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
-        If Not IsEmpty(wsData.Cells(actualRow, 8).value) Then
+        If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
                 ' Get row-specific site and PIF ID for validation
-                Dim rowSite As String
-                Dim rowPifId As String
-                
-                rowSite = Trim(wsData.Cells(actualRow, 11).value)    ' Column K = Site
-                rowPifId = Trim(wsData.Cells(actualRow, 8).value)    ' Column H = PIF_ID
+                rowSite = Trim(wsData.Cells(actualRow, 11).Value)    ' Column K = Site
+                rowPifId = Trim(wsData.Cells(actualRow, 8).Value)    ' Column H = PIF_ID
 
                 ' Validate site consistency if a site is provided
-                If selectedSite <> "" Then
+                If selectedSite <> "" And selectedSite <> "FLEET" Then
                     If Not ValidateSiteConsistency(selectedSite, rowSite, rowPifId) Then
-                        Debug.Print "  ERROR: Site validation failed for row " & actualRow
-                        
-                        errorDetailLog = "Site Validation Failed:" & vbCrLf & _
-                                         "Selected Site: " & selectedSite & vbCrLf & _
-                                         "Row Site: " & rowSite & vbCrLf & _
-                                         "PIF ID: " & rowPifId
-                        
-                        conn.RollbackTrans
-                        BulkInsertToStaging = False
-                        GoTo LogError
+                        skippedRowCount = skippedRowCount + 1
+                        Debug.Print "  SKIPPED row " & actualRow & " (site mismatch)"
+                        GoTo NextRow
                     End If
                 End If
 
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 8).value)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).value)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).value)  ' category (T) - VARCHAR
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).value)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).value) ' project_name (O) - VARCHAR
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value) ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 18).value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
+                params(0) = SafeString(rowPifId)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(rowSite)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
-                Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
+                Debug.Print "  Attempting to insert row " & actualRow & ": " & _
+                            "PIF=" & params(0) & ", " & _
+                            "Project=" & params(1) & ", " & _
+                            "Line Item=" & params(2) & ", " & _
+                            "Site=" & params(9)
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                     "@pif_id", adVarChar, adParamInput, 16, params(0), _
@@ -765,10 +767,15 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     Debug.Print "  ERROR: Failed to insert row " & actualRow
                     
                     ' Capture detailed error information
+                    lastErrorRow = actualRow
+                    lastErrorPifId = params(0)
+                    lastErrorProjectId = params(1)
+                    
                     errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
                                      "PIF ID: " & params(0) & vbCrLf & _
                                      "Project ID: " & params(1) & vbCrLf & _
-                                     "Line Item: " & params(2)
+                                     "Line Item: " & params(2) & vbCrLf & _
+                                     "Site: " & params(9)
                     
                     conn.RollbackTrans
                     BulkInsertToStaging = False
@@ -780,9 +787,13 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         Else
             Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
         End If
-    Next i
+        
+NextRow:
+    Next j
 
-    Debug.Print "Loop completed. Total rows processed: " & rowCount
+    Debug.Print "Loop completed."
+    Debug.Print "  Rows processed: " & rowCount
+    Debug.Print "  Rows skipped: " & skippedRowCount
     Debug.Print "Committing transaction..."
     conn.CommitTrans
     Debug.Print "Transaction committed"
@@ -805,10 +816,12 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 LogError:
     ' Enhanced error logging
     Dim finalErrorMsg As String
-    Dim finalErrorLog As String
-    finalErrorLog = "Bulk insert failed:" & vbCrLf & _
+    finalErrorMsg = "Bulk insert failed:" & vbCrLf & _
                     "Table: " & tableName & vbCrLf & _
-                    "Error Details: " & errorDetailLog
+                    "Error Details: " & errorDetailLog & vbCrLf & _
+                    "Last Error Row: " & lastErrorRow & vbCrLf & _
+                    "PIF ID: " & lastErrorPifId & vbCrLf & _
+                    "Project ID: " & lastErrorProjectId
 
     MsgBox finalErrorMsg, vbCritical, "Upload Error"
     
@@ -825,30 +838,7 @@ LogError:
     BulkInsertToStaging = False
 End Function
 
-' Add this helper function if not already present
-Private Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal rowSite As String, ByVal pifId As String) As Boolean
-    ' Convert both to uppercase for case-insensitive comparison
-    selectedSite = UCase(Trim(selectedSite))
-    rowSite = UCase(Trim(rowSite))
-    
-    ' First, check if the row's site matches the selected site
-    If rowSite <> selectedSite Then
-        Debug.Print "SITE MISMATCH WARNING: " & _
-                    "Selected Site: " & selectedSite & ", " & _
-                    "Row Site: " & rowSite & ", " & _
-                    "PIF ID: " & pifId
-        ValidateSiteConsistency = False
-        Exit Function
-    End If
-    
-    ' Additional PIF ID validation if needed
-    If InStr(1, pifId, selectedSite) = 0 Then
-        Debug.Print "PIF ID SITE MISMATCH WARNING: " & _
-                    "PIF ID: " & pifId & " does not contain site: " & selectedSite
-    End If
-    
-    ValidateSiteConsistency = True
-End Function
+
 
 ' ----------------------------------------------------------------------------
 ' Function: UploadCostData

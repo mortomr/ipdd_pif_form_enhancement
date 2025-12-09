@@ -282,3 +282,79 @@ ErrHandler:
            "Error " & Err.Number & ": " & Err.Description, _
            vbCritical, "Connection Error"
 End Sub
+
+
+Public Sub Diag_TestStoredProcedureInsertion()
+    On Error GoTo ErrHandler
+    
+    Dim conn As ADODB.Connection
+    Dim testParams() As Variant
+    
+    ' Prepare connection
+    Set conn = mod_Database.GetDBConnection()
+    If conn Is Nothing Then
+        MsgBox "Failed to get database connection", vbCritical
+        Exit Sub
+    End If
+    
+    ' Prepare test parameters - match the exact structure from BulkInsertToStaging
+    ReDim testParams(0 To 20)
+    testParams(0) = "ANO-2025-PIF-123"   ' pif_id
+    testParams(1) = "F1PPM58958"         ' project_id
+    testParams(2) = 4                    ' line_item
+    testParams(3) = "Risk"               ' status
+    testParams(4) = "REDUCE FUNDS"       ' change_type
+    testParams(5) = "Return to OPCO"     ' accounting_treatment
+    testParams(6) = "Unfunded Loaders"   ' category
+    testParams(7) = 3                    ' seg
+    testParams(8) = ""                   ' opco (NULL)
+    testParams(9) = "ANO"                ' site
+    testParams(10) = "Functional Specific" ' strategic_rank
+    testParams(11) = "F1PPM58958"        ' funding_project
+    testParams(12) = "AN2 Obsolete CPC System Replacement" ' project_name
+    testParams(13) = "2029-05-30"        ' original_fp_isd
+    testParams(14) = "2028-11-30"        ' revised_fp_isd
+    testParams(15) = "Y"                 ' moving_isd_year
+    testParams(16) = "ANO-04-0536"       ' lcm_issue
+    testParams(17) = "Estimate Classification Refinement" ' justification
+    testParams(18) = 361303.84           ' prior_year_spend
+    testParams(19) = 0                   ' archive_flag
+    testParams(20) = 1                   ' include_flag
+    
+    ' Execute stored procedure
+    Dim result As Boolean
+    result = mod_Database.ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+        "@pif_id", adVarChar, adParamInput, 16, testParams(0), _
+        "@project_id", adVarChar, adParamInput, 10, testParams(1), _
+        "@line_item", adInteger, adParamInput, 0, testParams(2), _
+        "@status", adVarChar, adParamInput, 58, testParams(3), _
+        "@change_type", adVarChar, adParamInput, 12, testParams(4), _
+        "@accounting_treatment", adVarChar, adParamInput, 14, testParams(5), _
+        "@category", adVarChar, adParamInput, 26, testParams(6), _
+        "@seg", adInteger, adParamInput, 0, testParams(7), _
+        "@opco", adVarChar, adParamInput, 4, testParams(8), _
+        "@site", adVarChar, adParamInput, 4, testParams(9), _
+        "@strategic_rank", adVarChar, adParamInput, 26, testParams(10), _
+        "@funding_project", adVarChar, adParamInput, 10, testParams(11), _
+        "@project_name", adVarChar, adParamInput, 35, testParams(12), _
+        "@original_fp_isd", adVarChar, adParamInput, 20, testParams(13), _
+        "@revised_fp_isd", adVarChar, adParamInput, 20, testParams(14), _
+        "@moving_isd_year", adChar, adParamInput, 1, testParams(15), _
+        "@lcm_issue", adVarChar, adParamInput, 20, testParams(16), _
+        "@justification", adVarChar, adParamInput, 192, testParams(17), _
+        "@prior_year_spend", adNumeric, adParamInput, 0, testParams(18), _
+        "@archive_flag", adTinyInt, adParamInput, 0, testParams(19), _
+        "@include_flag", adTinyInt, adParamInput, 0, testParams(20))
+    
+    If result Then
+        MsgBox "Test insertion successful!", vbInformation
+    Else
+        MsgBox "Test insertion failed.", vbCritical
+    End If
+    Exit Sub
+    
+ErrHandler:
+    MsgBox "Diagnostic test failed:" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbCritical
+End Sub

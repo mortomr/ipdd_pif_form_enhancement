@@ -527,22 +527,20 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     On Error GoTo ErrHandler
 
     Dim dbCommand As ADODB.Command
+    Dim recordsAffected As Long
     Dim closeConnectionAfter As Boolean
     Dim i As Long
-    Dim paramCount As Long
-    Dim recordsAffected As Long
+    Dim totalParams As Long
+    Dim detailedErrorLog As String
 
     ' Validate parameter count
-    If UBound(params) >= LBound(params) Then
-        paramCount = UBound(params) - LBound(params) + 1
-
-        If (paramCount Mod 5) <> 0 Then
-            Call LogTechnicalError("ExecuteStoredProcedureNonQuery", 0, _
-                                  "Invalid parameter count: " & paramCount, _
-                                  "Procedure: " & procedureName)
-            ExecuteStoredProcedureNonQuery = False
-            Exit Function
-        End If
+    totalParams = UBound(params) - LBound(params) + 1
+    If (totalParams Mod 5) <> 0 Then
+        Debug.Print "CRITICAL ERROR: Invalid parameter count for " & procedureName
+        Debug.Print "  Expected groups of 5 (name, type, direction, size, value)"
+        Debug.Print "  Total parameters: " & totalParams
+        ExecuteStoredProcedureNonQuery = False
+        Exit Function
     End If
 
     ' Connection management
@@ -560,86 +558,60 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Set dbCommand.ActiveConnection = dbConnection
     dbCommand.CommandText = procedureName
     dbCommand.CommandType = adCmdStoredProc
-    dbCommand.CommandTimeout = COMMAND_TIMEOUT
+    dbCommand.CommandTimeout = 300  ' 5 minutes timeout
 
-    ' Refresh parameters from database
-    dbCommand.Parameters.Refresh
+    ' Add parameters with extensive error checking
+    For i = LBound(params) To UBound(params) Step 5
+        Dim paramName As String
+        Dim paramType As ADODB.DataTypeEnum
+        Dim paramDirection As ADODB.ParameterDirectionEnum
+        Dim paramSize As Long
+        Dim paramValue As Variant
 
+        ' Extract parameter details
+        paramName = params(i)
+        paramType = params(i + 1)
+        paramDirection = params(i + 2)
+        paramSize = params(i + 3)
+        paramValue = params(i + 4)
 
-    ' Assign parameter values
-    If UBound(params) >= LBound(params) Then
-        For i = LBound(params) To UBound(params) Step 5
-            Dim paramName As String
-            Dim paramType As ADODB.DataTypeEnum
-            Dim paramDirection As ADODB.ParameterDirectionEnum
-            Dim paramSize As Long
-            Dim paramValue As Variant
+        ' Detailed parameter logging
+        Debug.Print "  Parameter Details:"
+        Debug.Print "    Name: " & paramName
+        Debug.Print "    Type: " & paramType
+        Debug.Print "    Direction: " & paramDirection
+        Debug.Print "    Size: " & paramSize
+        Debug.Print "    Value: " & IIf(IsNull(paramValue), "NULL", CStr(paramValue))
+        Debug.Print "    VarType: " & VarType(paramValue)
 
-            paramName = params(i)
-            paramType = params(i + 1)
-            paramDirection = params(i + 2)
-            paramSize = params(i + 3)
-            paramValue = params(i + 4)
+        ' Create parameter
+        Dim parameter As ADODB.Parameter
+        On Error Resume Next
+        Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
+        
+        ' Capture detailed error if parameter creation fails
+        If Err.Number <> 0 Then
+            detailedErrorLog = "Parameter Creation Error:" & vbCrLf & _
+                               "  Name: " & paramName & vbCrLf & _
+                               "  Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
+                               "  Type: " & paramType & vbCrLf & _
+                               "  Value: " & IIf(IsNull(paramValue), "NULL", CStr(paramValue))
+            
+            Debug.Print detailedErrorLog
+            Err.Clear
+            ExecuteStoredProcedureNonQuery = False
+            GoTo ErrHandler
+        End If
+        On Error GoTo ErrHandler
 
-            On Error Resume Next
-            With dbCommand.Parameters(paramName)
-                ' Explicitly set type and size BEFORE setting value (critical for NULL handling)
-                .Type = paramType
-                If paramSize > 0 Then
-                    .Size = paramSize
-                End If
-                .Direction = paramDirection
+        ' Append parameter
+        dbCommand.Parameters.Append parameter
+    Next i
 
-                ' Handle NULL values explicitly for ADODB
-                If IsNull(paramValue) Then
-                    .value = Null
-                Else
-                    .value = paramValue
-                End If
-            End With
-
-            If Err.Number <> 0 Then
-                Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
-                                      "Procedure: " & procedureName & ", Parameter: " & paramName)
-                On Error GoTo ErrHandler
-                ExecuteStoredProcedureNonQuery = False
-                Exit Function
-            End If
-            On Error GoTo ErrHandler
-        Next i
-    End If
-
-    ' Execute the stored procedure
+    ' Execute the command
     dbCommand.Execute recordsAffected
 
-    ' Check for SQL Server errors FIRST (before checking return value)
-    If dbConnection.errors.count > 0 Then
-        Debug.Print "  SQL Server Errors detected (" & dbConnection.errors.count & "):"
-        Dim sqlErr As ADODB.Error
-        For Each sqlErr In dbConnection.errors
-            Debug.Print "    Error " & sqlErr.Number & ": " & sqlErr.Description
-            Debug.Print "    SQLState: " & sqlErr.SQLState & ", NativeError: " & sqlErr.NativeError
-        Next sqlErr
-    End If
-
-    ' Check return value (stored procs return 0 on success, -1 on error)
-    Dim returnValue As Long
-    returnValue = dbCommand.Parameters(0).value  ' First parameter is return value
-    Debug.Print "  Stored procedure return value: " & returnValue
-
-    If returnValue <> 0 Then
-        Debug.Print "  ERROR: Stored procedure returned non-zero value: " & returnValue
-        Call LogTechnicalError("ExecuteStoredProcedureNonQuery", returnValue, _
-                              "Stored procedure returned error code", _
-                              "Procedure: " & procedureName)
-        ExecuteStoredProcedureNonQuery = False
-    Else
-        ExecuteStoredProcedureNonQuery = True
-    End If
-
     ' Cleanup
-    Set dbCommand = Nothing
-
     If closeConnectionAfter Then
         If dbConnection.State = adStateOpen Then
             dbConnection.Close
@@ -647,49 +619,41 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         Set dbConnection = Nothing
     End If
 
+    Set dbCommand = Nothing
+    ExecuteStoredProcedureNonQuery = True
     Exit Function
 
 ErrHandler:
-    Debug.Print "  EXCEPTION in ExecuteStoredProcedureNonQuery:"
-    Debug.Print "    VBA Error: " & Err.Number & " - " & Err.Description
+    ' Comprehensive error logging
+    Dim finalErrorMsg As String
+    finalErrorMsg = "Stored Procedure Execution Error:" & vbCrLf & _
+                    "  Procedure: " & procedureName & vbCrLf & _
+                    "  Error Number: " & Err.Number & vbCrLf & _
+                    "  Error Description: " & Err.Description & vbCrLf & _
+                    IIf(detailedErrorLog <> "", vbCrLf & "Parameter Details:" & vbCrLf & detailedErrorLog, "")
 
-    ' Check for SQL Server errors
+    Debug.Print finalErrorMsg
+
+    ' Additional error checking for ADO errors
     If Not dbConnection Is Nothing Then
-        If dbConnection.errors.count > 0 Then
-            Debug.Print "    SQL Server Errors (" & dbConnection.errors.count & "):"
-            Dim sqlErr2 As ADODB.Error
-            For Each sqlErr2 In dbConnection.errors
-                Debug.Print "      Error " & sqlErr2.Number & ": " & sqlErr2.Description
-                Debug.Print "      SQLState: " & sqlErr2.SQLState & ", NativeError: " & sqlErr2.NativeError
-            Next sqlErr2
+        Dim adoErr As ADODB.Error
+        For Each adoErr In dbConnection.Errors
+            Debug.Print "ADO Error:"
+            Debug.Print "  Number: " & adoErr.Number
+            Debug.Print "  Description: " & adoErr.Description
+            Debug.Print "  Source: " & adoErr.Source
+            Debug.Print "  SQL State: " & adoErr.SQLState
+        Next adoErr
+    End If
+
+    ' Cleanup
+    If Not dbConnection Is Nothing Then
+        If dbConnection.State = adStateOpen Then
+            On Error Resume Next
+            dbConnection.RollbackTrans
+            dbConnection.Close
+            On Error GoTo 0
         End If
-    End If
-
-    Application.ScreenUpdating = True  ' Ensure error message is visible
-
-    Dim errMsg As String
-    errMsg = "Stored procedure execution failed." & vbCrLf & vbCrLf & _
-             "Procedure: " & procedureName & vbCrLf & _
-             "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf
-
-    ' Add specific guidance for common errors
-    If Err.Number = -2147217900 Or InStr(1, Err.Description, "Could not find stored procedure", vbTextCompare) > 0 Then
-        errMsg = errMsg & "LIKELY CAUSE: Stored procedure '" & procedureName & "' does not exist" & vbCrLf & _
-                         "ACTION: Run PIF_Database_DDL.sql to create required stored procedures" & vbCrLf & _
-                         "See VERIFY_STORED_PROC.sql to verify installation"
-    ElseIf Err.Number = 201 Or InStr(1, Err.Description, "parameter", vbTextCompare) > 0 Then
-        errMsg = errMsg & "LIKELY CAUSE: Parameter mismatch" & vbCrLf & _
-                         "ACTION: Check stored procedure parameters match VBA code" & vbCrLf & _
-                         "See VERIFY_STORED_PROC.sql to check parameters"
-    End If
-
-    MsgBox errMsg, vbCritical, "Database Error"
-
-    Call LogTechnicalError("ExecuteStoredProcedureNonQuery", Err.Number, Err.Description, _
-                          "Procedure: " & procedureName)
-
-    If closeConnectionAfter And Not dbConnection Is Nothing Then
-        If dbConnection.State = adStateOpen Then dbConnection.Close
         Set dbConnection = Nothing
     End If
 
@@ -715,20 +679,28 @@ Private Function ValidateSiteConsistency(ByVal selectedSite As String, ByVal row
     selectedSite = UCase(Trim(selectedSite))
     rowSite = UCase(Trim(rowSite))
     
+    ' If no site is selected, allow all sites
+    If selectedSite = "" Or selectedSite = "FLEET" Then
+        ValidateSiteConsistency = True
+        Exit Function
+    End If
+    
     ' First, check if the row's site matches the selected site
     If rowSite <> selectedSite Then
-        Debug.Print "SITE MISMATCH WARNING: " & _
-                    "Selected Site: " & selectedSite & ", " & _
-                    "Row Site: " & rowSite & ", " & _
-                    "PIF ID: " & pifId
+        Debug.Print "SITE MISMATCH:" & vbCrLf & _
+                    "  Selected Site: " & selectedSite & vbCrLf & _
+                    "  Row Site: " & rowSite & vbCrLf & _
+                    "  PIF ID: " & pifId & vbCrLf & _
+                    "  Skipping this row."
         ValidateSiteConsistency = False
         Exit Function
     End If
     
-    ' Additional PIF ID validation if needed
+    ' Additional PIF ID validation
     If InStr(1, pifId, selectedSite) = 0 Then
-        Debug.Print "PIF ID SITE MISMATCH WARNING: " & _
-                    "PIF ID: " & pifId & " does not contain site: " & selectedSite
+        Debug.Print "PIF ID SITE MISMATCH WARNING:" & vbCrLf & _
+                    "  PIF ID: " & pifId & vbCrLf & _
+                    "  Does not contain site: " & selectedSite
     End If
     
     ValidateSiteConsistency = True
