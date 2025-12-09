@@ -529,6 +529,7 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Dim dbCommand As ADODB.Command
     Dim recordsAffected As Long
     Dim closeConnectionAfter As Boolean
+    Dim adBit As Boolean
     Dim i As Long
     Dim totalParams As Long
     Dim detailedErrorLog As String
