@@ -830,54 +830,50 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     End If
                 End If
 
+                ' In BulkInsertToStaging function, modify parameter preparation
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
-                ' Use absolute column references with proper type conversion
-                ' Update column references in BulkInsertToStaging function
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (now H column)
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (now N column)
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)      ' line_item (G column - new)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (now S column)
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value, 12)   ' change_type (now F column)
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (now E column)
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)  ' category (now T column)
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)      ' seg (now I column)
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value, 4)   ' opco (now J column)
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value, 4)   ' site (now K column)
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value, 26) ' strategic_rank (now L column)
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value, 10) ' funding_project (now N column)
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value, 35) ' project_name (now O column)
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (now P column)
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (now Q column)
-                params(15) = SafeString(wsData.Cells(actualRow, 40).Value, 1)  ' moving_isd_year (now AN column)
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value, 20) ' lcm_issue (now R column)
-                params(17) = SafeString(wsData.Cells(actualRow, 21).Value, 192) ' justification (now U column)
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value)    ' prior_year_spend (now AO column)
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)     ' archive_flag (now C column)
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)     ' include_flag (now D column)
-                ' Validate opco - set to NULL if empty
-                If Trim(CStr(params(8))) = "" Then
-                    params(8) = Null
-                End If                
-                If IsNull(params(15)) Then
-                    params(15) = "N"  ' Default to "N" if empty
-                End If
-                If Len(CStr(params(15))) > 1 Then
-                    params(15) = Left(CStr(params(15)), 1)
-                End If
-                
-                ' Handle empty/null fields
-                If Trim(CStr(wsData.Cells(actualRow, 10).Value)) = "" Then
-                    params(8) = Null  ' OPCO
-                End If
 
-                ' Handling category
-                If Trim(CStr(wsData.Cells(actualRow, 20).Value)) = "" Then
-                    params(6) = Null  ' Category
-                Else
-                    params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)
-                End If
+                ' Use absolute column references with proper type conversion and NULL handling
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)      ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (S) - VARCHAR
 
-                ' Handling Moving ISD Year
+                ' Robust handling of change type
+                Dim changeType As Variant
+                changeType = SafeString(wsData.Cells(actualRow, 6).Value, 12)
+                If IsNull(changeType) Then
+                    errorDetailLog = "ERROR: Change Type is NULL for row " & actualRow
+                    BulkInsertToStaging = False
+                    GoTo LogError
+                End If
+                params(4) = changeType
+
+                ' Accounting treatment
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (E) - VARCHAR
+
+                ' Category handling
+                Dim category As Variant
+                category = SafeString(wsData.Cells(actualRow, 20).Value, 26)
+                If IsNull(category) Then
+                    ' Skip rows with no category
+                    Debug.Print "  SKIPPING row " & actualRow & " (No Category)"
+                    GoTo NextRow
+                End If
+                params(6) = category
+
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)      ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value, 4)   ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value, 4)   ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value, 26) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value, 10) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value, 35) ' project_name (O) - VARCHAR
+
+                ' Date handling
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (Q) - VARCHAR
+
+                ' Moving ISD Year handling
                 Dim movingIsdYear As Variant
                 movingIsdYear = wsData.Cells(actualRow, 40).Value
                 If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Or movingIsdYear = 0 Then
@@ -885,6 +881,24 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 Else
                     params(15) = Left(UCase(Trim(CStr(movingIsdYear))), 1)
                 End If
+
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value, 20) ' lcm_issue (R) - VARCHAR
+
+                ' Justification handling
+                Dim justification As Variant
+                justification = SafeString(wsData.Cells(actualRow, 21).Value, 192)
+                If IsNull(justification) Then
+                    ' Skip rows with no justification if archived or included
+                    If SafeBoolean(wsData.Cells(actualRow, 3).Value) = 1 Or SafeBoolean(wsData.Cells(actualRow, 4).Value) = 1 Then
+                        Debug.Print "  SKIPPING row " & actualRow & " (No Justification for Archived/Included)"
+                        GoTo NextRow
+                    End If
+                End If
+                params(17) = justification
+
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value)    ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)     ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)     ' include_flag (D) - BIT
                 
                 PrintParameterDetails params
 
@@ -1459,12 +1473,21 @@ End Sub
 
 ' Helper function to convert Excel date to ISO format
 Public Function FormatDateISO(ByVal dateValue As Variant) As Variant
-    If IsEmpty(dateValue) Or IsNull(dateValue) Or dateValue = "" Then
+    If IsEmpty(dateValue) Or IsNull(dateValue) Or Trim(CStr(dateValue)) = "" Then
         FormatDateISO = Null
-    ElseIf IsDate(dateValue) Then
-        FormatDateISO = Format(CDate(dateValue), "yyyy-mm-dd")
+        Exit Function
+    End If
+
+    ' Try to convert to date
+    Dim convertedDate As Date
+    On Error Resume Next
+    convertedDate = CDate(dateValue)
+    On Error GoTo 0
+
+    If convertedDate = 0 Then
+        FormatDateISO = Null
     Else
-        FormatDateISO = Null
+        FormatDateISO = Format(convertedDate, "yyyy-mm-dd")
     End If
 End Function
 ' ----------------------------------------------------------------------------
