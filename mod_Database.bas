@@ -1478,6 +1478,17 @@ Public Function FormatDateISO(ByVal dateValue As Variant) As Variant
         Exit Function
     End If
 
+    ' Handle text cases
+    Dim strDate As String
+    strDate = UCase(Trim(CStr(dateValue)))
+    
+    Select Case strDate
+        Case "ANNUALLY", "ANNUAL", "QUARTERLY", "SEMI-ANNUALLY"
+            ' Return the original text for these special cases
+            FormatDateISO = strDate
+            Exit Function
+    End Select
+
     ' Try to convert to date
     Dim convertedDate As Date
     On Error Resume Next
@@ -1485,7 +1496,8 @@ Public Function FormatDateISO(ByVal dateValue As Variant) As Variant
     On Error GoTo 0
 
     If convertedDate = 0 Then
-        FormatDateISO = Null
+        ' If not a recognizable date, return original text
+        FormatDateISO = strDate
     Else
         FormatDateISO = Format(convertedDate, "yyyy-mm-dd")
     End If
