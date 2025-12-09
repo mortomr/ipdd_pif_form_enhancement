@@ -968,6 +968,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
     BulkInsertToStaging = True
     Exit Function
+NextRow:
 
 LogError:
     ' Enhanced error logging
