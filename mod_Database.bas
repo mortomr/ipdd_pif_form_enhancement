@@ -704,7 +704,187 @@ End Function
 ' ============================================================================
 ' BULK INSERT FUNCTIONS
 ' ============================================================================
+' ============================================================================
+' NEW FUNCTION: BulkInsertCostData (Dedicated Cost Insert 12 9 25)
+' ============================================================================
+' Location: Add to mod_Database.bas
+' Purpose: Specifically handle bulk insert of cost data to tbl_pif_cost_staging
+' Issue: The generic BulkInsertToStaging was designed for projects, not costs
+' Solution: Dedicated function with proper cost column handling
+' ============================================================================
 
+Public Function BulkInsertCostData(ByVal dataRange As Range) As Boolean
+    On Error GoTo ErrHandler
+
+    Dim conn As ADODB.Connection
+    Dim i As Long, j As Long
+    Dim rowCount As Long
+    Dim startTime As Double
+    Dim wsData As Worksheet
+    Dim actualRow As Long
+    Dim params(0 To 7) As Variant
+    Dim errorDetailLog As String
+
+    startTime = Timer
+
+    Debug.Print "=== BulkInsertCostData STARTED ==="
+    Debug.Print "Data range rows: " & dataRange.Rows.Count
+
+    ' Get the worksheet reference
+    Set wsData = dataRange.Worksheet
+
+    ' Get database connection
+    Set conn = GetDBConnection()
+    If conn Is Nothing Then
+        Debug.Print "ERROR: GetDBConnection returned Nothing!"
+        BulkInsertCostData = False
+        Exit Function
+    End If
+    Debug.Print "Database connection established"
+
+    ' Truncate staging table
+    Application.StatusBar = "Truncating tbl_pif_cost_staging..."
+    Debug.Print "Truncating tbl_pif_cost_staging..."
+    If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE dbo.tbl_pif_cost_staging") Then
+        Debug.Print "ERROR: Failed to truncate table"
+        conn.Close
+        Set conn = Nothing
+        BulkInsertCostData = False
+        Exit Function
+    End If
+    Debug.Print "Table truncated successfully"
+
+    ' Loop through data rows and insert each one
+    Application.StatusBar = "Uploading cost data to staging..."
+    Application.ScreenUpdating = False
+    rowCount = 0
+
+    conn.BeginTrans
+    Debug.Print "Transaction started"
+
+    For i = 1 To dataRange.Rows.Count
+        ' Calculate actual worksheet row
+        actualRow = dataRange.Row + i - 1
+
+        ' Check if row has data (skip empty rows) - check column A (pif_id)
+        If Not IsEmpty(wsData.Cells(actualRow, 1).Value) Then
+
+            ' Extract cost data columns from the range
+            ' Remember: Cost_Unpivoted has columns A-H
+            '   A=pif_id, B=project_id, C=line_item, D=scenario, E=year, 
+            '   F=requested_value, G=current_value, H=variance_value
+            
+            ' But we're reading from dataRange, so relative column positions:
+            ' Column 1 = A (pif_id)
+            ' Column 2 = B (project_id)
+            ' Column 3 = C (line_item)
+            ' Column 4 = D (scenario)
+            ' Column 5 = E (year)
+            ' Column 6 = F (requested_value)
+            ' Column 7 = G (current_value)
+            ' Column 8 = H (variance_value)
+
+            ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging
+
+            params(0) = SafeString(wsData.Cells(actualRow, dataRange.Column + 0).Value, 16)     ' pif_id
+            params(1) = SafeString(wsData.Cells(actualRow, dataRange.Column + 1).Value, 10)     ' project_id
+            params(2) = SafeInteger(wsData.Cells(actualRow, dataRange.Column + 2).Value)        ' line_item
+            params(3) = SafeString(wsData.Cells(actualRow, dataRange.Column + 3).Value, 12)     ' scenario
+            params(4) = SafeDate(wsData.Cells(actualRow, dataRange.Column + 4).Value)           ' year (DATE)
+            params(5) = SafeDecimal(wsData.Cells(actualRow, dataRange.Column + 5).Value)        ' requested_value
+            params(6) = SafeDecimal(wsData.Cells(actualRow, dataRange.Column + 6).Value)        ' current_value
+            params(7) = SafeDecimal(wsData.Cells(actualRow, dataRange.Column + 7).Value)        ' variance_value
+
+            Debug.Print "  Attempting to insert row " & actualRow & ": " & _
+                        "PIF=" & params(0) & ", Project=" & params(1) & ", Line=" & params(2) & _
+                        ", Scenario=" & params(3) & ", Year=" & params(4)
+
+            ' Call stored procedure with proper parameters
+            If Not ExecuteStoredProcedureNonQuery(conn, "dbo.usp_insert_cost_staging", _
+                "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                "@project_id", adVarChar, adParamInput, 10, params(1), _
+                "@line_item", adInteger, adParamInput, 0, params(2), _
+                "@scenario", adVarChar, adParamInput, 12, params(3), _
+                "@year", adDBDate, adParamInput, 0, params(4), _
+                "@requested_value", adNumeric, adParamInput, 0, params(5), _
+                "@current_value", adNumeric, adParamInput, 0, params(6), _
+                "@variance_value", adNumeric, adParamInput, 0, params(7)) Then
+
+                Debug.Print "  ERROR: Failed to insert row " & actualRow
+
+                errorDetailLog = "Failed to insert cost row " & actualRow & vbCrLf & _
+                                 "PIF: " & params(0) & vbCrLf & _
+                                 "Project: " & params(1) & vbCrLf & _
+                                 "Line Item: " & params(2)
+
+                conn.RollbackTrans
+                conn.Close
+                Set conn = Nothing
+
+                MsgBox "Failed to insert cost data into staging:" & vbCrLf & vbCrLf & errorDetailLog, vbCritical
+                BulkInsertCostData = False
+                Exit Function
+            End If
+
+            rowCount = rowCount + 1
+
+            ' Progress indicator every 50 rows
+            If rowCount Mod 50 = 0 Then
+                Application.StatusBar = "Uploaded " & rowCount & " cost records to staging..."
+                Debug.Print "Progress: " & rowCount & " cost records uploaded"
+            End If
+        Else
+            Debug.Print "Skipping row " & actualRow & " (pif_id is empty)"
+        End If
+    Next i
+
+    Debug.Print "Loop completed. Total rows processed: " & rowCount
+    Debug.Print "Committing transaction..."
+    conn.CommitTrans
+    Debug.Print "Transaction committed"
+
+    conn.Close
+    Set conn = Nothing
+
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+
+    Debug.Print "Successfully uploaded " & rowCount & " cost records to tbl_pif_cost_staging in " & _
+                Format(elapsed, "0.0") & " seconds"
+    Debug.Print "=== BulkInsertCostData COMPLETED SUCCESSFULLY ==="
+
+    BulkInsertCostData = True
+    Exit Function
+
+ErrHandler:
+    Debug.Print "=== ERROR in BulkInsertCostData ==="
+    Debug.Print "Error Number: " & Err.Number
+    Debug.Print "Error Description: " & Err.Description
+    Debug.Print "Rows processed before error: " & rowCount
+
+    Application.StatusBar = False
+    Application.ScreenUpdating = True
+
+    If Not conn Is Nothing Then
+        If conn.State = adStateOpen Then
+            On Error Resume Next
+            Debug.Print "Rolling back transaction..."
+            conn.RollbackTrans
+            On Error GoTo 0
+            conn.Close
+        End If
+        Set conn = Nothing
+    End If
+
+    MsgBox "Cost bulk insert failed:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
+           "Rows processed: " & rowCount, vbCritical
+
+    BulkInsertCostData = False
+End Function
 ' ----------------------------------------------------------------------------
 ' Function: BulkInsertToStaging
 ' Purpose: Efficiently upload Excel range to SQL staging table

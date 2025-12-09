@@ -424,6 +424,122 @@ End Sub
 '          into rows in the Cost_Unpivoted sheet
 ' PERFORMANCE: Array-based - 100x faster than cell-by-cell operations
 ' ----------------------------------------------------------------------------
+' Private Function UnpivotCostData() As Boolean
+'     On Error GoTo UnpivotCostData_Err
+
+'     Dim wsData As Worksheet
+'     Dim wsCost As Worksheet
+'     Dim lastRow As Long
+'     Dim currentYear As Integer
+'     Dim sourceData As Variant
+'     Dim outputArray() As Variant
+'     Dim outputRow As Long
+'     Dim dataRow As Long
+'     Dim i As Long
+'     Dim pifId As String, projectId As String
+'     Dim lineItem As Variant
+
+'     currentYear = ThisWorkbook.Names("CurrentYear").RefersToRange.value
+'     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+
+'     ' Find last row with data (PIF_ID now in column H)
+'     lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).row
+'     If lastRow < 4 Then
+'         UnpivotCostData = True
+'         Exit Function
+'     End If
+
+'     ' Read entire source range into array (ONE READ OPERATION) - extended to column BO
+'     sourceData = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 67)).value
+
+'     ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
+'     Dim maxRows As Long
+'     maxRows = (lastRow - 3) * 12
+'     ReDim outputArray(1 To maxRows, 1 To 8)  ' Now 8 columns (added line_item)
+
+'     outputRow = 1
+
+'     ' Process array in memory (FAST!)
+'     For dataRow = 1 To UBound(sourceData, 1)
+'         pifId = Trim(sourceData(dataRow, 8) & "")       ' Column H (was G)
+'         projectId = Trim(sourceData(dataRow, 14) & "")  ' Column N (was M)
+'         lineItem = sourceData(dataRow, 7)               ' Column G (NEW - Line Item)
+
+'         ' Default line_item to 1 if blank
+'         If IsEmpty(lineItem) Or lineItem = "" Then
+'             lineItem = 1
+'         Else
+'             lineItem = CLng(lineItem)
+'         End If
+
+'         If pifId <> "" And projectId <> "" Then
+'             ' TARGET SCENARIO - 6 years (CY through CY+5)
+'             For i = 0 To 5
+'                 outputArray(outputRow, 1) = pifId
+'                 outputArray(outputRow, 2) = projectId
+'                 outputArray(outputRow, 3) = lineItem
+'                 outputArray(outputRow, 4) = SCENARIO_TARGET
+'                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+'                 outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 22 + i))      ' V-AA (Requested) - shifted +1
+'                 outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 28 + i))      ' AB-AG (Current) - shifted +1
+'                 outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 34 + i))      ' AH-AM (Variance) - shifted +1
+'                 outputRow = outputRow + 1
+'             Next i
+
+'             ' CLOSINGS SCENARIO - 6 years (CY through CY+5)
+'             For i = 0 To 5
+'                 outputArray(outputRow, 1) = pifId
+'                 outputArray(outputRow, 2) = projectId
+'                 outputArray(outputRow, 3) = lineItem
+'                 outputArray(outputRow, 4) = SCENARIO_CLOSINGS
+'                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
+'                 outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 42 + i))      ' AP-AU (Requested) - shifted +1
+'                 outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 48 + i))      ' AV-BA (Current) - shifted +1
+'                 outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 54 + i))      ' BB-BG (Variance) - shifted +1
+'                 outputRow = outputRow + 1
+'             Next i
+'         End If
+'     Next dataRow
+
+'     ' Create or clear Cost_Unpivoted sheet
+'     On Error Resume Next
+'     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
+'     On Error GoTo UnpivotCostData_Err
+
+'     If wsCost Is Nothing Then
+'         Set wsCost = ThisWorkbook.Sheets.Add(After:=wsData)
+'         wsCost.Name = SHEET_COST_UNPIVOTED
+'     Else
+'         wsCost.Cells.Clear
+'     End If
+
+'     ' Write headers (now 8 columns)
+'     wsCost.Range("A1:H1").value = Array("pif_id", "project_id", "line_item", "scenario", "year", "requested_value", "current_value", "variance_value")
+
+'     ' Write entire array to sheet (ONE WRITE OPERATION)
+'     If outputRow > 1 Then
+'         wsCost.Range("A2").Resize(outputRow - 1, 8).value = outputArray
+'     End If
+
+'     ' Format and hide
+'     wsCost.Columns("A:H").AutoFit
+'     wsCost.Visible = xlSheetHidden
+
+'     UnpivotCostData = True
+'     Exit Function
+
+' UnpivotCostData_Err:
+'     MsgBox "Failed to unpivot cost data:" & vbCrLf & vbCrLf & _
+'            "Error: " & Err.Number & " - " & Err.Description, vbCritical
+'     UnpivotCostData = False
+' End Function
+' ============================================================================
+' CORRECTED: UnpivotCostData Function
+' ============================================================================
+' ISSUE: After adding Line Item column (G), all cost columns shifted right by 1
+' SOLUTION: Updated all cost column references to +1 offset
+' ============================================================================
+
 Private Function UnpivotCostData() As Boolean
     On Error GoTo UnpivotCostData_Err
 
@@ -455,15 +571,15 @@ Private Function UnpivotCostData() As Boolean
     ' Calculate output size: each row generates 12 cost rows (6 Target + 6 Closings years)
     Dim maxRows As Long
     maxRows = (lastRow - 3) * 12
-    ReDim outputArray(1 To maxRows, 1 To 8)  ' Now 8 columns (added line_item)
+    ReDim outputArray(1 To maxRows, 1 To 8)  ' 8 columns (added line_item)
 
     outputRow = 1
 
     ' Process array in memory (FAST!)
     For dataRow = 1 To UBound(sourceData, 1)
-        pifId = Trim(sourceData(dataRow, 8) & "")       ' Column H (was G)
-        projectId = Trim(sourceData(dataRow, 14) & "")  ' Column N (was M)
-        lineItem = sourceData(dataRow, 7)               ' Column G (NEW - Line Item)
+        pifId = Trim(sourceData(dataRow, 8) & "")       ' Column H (PIF_ID)
+        projectId = Trim(sourceData(dataRow, 14) & "")  ' Column N (Funding Project)
+        lineItem = sourceData(dataRow, 7)               ' Column G (Line Item) - NEW
 
         ' Default line_item to 1 if blank
         If IsEmpty(lineItem) Or lineItem = "" Then
@@ -478,11 +594,12 @@ Private Function UnpivotCostData() As Boolean
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
                 outputArray(outputRow, 3) = lineItem
-                outputArray(outputRow, 4) = SCENARIO_TARGET
+                outputArray(outputRow, 4) = "Target"
                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 22 + i))      ' V-AA (Requested) - shifted +1
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 28 + i))      ' AB-AG (Current) - shifted +1
-                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 34 + i))      ' AH-AM (Variance) - shifted +1
+                ' CORRECTED: Column shift +1 due to Line Item insertion
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 23 + i))      ' V-AA (Requested) - WAS 22, NOW 23
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 29 + i))      ' AB-AG (Current) - WAS 28, NOW 29
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 35 + i))      ' AH-AM (Variance) - WAS 34, NOW 35
                 outputRow = outputRow + 1
             Next i
 
@@ -491,11 +608,12 @@ Private Function UnpivotCostData() As Boolean
                 outputArray(outputRow, 1) = pifId
                 outputArray(outputRow, 2) = projectId
                 outputArray(outputRow, 3) = lineItem
-                outputArray(outputRow, 4) = SCENARIO_CLOSINGS
+                outputArray(outputRow, 4) = "Closings"
                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 42 + i))      ' AP-AU (Requested) - shifted +1
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 48 + i))      ' AV-BA (Current) - shifted +1
-                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 54 + i))      ' BB-BG (Variance) - shifted +1
+                ' CORRECTED: Column shift +1 due to Line Item insertion
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 43 + i))      ' AP-AU (Requested) - WAS 42, NOW 43
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 49 + i))      ' AV-BA (Current) - WAS 48, NOW 49
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 55 + i))      ' BB-BG (Variance) - WAS 54, NOW 55
                 outputRow = outputRow + 1
             Next i
         End If
@@ -533,7 +651,6 @@ UnpivotCostData_Err:
            "Error: " & Err.Number & " - " & Err.Description, vbCritical
     UnpivotCostData = False
 End Function
-
 ' ----------------------------------------------------------------------------
 ' Function: ConvertToNumeric
 ' Purpose: Convert variant to numeric value, handling empty/null safely
@@ -844,35 +961,65 @@ ErrHandler:
 ' Function: UploadCostData
 ' Purpose: Upload unpivoted cost data to staging table
 ' ----------------------------------------------------------------------------
-Private Function UploadCostData() As Boolean
+' ============================================================================
+' UPDATED: UploadCostData (in mod_Submit.bas) - Use this instead
+' ============================================================================
+
+' DELETE this OLD code from mod_Submit:
+'   Private Function UploadCostData() As Boolean
+'       Dim wsCost As Worksheet
+'       ...
+'       UploadCostData = BulkInsertCosts(dataRange)
+'
+' And use this CORRECTED version instead:
+
+Private Function UploadCostDataCORRECTED() As Boolean
     On Error GoTo ErrHandler
-    
+
     Dim wsCost As Worksheet
     Dim dataRange As Range
     Dim lastDataRow As Long
-    
+
+    ' Get the Cost_Unpivoted sheet
+    On Error Resume Next
     Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
-    
-    ' Find the last row with data in Column A (pif_id) to define the extent of cost data
-    lastDataRow = wsCost.Cells(wsCost.Rows.count, "A").End(xlUp).row
-    
-    ' Ensure we don't include header rows or start before the actual data
-    If lastDataRow < 2 Then lastDataRow = 1 ' If no data, set to just above data start
-    
-    ' Define the data range from row 2 (first data row) to the last data row, across relevant columns
-    ' Assuming cost data spans from column A to H (8 columns with line_item)
-    Set dataRange = wsCost.Range(wsCost.Cells(2, "A"), wsCost.Cells(lastDataRow, "H"))
-    
-    UploadCostData = BulkInsertCosts(dataRange)
-    
+    On Error GoTo ErrHandler
+
+    If wsCost Is Nothing Then
+        Debug.Print "ERROR: Cost_Unpivoted sheet not found"
+        UploadCostDataCORRECTED = False
+        Exit Function
+    End If
+
+    ' Find the last row with data (check column A for pif_id)
+    lastDataRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+
+    ' If no data rows (only header or empty), return success (nothing to upload)
+    If lastDataRow < 2 Then
+        Debug.Print "WARNING: Cost_Unpivoted sheet has no data rows"
+        UploadCostDataCORRECTED = True  ' Not an error - just no costs to upload
+        Exit Function
+    End If
+
+    ' Define the data range from row 2 (first data row) to last row, columns A-H
+    Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastDataRow, 8))
+
+    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.Count
+
+    ' Upload the data using DEDICATED cost function
+    ' Do NOT use BulkInsertToStaging (it's for projects only)
+    ' Use BulkInsertCostData instead
+    UploadCostDataCORRECTED = mod_Database.BulkInsertCostData(dataRange)
+
     Exit Function
-    
+
 ErrHandler:
+    Debug.Print "ERROR in UploadCostData: " & Err.Number & " - " & Err.Description
     MsgBox "Failed to upload cost data:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical
-    UploadCostData = False
+           "Error: " & Err.Number & " - " & Err.Description, vbCritical
+    UploadCostDataCORRECTED = False
 End Function
+
 
 ' ----------------------------------------------------------------------------
 ' Function: CommitToInflight
