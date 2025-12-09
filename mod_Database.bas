@@ -594,10 +594,13 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         Dim parameter As ADODB.Parameter
         On Error Resume Next
         Select Case paramType
-            Case adVarChar, adChar
-                ' String parameters
-                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CStr(paramValue))
-            
+            Case adVarChar
+                ' Special handling for justification (VARCHAR(MAX))
+                If paramName = "@justification" Then
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, -1, CStr(paramValue))
+                Else
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CStr(paramValue))
+                End If            
             Case adInteger, adSmallInt, adTinyInt
                 ' Integer parameters
                 Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
@@ -829,39 +832,38 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
                 ' Use absolute column references with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (H) - VARCHAR(16)
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (N) - VARCHAR(10)
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (S) - VARCHAR(58)
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value, 12)   ' change_type (F) - VARCHAR(12)
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (E) - VARCHAR(14)
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)  ' category (T) - VARCHAR(26)
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).value)  ' opco (J) - VARCHAR
+                ' Update column references in BulkInsertToStaging function
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (now H column)
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (now N column)
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)      ' line_item (G column - new)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (now S column)
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value, 12)   ' change_type (now F column)
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (now E column)
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value, 26)  ' category (now T column)
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)      ' seg (now I column)
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value, 4)   ' opco (now J column)
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value, 4)   ' site (now K column)
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value, 26) ' strategic_rank (now L column)
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value, 10) ' funding_project (now N column)
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value, 35) ' project_name (now O column)
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (now P column)
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (now Q column)
+                params(15) = SafeString(wsData.Cells(actualRow, 39).Value, 1)  ' moving_isd_year (now AN column)
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value, 20) ' lcm_issue (now R column)
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value, 192) ' justification (now U column)
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value)    ' prior_year_spend (now AO column)
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)     ' archive_flag (now C column)
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)     ' include_flag (now D column)
                 ' Validate opco - set to NULL if empty
                 If Trim(CStr(params(8))) = "" Then
                     params(8) = Null
                 End If                
-                params(9) = SafeString(wsData.Cells(actualRow, 11).value)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).value) ' project_name (O) - VARCHAR
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value) ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value) ' revised_fp_isd (Q) - VARCHAR
-                ' params(15) = SafeString(wsData.Cells(actualRow, 39).value) ' moving_isd_year (AN) - CHAR
-                ' Modify the section preparing parameters
-                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
                 If IsNull(params(15)) Then
                     params(15) = "N"  ' Default to "N" if empty
                 End If
                 If Len(CStr(params(15))) > 1 Then
                     params(15) = Left(CStr(params(15)), 1)
                 End If
-                params(16) = SafeString(wsData.Cells(actualRow, 18).value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)  ' include_flag (D) - BIT
                 Dim movingIsdYear As Variant
                 movingIsdYear = wsData.Cells(actualRow, 39).Value
                 If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Then
@@ -1563,8 +1565,11 @@ Public Function SafeString(ByVal cellValue As Variant, Optional ByVal maxLength 
         Exit Function
     End If
     
-    ' If max length is specified, truncate
-    If maxLength > 0 And Len(strValue) > maxLength Then
+    ' Special handling for justification (use VARCHAR(MAX))
+    If maxLength = 192 Then
+        ' For very long text, just ensure it's not truncated
+        SafeString = strValue
+    ElseIf maxLength > 0 And Len(strValue) > maxLength Then
         SafeString = Left(strValue, maxLength)
     Else
         SafeString = strValue
