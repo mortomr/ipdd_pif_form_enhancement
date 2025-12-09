@@ -1,529 +1,360 @@
+Attribute VB_Name = "mod_Diagnostic"
 ' ============================================================================
-' MODULE: mod_CostDiagnostic
+' MODULE: mod_Diagnostic
 ' ============================================================================
-' Purpose: Diagnose cost capture failures at each step of the pipeline
-' Usage: Run DiagnoseFullCostFlow() to trace costs from Excel to database
+' Purpose: Diagnose type mismatch errors in parameter passing
+' Usage: Run TestSingleRowInsert() to test first data row
 ' ============================================================================
 
 Option Explicit
 
-Public Sub DiagnoseFullCostFlow()
+' ----------------------------------------------------------------------------
+' Sub: TestSingleRowInsert
+' Purpose: Test inserting a single row with detailed diagnostics
+' Usage: Run this from VBA editor to see exactly where the error occurs
+' ----------------------------------------------------------------------------
+Public Sub Diag_TestInsert()
     On Error GoTo ErrHandler
-    
-    Dim msg As String
-    Dim step As Integer
-    
-    step = 1
-    msg = "COST FLOW DIAGNOSTIC - STEP BY STEP" & vbCrLf & vbCrLf
-    
-    ' STEP 1: Check PIF worksheet has cost data
-    msg = msg & "STEP 1: Checking PIF worksheet cost columns..." & vbCrLf
-    step = 1
-    Dim pifCostCount As Long
-    pifCostCount = CountCostDataInPIF()
-    msg = msg & "  Result: Found " & pifCostCount & " cost cell entries in PIF sheet" & vbCrLf & vbCrLf
-    
-    If pifCostCount = 0 Then
-        MsgBox msg & "ERROR: No cost data found in PIF worksheet!" & vbCrLf & _
-               "Add cost values to columns V-BG before proceeding.", vbExclamation
-        Exit Sub
-    End If
-    
-    ' STEP 2: Run UnpivotCostData and check Cost_Unpivoted sheet
-    msg = msg & "STEP 2: Running UnpivotCostData..." & vbCrLf
-    step = 2
-    Call UnpivotCostData
-    
-    Dim unpivotCount As Long
-    unpivotCount = CountRowsInSheet("Cost_Unpivoted", 2)  ' Count from row 2 (skip header)
-    msg = msg & "  Result: Cost_Unpivoted sheet has " & unpivotCount & " rows" & vbCrLf
-    
-    If unpivotCount = 0 Then
-        MsgBox msg & "ERROR: Cost_Unpivoted sheet is empty!" & vbCrLf & _
-               "This means UnpivotCostData failed to generate cost rows.", vbExclamation
-        Exit Sub
-    End If
-    
-    ' STEP 3: Check Cost_Unpivoted data quality
-    msg = msg & "STEP 3: Validating Cost_Unpivoted data..." & vbCrLf
-    step = 3
-    Dim validCount As Long, nullCount As Long, zeroCount As Long
-    Call ValidateCostUnpivotedData(validCount, nullCount, zeroCount)
-    msg = msg & "  Result:" & vbCrLf & _
-              "    Valid cost records: " & validCount & vbCrLf & _
-              "    NULL requested_value: " & nullCount & vbCrLf & _
-              "    Zero requested_value: " & zeroCount & vbCrLf & vbCrLf
-    
-    If validCount = 0 Then
-        MsgBox msg & "ERROR: All cost records have NULL or zero values!" & vbCrLf & _
-               "Check that you entered cost values in the PIF worksheet.", vbExclamation
-        Exit Sub
-    End If
-    
-    ' STEP 4: Try uploading to staging
-    msg = msg & "STEP 4: Uploading cost data to tbl_pif_cost_staging..." & vbCrLf
-    step = 4
-    
-    Dim uploadSuccess As Boolean
-    uploadSuccess = TestCostUploadToStaging()
-    
-    If Not uploadSuccess Then
-        MsgBox msg & "ERROR: Failed to upload costs to staging table!" & vbCrLf & _
-               "Check database connection and permissions.", vbCritical
-        Exit Sub
-    End If
-    msg = msg & "  Result: Upload succeeded" & vbCrLf & vbCrLf
-    
-    ' STEP 5: Check staging table has data
-    msg = msg & "STEP 5: Verifying tbl_pif_cost_staging..." & vbCrLf
-    step = 5
-    Dim stagingCount As Long
-    stagingCount = GetStagingCostCount()
-    msg = msg & "  Result: Found " & stagingCount & " rows in staging table" & vbCrLf & vbCrLf
-    
-    If stagingCount = 0 Then
-        MsgBox msg & "ERROR: Staging table is still empty after upload!" & vbCrLf & _
-               "Check mod_Database.BulkInsertToStaging function.", vbCritical
-        Exit Sub
-    End If
-    
-    ' STEP 6: Check inflight table
-    msg = msg & "STEP 6: Checking tbl_pif_cost_inflight..." & vbCrLf
-    step = 6
-    Dim inflightCount As Long
-    inflightCount = GetInflightCostCount()
-    msg = msg & "  Result: Found " & inflightCount & " rows in inflight table" & vbCrLf & vbCrLf
-    
-    ' Final summary
-    msg = msg & "========================================" & vbCrLf & _
-              "DIAGNOSTIC COMPLETE" & vbCrLf & _
-              "========================================" & vbCrLf & vbCrLf & _
-              "Cost data is flowing through the system!" & vbCrLf & _
-              "PIF: " & pifCostCount & " entries" & vbCrLf & _
-              "Unpivoted: " & unpivotCount & " rows" & vbCrLf & _
-              "Staging: " & stagingCount & " rows" & vbCrLf & _
-              "Inflight: " & inflightCount & " rows"
-    
-    MsgBox msg, vbInformation, "Cost Flow Diagnostic Complete"
-    
-    Exit Sub
 
-ErrHandler:
-    MsgBox "Diagnostic failed at step " & step & ":" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, vbCritical
-End Sub
-
-' ============================================================================
-' DIAGNOSTIC HELPER FUNCTIONS
-' ============================================================================
-
-Private Function CountCostDataInPIF() As Long
-    On Error GoTo ErrHandler
-    
     Dim wsData As Worksheet
-    Dim lastRow As Long
-    Dim costCount As Long
-    Dim i As Long
-    Dim j As Long
-    Dim cellValue As Variant
-    
-    Set wsData = ThisWorkbook.Sheets("PIF")
-    lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
-    
-    ' Count non-empty cost cells in columns V-BG (columns 22-59)
-    costCount = 0
-    For i = 4 To lastRow
-        For j = 22 To 59  ' Columns V through BG
-            cellValue = wsData.Cells(i, j).Value
-            If Not IsEmpty(cellValue) And cellValue <> 0 Then
-                costCount = costCount + 1
-            End If
-        Next j
-    Next i
-    
-    CountCostDataInPIF = costCount
-    Exit Function
-    
-ErrHandler:
-    CountCostDataInPIF = -1
-End Function
+    Dim conn As ADODB.Connection
+    Dim testRow As Long
+    Dim params(0 To 19) As Variant
+    Dim i As Integer
+    Dim msg As String
 
-Private Function CountRowsInSheet(ByVal sheetName As String, Optional ByVal startRow As Long = 1) As Long
-    On Error GoTo ErrHandler
-    
-    Dim ws As Worksheet
-    Dim lastRow As Long
-    
-    Set ws = ThisWorkbook.Sheets(sheetName)
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
-    
-    If lastRow >= startRow Then
-        CountRowsInSheet = lastRow - startRow + 1
-    Else
-        CountRowsInSheet = 0
-    End If
-    
-    Exit Function
+    ' Get the PIF sheet
+    Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+    testRow = 4  ' First data row
 
-ErrHandler:
-    CountRowsInSheet = -1
-End Function
+    ' Show what we're reading
+    msg = "DIAGNOSTIC: Reading data from row " & testRow & vbCrLf & vbCrLf
 
-Private Sub ValidateCostUnpivotedData(ByRef validCount As Long, ByRef nullCount As Long, ByRef zeroCount As Long)
-    On Error GoTo ErrHandler
-    
-    Dim wsCost As Worksheet
-    Dim lastRow As Long
-    Dim i As Long
-    Dim cellValue As Variant
-    
-    validCount = 0
-    nullCount = 0
-    zeroCount = 0
-    
-    Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
-    
-    ' Check column F (requested_value)
-    For i = 2 To lastRow
-        cellValue = wsCost.Cells(i, 6).Value
-        
-        If IsEmpty(cellValue) Or IsNull(cellValue) Then
-            nullCount = nullCount + 1
-        ElseIf cellValue = 0 Then
-            zeroCount = zeroCount + 1
+    ' Read and display each parameter
+    msg = msg & "Column G (pif_id): " & wsData.Cells(testRow, 7).Value & vbCrLf
+    msg = msg & "Column M (project_id): " & wsData.Cells(testRow, 13).Value & vbCrLf
+    msg = msg & "Column R (status): " & wsData.Cells(testRow, 18).Value & vbCrLf
+    msg = msg & "Column F (change_type): " & wsData.Cells(testRow, 6).Value & vbCrLf
+    msg = msg & "Column E (accounting_treatment): " & wsData.Cells(testRow, 5).Value & vbCrLf
+    msg = msg & "Column S (category): " & wsData.Cells(testRow, 19).Value & vbCrLf
+    msg = msg & "Column H (seg): [" & wsData.Cells(testRow, 8).Value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 8).Value) & vbCrLf
+    msg = msg & "Column I (opco): " & wsData.Cells(testRow, 9).Value & vbCrLf
+    msg = msg & "Column J (site): " & wsData.Cells(testRow, 10).Value & vbCrLf
+    msg = msg & "Column K (strategic_rank): " & wsData.Cells(testRow, 11).Value & vbCrLf
+    msg = msg & "Column M (funding_project): " & wsData.Cells(testRow, 13).Value & vbCrLf
+    msg = msg & "Column N (project_name): " & wsData.Cells(testRow, 14).Value & vbCrLf
+    msg = msg & "Column O (original_fp_isd): " & wsData.Cells(testRow, 15).Value & vbCrLf
+    msg = msg & "Column P (revised_fp_isd): " & wsData.Cells(testRow, 16).Value & vbCrLf
+    msg = msg & "Column AM (moving_isd_year): " & wsData.Cells(testRow, 39).Value & vbCrLf
+    msg = msg & "Column Q (lcm_issue): " & wsData.Cells(testRow, 17).Value & vbCrLf
+    msg = msg & "Column T (justification): " & wsData.Cells(testRow, 20).Value & vbCrLf
+    msg = msg & "Column AN (prior_year_spend): [" & wsData.Cells(testRow, 40).Value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 40).Value) & vbCrLf
+    msg = msg & "Column C (archive_flag): " & wsData.Cells(testRow, 3).Value & vbCrLf
+    msg = msg & "Column D (include_flag): " & wsData.Cells(testRow, 4).Value & vbCrLf
+
+    MsgBox msg, vbInformation, "Raw Excel Values"
+
+    ' Now convert using Safe functions and show results
+    params(0) = SafeString(wsData.Cells(testRow, 7).Value)
+    params(1) = SafeString(wsData.Cells(testRow, 13).Value)
+    params(2) = SafeString(wsData.Cells(testRow, 18).Value)
+    params(3) = SafeString(wsData.Cells(testRow, 6).Value)
+    params(4) = SafeString(wsData.Cells(testRow, 5).Value)
+    params(5) = SafeString(wsData.Cells(testRow, 19).Value)
+    params(6) = SafeInteger(wsData.Cells(testRow, 8).Value)
+    params(7) = SafeString(wsData.Cells(testRow, 9).Value)
+    params(8) = SafeString(wsData.Cells(testRow, 10).Value)
+    params(9) = SafeString(wsData.Cells(testRow, 11).Value)
+    params(10) = SafeString(wsData.Cells(testRow, 13).Value)
+    params(11) = SafeString(wsData.Cells(testRow, 14).Value)
+    params(12) = SafeString(wsData.Cells(testRow, 15).Value)
+    params(13) = SafeString(wsData.Cells(testRow, 16).Value)
+    params(14) = SafeString(wsData.Cells(testRow, 39).Value)
+    params(15) = SafeString(wsData.Cells(testRow, 17).Value)
+    params(16) = SafeString(wsData.Cells(testRow, 20).Value)
+    params(17) = SafeDecimal(wsData.Cells(testRow, 40).Value)
+    params(18) = SafeBoolean(wsData.Cells(testRow, 3).Value)
+    params(19) = SafeBoolean(wsData.Cells(testRow, 4).Value)
+
+    ' Show converted values
+    msg = "CONVERTED VALUES:" & vbCrLf & vbCrLf
+    For i = 0 To 19
+        If IsNull(params(i)) Then
+            msg = msg & "params(" & i & ") = NULL" & vbCrLf
         Else
-            validCount = validCount + 1
+            msg = msg & "params(" & i & ") = [" & params(i) & "] Type=" & TypeName(params(i)) & vbCrLf
         End If
     Next i
-    
-    Exit Sub
 
-ErrHandler:
-    validCount = -1
-End Sub
+    MsgBox msg, vbInformation, "Converted Parameter Values"
 
-Private Function TestCostUploadToStaging() As Boolean
-    On Error GoTo ErrHandler
-    
-    Dim wsCost As Worksheet
-    Dim dataRange As Range
-    Dim lastRow As Long
-    
-    Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
-    
-    If lastRow < 2 Then
-        TestCostUploadToStaging = False
-        Exit Function
-    End If
-    
-    Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastRow, 8))
-    
-    TestCostUploadToStaging = mod_Database.BulkInsertToStaging(dataRange, "tbl_pif_cost_staging", "dbo")
-    
-    Exit Function
-
-ErrHandler:
-    TestCostUploadToStaging = False
-End Function
-
-Private Function GetStagingCostCount() As Long
-    On Error GoTo ErrHandler
-    
-    GetStagingCostCount = mod_Database.GetRecordCount("tbl_pif_cost_staging", "dbo")
-    
-    Exit Function
-
-ErrHandler:
-    GetStagingCostCount = -1
-End Function
-
-Private Function GetInflightCostCount() As Long
-    On Error GoTo ErrHandler
-    
-    GetInflightCostCount = mod_Database.GetRecordCount("tbl_pif_cost_inflight", "dbo")
-    
-    Exit Function
-
-ErrHandler:
-    GetInflightCostCount = -1
-End Function
-
-' ============================================================================
-' DETAILED DIAGNOSTIC FUNCTIONS
-' ============================================================================
-
-Public Sub DetailedCostUnpivotAnalysis()
-    On Error GoTo ErrHandler
-    
-    Dim wsCost As Worksheet
-    Dim lastRow As Long
-    Dim i As Long
-    Dim msg As String
-    Dim pifId As String, projectId As String, lineItem As Long
-    Dim scenario As String, year As Date
-    Dim requested As Variant, current As Variant, variance As Variant
-    
-    Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
-    
-    msg = "COST_UNPIVOTED SHEET ANALYSIS" & vbCrLf & _
-          String(50, "=") & vbCrLf & vbCrLf
-    
-    ' Show first 20 records
-    msg = msg & "First 20 records from Cost_Unpivoted:" & vbCrLf & vbCrLf
-    
-    For i = 2 To Application.Min(21, lastRow)
-        pifId = wsCost.Cells(i, 1).Value
-        projectId = wsCost.Cells(i, 2).Value
-        lineItem = wsCost.Cells(i, 3).Value
-        scenario = wsCost.Cells(i, 4).Value
-        year = wsCost.Cells(i, 5).Value
-        requested = wsCost.Cells(i, 6).Value
-        current = wsCost.Cells(i, 7).Value
-        variance = wsCost.Cells(i, 8).Value
-        
-        msg = msg & i - 1 & ". PIF=" & pifId & " Proj=" & projectId & " Line=" & lineItem & vbCrLf & _
-                      "    Scenario=" & scenario & " Year=" & Format(year, "yyyy") & vbCrLf & _
-                      "    Req=" & IIf(IsEmpty(requested), "NULL", requested) & _
-                      " Curr=" & IIf(IsEmpty(current), "NULL", current) & _
-                      " Var=" & IIf(IsEmpty(variance), "NULL", variance) & vbCrLf & vbCrLf
-    Next i
-    
-    MsgBox msg, vbInformation, "Cost Unpivot Analysis"
-    
-    Exit Sub
-
-ErrHandler:
-    MsgBox "Analysis failed: " & Err.Description, vbCritical
-End Sub
-
-Public Sub DetailedStagingAnalysis()
-    On Error GoTo ErrHandler
-    
-    Dim conn As ADODB.Connection
-    Dim rs As ADODB.Recordset
-    Dim msg As String
-    Dim sql As String
-    Dim count As Long
-    
-    Set conn = mod_Database.GetDBConnection()
+    ' Try to connect and insert
+    Set conn = GetDBConnection()
     If conn Is Nothing Then
         MsgBox "Failed to connect to database", vbCritical
         Exit Sub
     End If
-    
-    ' Get staging count
-    sql = "SELECT COUNT(*) AS RowCount FROM dbo.tbl_pif_cost_staging"
-    Set rs = New ADODB.Recordset
-    rs.Open sql, conn
-    count = rs.Fields("RowCount").Value
-    rs.Close
-    
-    msg = "STAGING TABLE ANALYSIS" & vbCrLf & _
-          String(50, "=") & vbCrLf & vbCrLf & _
-          "Total rows in tbl_pif_cost_staging: " & count & vbCrLf & vbCrLf
-    
-    If count = 0 Then
-        msg = msg & "TABLE IS EMPTY - Cost upload failed!" & vbCrLf & vbCrLf & _
-                   "Check:" & vbCrLf & _
-                   "1. BulkInsertToStaging function execution" & vbCrLf & _
-                   "2. Database connection" & vbCrLf & _
-                   "3. Column references in UnpivotCostData"
+
+    ' Truncate staging first
+    conn.Execute "TRUNCATE TABLE dbo.tbl_pif_projects_staging"
+
+    ' Try inserting with detailed parameter info
+    MsgBox "About to call stored procedure. Click OK to continue...", vbInformation
+
+    ' Call the stored procedure with explicit error handling
+    On Error Resume Next
+    Dim result As ADODB.Recordset
+    Set result = ExecuteStoredProcedure(conn, "usp_insert_project_staging", False, _
+        "@pif_id", 200, 1, 16, params(0), _
+        "@project_id", 200, 1, 10, params(1), _
+        "@status", 200, 1, 58, params(2), _
+        "@change_type", 200, 1, 12, params(3), _
+        "@accounting_treatment", 200, 1, 14, params(4), _
+        "@category", 200, 1, 26, params(5), _
+        "@seg", 3, 1, 0, params(6), _
+        "@opco", 200, 1, 4, params(7), _
+        "@site", 200, 1, 4, params(8), _
+        "@strategic_rank", 200, 1, 26, params(9), _
+        "@funding_project", 200, 1, 10, params(10), _
+        "@project_name", 200, 1, 35, params(11), _
+        "@original_fp_isd", 200, 1, 8, params(12), _
+        "@revised_fp_isd", 200, 1, 5, params(13), _
+        "@moving_isd_year", 129, 1, 1, params(14), _
+        "@lcm_issue", 200, 1, 11, params(15), _
+        "@justification", 200, 1, 192, params(16), _
+        "@prior_year_spend", 131, 1, 0, params(17), _
+        "@archive_flag", 11, 1, 0, params(18), _
+        "@include_flag", 11, 1, 0, params(19))
+
+    If Err.Number <> 0 Then
+        MsgBox "STORED PROCEDURE FAILED!" & vbCrLf & vbCrLf & _
+               "Error Number: " & Err.Number & vbCrLf & _
+               "Error Description: " & Err.Description & vbCrLf & vbCrLf & _
+               "This is the exact error occurring in BulkInsertToStaging", _
+               vbCritical, "Diagnostic Result"
+        Err.Clear
     Else
-        ' Show first 10 records
-        msg = msg & "First 10 records:" & vbCrLf & vbCrLf
-        
-        sql = "SELECT TOP 10 pif_id, project_id, line_item, scenario, " & _
-              "YEAR(year) AS FiscalYear, requested_value FROM dbo.tbl_pif_cost_staging " & _
-              "ORDER BY pif_id, project_id, line_item, scenario, year"
-        Set rs = New ADODB.Recordset
-        rs.Open sql, conn
-        
-        Dim rowNum As Long
-        rowNum = 1
-        Do While Not rs.EOF
-            msg = msg & rowNum & ". PIF=" & rs("pif_id").Value & " Proj=" & rs("project_id").Value & _
-                        " Line=" & rs("line_item").Value & " Scenario=" & rs("scenario").Value & _
-                        " Year=" & rs("FiscalYear").Value & " Requested=" & rs("requested_value").Value & vbCrLf
-            rs.MoveNext
-            rowNum = rowNum + 1
-        Loop
-        rs.Close
+        MsgBox "SUCCESS! Row inserted without errors." & vbCrLf & vbCrLf & _
+               "Check tbl_pif_projects_staging to verify data.", _
+               vbInformation, "Diagnostic Result"
     End If
-    
+
     conn.Close
     Set conn = Nothing
-    
-    MsgBox msg, vbInformation, "Staging Table Analysis"
-    
+
     Exit Sub
 
 ErrHandler:
-    MsgBox "Analysis failed: " & Err.Description, vbCritical
+    MsgBox "Diagnostic test failed:" & vbCrLf & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description & vbCrLf & vbCrLf & _
+           "This error occurred BEFORE calling the stored procedure.", _
+           vbCritical, "Diagnostic Error"
+End Sub
+
+' ----------------------------------------------------------------------------
+' Sub: ShowValidationErrors
+' Purpose: Display all validation errors in a message box
+' ----------------------------------------------------------------------------
+Public Sub Diag_ShowErrors()
+    Dim wsValidation As Worksheet
+    Dim lastRow As Long
+    Dim i As Long
+    Dim msg As String
+
+    On Error Resume Next
+    Set wsValidation = ThisWorkbook.Sheets(SHEET_VALIDATION_REPORT)
+    On Error GoTo 0
+
+    If wsValidation Is Nothing Then
+        MsgBox "No validation report found. Run validation first.", vbExclamation
+        Exit Sub
+    End If
+
+    lastRow = wsValidation.Cells(wsValidation.Rows.Count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "No validation errors found.", vbInformation
+        Exit Sub
+    End If
+
+    msg = "VALIDATION ERRORS:" & vbCrLf & vbCrLf
+    For i = 2 To lastRow
+        msg = msg & i - 1 & ". " & wsValidation.Cells(i, 1).Value & vbCrLf
+        If Len(msg) > 1500 Then
+            MsgBox msg, vbExclamation, "Validation Errors (Part 1)"
+            msg = ""
+        End If
+    Next i
+
+    If msg <> "" Then
+        MsgBox msg, vbExclamation, "Validation Errors"
+    End If
+End Sub
+
+' ----------------------------------------------------------------------------
+' Sub: TestParameterTypes
+' Purpose: Test each parameter type individually
+' ----------------------------------------------------------------------------
+Public Sub Diag_TestParameters()
+    Dim msg As String
+    Dim testVal As Variant
+
+    msg = "PARAMETER TYPE TESTS:" & vbCrLf & vbCrLf
+
+    ' Test SafeString
+    testVal = SafeString("")
+    msg = msg & "SafeString(empty): " & IIf(IsNull(testVal), "NULL", testVal) & vbCrLf
+
+    testVal = SafeString("  TEST  ")
+    msg = msg & "SafeString('  TEST  '): [" & testVal & "]" & vbCrLf
+
+    ' Test SafeInteger
+    testVal = SafeInteger("")
+    msg = msg & "SafeInteger(empty): " & IIf(IsNull(testVal), "NULL", testVal) & vbCrLf
+
+    testVal = SafeInteger(123)
+    msg = msg & "SafeInteger(123): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
+
+    testVal = SafeInteger("abc")
+    msg = msg & "SafeInteger('abc'): " & IIf(IsNull(testVal), "NULL", testVal) & vbCrLf
+
+    ' Test SafeDecimal
+    testVal = SafeDecimal("")
+    msg = msg & "SafeDecimal(empty): " & IIf(IsNull(testVal), "NULL", testVal) & vbCrLf
+
+    testVal = SafeDecimal(123.45)
+    msg = msg & "SafeDecimal(123.45): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
+
+    ' Test SafeBoolean
+    testVal = SafeBoolean("")
+    msg = msg & "SafeBoolean(empty): " & IIf(IsNull(testVal), "NULL", testVal) & vbCrLf
+
+    testVal = SafeBoolean("Y")
+    msg = msg & "SafeBoolean('Y'): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
+
+    testVal = SafeBoolean("N")
+    msg = msg & "SafeBoolean('N'): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
+
+    testVal = SafeBoolean(True)
+    msg = msg & "SafeBoolean(TRUE): " & testVal & " Type=" & TypeName(testVal) & vbCrLf
+
+    MsgBox msg, vbInformation, "Parameter Type Tests"
 End Sub
 
 
-' ============================================================================
-' CORRECTED: UploadCostData and BulkInsertCosts Functions
-' ============================================================================
-' Issue: These functions are incomplete and not properly calling the database upload
-' Solution: Provide complete, working implementations
-' ============================================================================
 
-' Location: mod_Submit.bas
-
-' ============================================================================
-' PART 1: CORRECTED UploadCostData Function
-' ============================================================================
-' Purpose: Upload unpivoted cost data to the staging table
-' This function:
-'   1. Gets the Cost_Unpivoted worksheet
-'   2. Finds the data range (excluding header)
-'   3. Calls BulkInsertCosts with the range
-'   4. Returns success/failure status
-
-Private Function UploadCostData() As Boolean
+Public Sub Diag_DatabaseConnectionTest()
     On Error GoTo ErrHandler
-
-    Dim wsCost As Worksheet
-    Dim dataRange As Range
-    Dim lastDataRow As Long
-    Dim success As Boolean
-
-    ' Get the Cost_Unpivoted sheet
-    On Error Resume Next
-    Set wsCost = ThisWorkbook.Sheets(SHEET_COST_UNPIVOTED)
-    On Error GoTo ErrHandler
-
-    If wsCost Is Nothing Then
-        Debug.Print "ERROR: Cost_Unpivoted sheet not found"
-        UploadCostData = False
-        Exit Function
+    
+    Dim conn As ADODB.Connection
+    Dim startTime As Double
+    
+    startTime = Timer
+    
+    ' Attempt to get connection
+    Set conn = mod_Database.GetDBConnection()
+    
+    If conn Is Nothing Then
+        MsgBox "Connection FAILED: GetDBConnection returned Nothing", vbCritical
+        Exit Sub
     End If
-
-    ' Find the last row with data (check column A for pif_id)
-    lastDataRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
-
-    ' If no data rows (only header or empty), return success (nothing to upload)
-    If lastDataRow < 2 Then
-        Debug.Print "WARNING: Cost_Unpivoted sheet has no data rows"
-        UploadCostData = True  ' Not an error - just no costs to upload
-        Exit Function
-    End If
-
-    ' Define the data range from row 2 (first data row) to last row, columns A-H
-    Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastDataRow, 8))
-
-    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.Count
-
-    ' Upload the data
-    success = BulkInsertCosts(dataRange)
-
-    UploadCostData = success
-    Exit Function
-
+    
+    ' Basic connection test
+    Dim rs As ADODB.Recordset
+    Set rs = New ADODB.Recordset
+    rs.Open "SELECT GETDATE() AS CurrentTime", conn
+    
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+    
+    MsgBox "Database Connection Test:" & vbCrLf & _
+           "Status: Successful" & vbCrLf & _
+           "Current Server Time: " & rs.Fields("CurrentTime").Value & vbCrLf & _
+           "Connection Time: " & Format(elapsed, "0.00") & " seconds", _
+           vbInformation, "Connection Test"
+    
+    rs.Close
+    conn.Close
+    Exit Sub
+    
 ErrHandler:
-    Debug.Print "ERROR in UploadCostData: " & Err.Number & " - " & Err.Description
-    MsgBox "Failed to upload cost data:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, vbCritical
-    UploadCostData = False
-End Function
+    MsgBox "Connection Test Failed:" & vbCrLf & _
+           "Error " & Err.Number & ": " & Err.Description, _
+           vbCritical, "Connection Error"
+End Sub
 
-' ============================================================================
-' PART 2: CORRECTED BulkInsertCosts Function
-' ============================================================================
-' Purpose: Wrapper function to upload cost data from Cost_Unpivoted sheet
-' Calls: mod_Database.BulkInsertToStaging with proper parameters
-' Parameters:
-'   dataRange - Excel range containing cost data (columns A-H)
-'   tableName - Target database table (tbl_pif_cost_staging)
-' Returns: True if successful, False if failed
 
-Public Function BulkInsertCosts(ByVal dataRange As Range) As Boolean
+Public Sub Diag_TestStoredProcedureInsertion()
     On Error GoTo ErrHandler
-
-    Dim success As Boolean
-    Dim rowCount As Long
-
-    Debug.Print "=== BulkInsertCosts STARTED ==="
-    Debug.Print "Data range: " & dataRange.Address
-    Debug.Print "Rows: " & dataRange.Rows.Count
-
-    ' Validate the range
-    If dataRange.Rows.Count = 0 Then
-        Debug.Print "ERROR: Data range is empty"
-        BulkInsertCosts = True  ' Not an error - just nothing to insert
-        Exit Function
+    
+    Dim conn As ADODB.Connection
+    Dim testParams() As Variant
+    
+    ' Prepare connection
+    Set conn = mod_Database.GetDBConnection()
+    If conn Is Nothing Then
+        MsgBox "Failed to get database connection", vbCritical
+        Exit Sub
     End If
-
-    ' Call the bulk insert function from mod_Database
-    ' This handles:
-    '   - Database connection
-    '   - Transaction management
-    '   - Truncation of staging table
-    '   - Bulk insert of all rows
-    success = mod_Database.BulkInsertToStaging(dataRange, "tbl_pif_cost_staging", "dbo")
-
-    If Not success Then
-        Debug.Print "ERROR: BulkInsertToStaging returned False"
-        BulkInsertCosts = False
-        Exit Function
-    End If
-
-    Debug.Print "=== BulkInsertCosts COMPLETED SUCCESSFULLY ==="
-    BulkInsertCosts = True
-    Exit Function
-
-ErrHandler:
-    Debug.Print "ERROR in BulkInsertCosts: " & Err.Number & " - " & Err.Description
-    MsgBox "Failed to bulk insert cost data:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, vbCritical
-    BulkInsertCosts = False
-End Function
-
-' ============================================================================
-' PART 3: NEW Helper Function - GetSelectedSite (For reference)
-' ============================================================================
-' Purpose: Extract selected site for cost filtering during upload
-' Returns: Site code or empty string
-
-Private Function GetSelectedSiteForCosts() As String
-    On Error Resume Next
-
-    Dim selectedSite As String
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
-
-    If selectedSite = "" Then
-        GetSelectedSiteForCosts = ""
+    
+    ' Prepare test parameters - match the exact structure from BulkInsertToStaging
+    ReDim testParams(0 To 20)
+    testParams(0) = "ANO-2025-PIF-123"   ' pif_id
+    testParams(1) = "F1PPM58958"         ' project_id
+    testParams(2) = 4                    ' line_item
+    testParams(3) = "Risk"               ' status
+    testParams(4) = "REDUCE FUNDS"       ' change_type
+    testParams(5) = "Return to OPCO"     ' accounting_treatment
+    testParams(6) = "Unfunded Loaders"   ' category
+    testParams(7) = 3                    ' seg
+    testParams(8) = ""                   ' opco (NULL)
+    testParams(9) = "ANO"                ' site
+    testParams(10) = "Functional Specific" ' strategic_rank
+    testParams(11) = "F1PPM58958"        ' funding_project
+    testParams(12) = "AN2 Obsolete CPC System Replacement" ' project_name
+    testParams(13) = "2029-05-30"        ' original_fp_isd
+    testParams(14) = "2028-11-30"        ' revised_fp_isd
+    testParams(15) = "Y"                 ' moving_isd_year
+    testParams(16) = "ANO-04-0536"       ' lcm_issue
+    testParams(17) = "Estimate Classification Refinement" ' justification
+    testParams(18) = 361303.84           ' prior_year_spend
+    testParams(19) = 0                   ' archive_flag
+    testParams(20) = 1                   ' include_flag
+    
+    ' Execute stored procedure
+    Dim result As Boolean
+    result = mod_Database.ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+        "@pif_id", adVarChar, adParamInput, 16, testParams(0), _
+        "@project_id", adVarChar, adParamInput, 10, testParams(1), _
+        "@line_item", adInteger, adParamInput, 0, testParams(2), _
+        "@status", adVarChar, adParamInput, 58, testParams(3), _
+        "@change_type", adVarChar, adParamInput, 12, testParams(4), _
+        "@accounting_treatment", adVarChar, adParamInput, 14, testParams(5), _
+        "@category", adVarChar, adParamInput, 26, testParams(6), _
+        "@seg", adInteger, adParamInput, 0, testParams(7), _
+        "@opco", adVarChar, adParamInput, 4, testParams(8), _
+        "@site", adVarChar, adParamInput, 4, testParams(9), _
+        "@strategic_rank", adVarChar, adParamInput, 26, testParams(10), _
+        "@funding_project", adVarChar, adParamInput, 10, testParams(11), _
+        "@project_name", adVarChar, adParamInput, 35, testParams(12), _
+        "@original_fp_isd", adVarChar, adParamInput, 20, testParams(13), _
+        "@revised_fp_isd", adVarChar, adParamInput, 20, testParams(14), _
+        "@moving_isd_year", adChar, adParamInput, 1, testParams(15), _
+        "@lcm_issue", adVarChar, adParamInput, 20, testParams(16), _
+        "@justification", adVarChar, adParamInput, 192, testParams(17), _
+        "@prior_year_spend", adNumeric, adParamInput, 0, testParams(18), _
+        "@archive_flag", adTinyInt, adParamInput, 0, testParams(19), _
+        "@include_flag", adTinyInt, adParamInput, 0, testParams(20))
+    
+    If result Then
+        MsgBox "Test insertion successful!", vbInformation
     Else
-        GetSelectedSiteForCosts = selectedSite
+        MsgBox "Test insertion failed.", vbCritical
     End If
-End Function
-
-' ============================================================================
-' IMPORTANT NOTES
-' ============================================================================
-' 
-' 1. The Cost_Unpivoted sheet MUST have data in columns A-H:
-'    Column A: pif_id
-'    Column B: project_id
-'    Column C: line_item
-'    Column D: scenario
-'    Column E: year (as DATE format)
-'    Column F: requested_value
-'    Column G: current_value
-'    Column H: variance_value
-'
-' 2. The UnpivotCostData function MUST run before UploadCostData
-'    to populate the Cost_Unpivoted sheet
-'
-' 3. If UploadCostData returns False, check:
-'    - Is Cost_Unpivoted sheet visible? (It should be hidden but accessible)
-'    - Does it have data rows (row 2+)?
-'    - Is the database connection working?
-'    - Are tbl_pif_cost_staging permissions correct?
-'
-' 4. Testing: Use mod_CostDiagnostic.DiagnoseFullCostFlow() to trace the flow
-'
+    Exit Sub
+    
+ErrHandler:
+    MsgBox "Diagnostic test failed:" & vbCrLf & _
+           "Error: " & Err.Number & " - " & Err.Description, _
+           vbCritical
+End Sub
