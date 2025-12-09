@@ -738,6 +738,22 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         Exit Function
     End If
     Debug.Print "Database connection established"
+    If conn Is Nothing Then
+        Debug.Print "CRITICAL: Database connection is NULL!"
+        MsgBox "Failed to establish database connection. Check your connection settings.", vbCritical
+        BulkInsertToStaging = False
+        Exit Function
+    End If
+
+    If conn.State <> adStateOpen Then
+        Debug.Print "CRITICAL: Database connection is not open!"
+        MsgBox "Database connection is not open. Attempting to reconnect.", vbCritical
+        conn.Open  ' Try to reopen
+        If conn.State <> adStateOpen Then
+            BulkInsertToStaging = False
+            Exit Function
+        End If
+    End If
 
     ' Truncate staging table first
     Application.StatusBar = "Truncating " & tableName & "..."
@@ -764,84 +780,61 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
         If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
-                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
-                ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
-                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
-                params(13) = SafeString(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
-                params(14) = SafeString(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
-                params(15) = SafeString(wsData.Cells(actualRow, 40).Value) ' moving_isd_year (AN) - CHAR
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
-                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+    ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+    ' Use absolute column references with proper type conversion and formatting
+    params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+    params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+    params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+    params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+    params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+    params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+    params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+    params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+    params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+    params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+    params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+    params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+    params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+    params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (P) - VARCHAR
+    params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (Q) - VARCHAR
+    params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+    params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+    params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+    params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+    params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+    params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
-                Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
+    Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
 
-
-                Debug.Print " EXEC dbo.usp_insert_project_staging"
-                Debug.Print " @pif_id = "				params(0)
-                Debug.Print " @project_id = "           params(1)
-                Debug.Print " @line_item = "            params(2)
-                Debug.Print " @status = "               params(3)
-                Debug.Print " @change_type = "          params(4)
-                Debug.Print " @accounting_treatment = " params(5)
-                Debug.Print " @category = "             params(6)
-                Debug.Print " @seg = "                  params(7)
-                Debug.Print " @opco = "                 params(8)
-                Debug.Print " @site = "                 params(9)
-                Debug.Print " @strategic_rank = "       params(10)
-                Debug.Print " @funding_project = "      params(11)
-                Debug.Print " @project_name = "         params(12)
-                Debug.Print " @original_fp_isd = "      params(13)
-                Debug.Print " @revised_fp_isd = "       params(14)
-                Debug.Print " @moving_isd_year = "      params(15)
-                Debug.Print " @lcm_issue = "            params(16)
-                Debug.Print " @justification = "        params(17)
-                Debug.Print " @prior_year_spend = "     params(18)
-                Debug.Print " @archive_flag = "         params(19)
-                Debug.Print " @include_flag = "         params(20)
-
-
-                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
-                                            "@pif_id", adVarChar, adParamInput, 16, params(0), _
-                                            "@project_id", adVarChar, adParamInput, 10, params(1), _
-                                            "@line_item", adInteger, adParamInput, 0, params(2), _
-                                            "@status", adVarChar, adParamInput, 58, params(3), _
-                                            "@change_type", adVarChar, adParamInput, 12, params(4), _
-                                            "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
-                                            "@category", adVarChar, adParamInput, 26, params(6), _
-                                            "@seg", adInteger, adParamInput, 0, params(7), _
-                                            "@opco", adVarChar, adParamInput, 4, params(8), _
-                                            "@site", adVarChar, adParamInput, 4, params(9), _
-                                            "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
-                                            "@funding_project", adVarChar, adParamInput, 10, params(11), _
-                                            "@project_name", adVarChar, adParamInput, 35, params(12), _
-                                            "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
-                                            "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
-                                            "@moving_isd_year", adChar, adParamInput, 1, params(15), _
-                                            "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
-                                            "@justification", adVarChar, adParamInput, 192, params(17), _
-                                            "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
-                                            "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
-                                            "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
-                    Debug.Print "  ERROR: ExecuteStoredProcedureNonQuery returned False!"
-                    conn.RollbackTrans
-                    BulkInsertToStaging = False
-                    Exit Function
-                End If
+    If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+                                "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                                "@project_id", adVarChar, adParamInput, 10, params(1), _
+                                "@line_item", adInteger, adParamInput, 0, params(2), _
+                                "@status", adVarChar, adParamInput, 58, params(3), _
+                                "@change_type", adVarChar, adParamInput, 12, params(4), _
+                                "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+                                "@category", adVarChar, adParamInput, 26, params(6), _
+                                "@seg", adInteger, adParamInput, 0, params(7), _
+                                "@opco", adVarChar, adParamInput, 4, params(8), _
+                                "@site", adVarChar, adParamInput, 4, params(9), _
+                                "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+                                "@funding_project", adVarChar, adParamInput, 10, params(11), _
+                                "@project_name", adVarChar, adParamInput, 35, params(12), _
+                                "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+                                "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+                                "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+                                "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+                                "@justification", adVarChar, adParamInput, 192, params(17), _
+                                "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+                                "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+                                "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+        LogDetailedError "BulkInsertToStaging", actualRow, _
+        "Failed to insert project: PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
+        Debug.Print "  ERROR: ExecuteStoredProcedureNonQuery returned False!"
+        conn.RollbackTrans
+        BulkInsertToStaging = False
+        Exit Function
+    End If
                 Debug.Print "  Row inserted successfully"
             ElseIf tableName = "tbl_pif_cost_staging" Then
                 ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
@@ -1172,7 +1165,21 @@ End Function
 ' ============================================================================
 ' HELPER FUNCTIONS
 ' ============================================================================
+Private Sub LogDetailedError(ByVal procedureName As String, ByVal rowNumber As Long, ByVal errorMsg As String)
+    Debug.Print "ERROR in " & procedureName & " at row " & rowNumber & ": " & errorMsg
+    ' Optionally log to a file or error sheet if needed
+End Sub
 
+' Helper function to convert Excel date to ISO format
+Private Function FormatDateISO(ByVal dateValue As Variant) As Variant
+    If IsEmpty(dateValue) Or IsNull(dateValue) Or dateValue = "" Then
+        FormatDateISO = Null
+    ElseIf IsDate(dateValue) Then
+        FormatDateISO = Format(CDate(dateValue), "yyyy-mm-dd")
+    Else
+        FormatDateISO = Null
+    End If
+End Function
 ' ----------------------------------------------------------------------------
 ' Function: IsValidSQLIdentifier
 ' Purpose: Validate that a string is a safe SQL identifier (table/column name)

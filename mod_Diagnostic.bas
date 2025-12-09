@@ -240,3 +240,45 @@ Public Sub Diag_TestParameters()
 
     MsgBox msg, vbInformation, "Parameter Type Tests"
 End Sub
+
+
+
+Public Sub Diag_DatabaseConnectionTest()
+    On Error GoTo ErrHandler
+    
+    Dim conn As ADODB.Connection
+    Dim startTime As Double
+    
+    startTime = Timer
+    
+    ' Attempt to get connection
+    Set conn = mod_Database.GetDBConnection()
+    
+    If conn Is Nothing Then
+        MsgBox "Connection FAILED: GetDBConnection returned Nothing", vbCritical
+        Exit Sub
+    End If
+    
+    ' Basic connection test
+    Dim rs As ADODB.Recordset
+    Set rs = New ADODB.Recordset
+    rs.Open "SELECT GETDATE() AS CurrentTime", conn
+    
+    Dim elapsed As Double
+    elapsed = Timer - startTime
+    
+    MsgBox "Database Connection Test:" & vbCrLf & _
+           "Status: Successful" & vbCrLf & _
+           "Current Server Time: " & rs.Fields("CurrentTime").Value & vbCrLf & _
+           "Connection Time: " & Format(elapsed, "0.00") & " seconds", _
+           vbInformation, "Connection Test"
+    
+    rs.Close
+    conn.Close
+    Exit Sub
+    
+ErrHandler:
+    MsgBox "Connection Test Failed:" & vbCrLf & _
+           "Error " & Err.Number & ": " & Err.Description, _
+           vbCritical, "Connection Error"
+End Sub

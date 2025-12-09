@@ -626,11 +626,50 @@ Private Function UploadProjectData() As Boolean
 
 ErrHandler:
     Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
-    MsgBox "Failed to upload project data:" & vbCrLf & vbCrLf & _
-           "Error: " & Err.Number & " - " & Err.Description, _
-           vbCritical
+    MsgBox "Upload failed with error:" & vbCrLf & _
+           "Error Number: " & Err.Number & vbCrLf & _
+           "Description: " & Err.Description & vbCrLf & _
+           "Source: " & Err.Source, vbCritical, "Upload Error"
     UploadProjectData = False
 End Function
+
+' Private Function UploadProjectData() As Boolean
+'     On Error GoTo ErrHandler
+
+'     Dim wsData As Worksheet
+'     Dim dataRange As Range
+'     Dim lastDataRow As Long
+
+'     Debug.Print "=== UploadProjectData STARTED ==="
+
+'     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+
+'     ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
+'     lastDataRow = wsData.Cells(wsData.Rows.Count, "H").End(xlUp).Row
+'     Debug.Print "Last data row found: " & lastDataRow
+
+'     ' Ensure we don't include header rows or start before the actual data
+'     If lastDataRow < 4 Then lastDataRow = 3 ' If no data, set to just above data start
+
+'     ' Define the data range from row 4 (first data row) to the last data row, across relevant columns
+'     ' Assuming project data spans from column C to AO (41) - extended for line_item field
+'     Set dataRange = wsData.Range(wsData.Cells(4, "C"), wsData.Cells(lastDataRow, "AO"))
+'     Debug.Print "Data range defined: " & dataRange.Address & " (Rows: " & dataRange.Rows.Count & ")"
+
+'     Debug.Print "Calling BulkInsertProjects..."
+'     UploadProjectData = BulkInsertProjects(dataRange)
+'     Debug.Print "BulkInsertProjects returned: " & UploadProjectData
+
+'     Debug.Print "=== UploadProjectData COMPLETED ==="
+'     Exit Function
+
+' ErrHandler:
+'     Debug.Print "ERROR in UploadProjectData: " & Err.Number & " - " & Err.Description
+'     MsgBox "Failed to upload project data:" & vbCrLf & vbCrLf & _
+'            "Error: " & Err.Number & " - " & Err.Description, _
+'            vbCritical
+'     UploadProjectData = False
+' End Function
 
 ' ----------------------------------------------------------------------------
 ' Function: UploadCostData
