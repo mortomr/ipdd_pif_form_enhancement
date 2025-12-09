@@ -848,7 +848,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(12) = SafeString(wsData.Cells(actualRow, 15).Value, 35) ' project_name (now O column)
                 params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (now P column)
                 params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (now Q column)
-                params(15) = SafeString(wsData.Cells(actualRow, 39).Value, 1)  ' moving_isd_year (now AN column)
+                params(15) = SafeString(wsData.Cells(actualRow, 40).Value, 1)  ' moving_isd_year (now AN column)
                 params(16) = SafeString(wsData.Cells(actualRow, 18).Value, 20) ' lcm_issue (now R column)
                 params(17) = SafeString(wsData.Cells(actualRow, 21).Value, 192) ' justification (now U column)
                 params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value)    ' prior_year_spend (now AO column)
@@ -865,7 +865,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     params(15) = Left(CStr(params(15)), 1)
                 End If
                 Dim movingIsdYear As Variant
-                movingIsdYear = wsData.Cells(actualRow, 39).Value
+                movingIsdYear = wsData.Cells(actualRow, 40).Value
                 If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Then
                     params(15) = "N"  ' Default to "N"
                 Else
