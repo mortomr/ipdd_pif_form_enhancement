@@ -722,6 +722,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     Dim colCount As Integer
     Dim wsData As Worksheet
     Dim actualRow As Long
+    Dim errorDetailLog As String  ' New variable to capture detailed error info
 
     startTime = Timer
 
@@ -734,34 +735,20 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
     Set conn = GetDBConnection()
     If conn Is Nothing Then
         Debug.Print "ERROR: GetDBConnection returned Nothing!"
+        errorDetailLog = "Connection failed: GetDBConnection returned Nothing"
         BulkInsertToStaging = False
-        Exit Function
+        GoTo LogError
     End If
     Debug.Print "Database connection established"
-    If conn Is Nothing Then
-        Debug.Print "CRITICAL: Database connection is NULL!"
-        MsgBox "Failed to establish database connection. Check your connection settings.", vbCritical
-        BulkInsertToStaging = False
-        Exit Function
-    End If
-
-    If conn.State <> adStateOpen Then
-        Debug.Print "CRITICAL: Database connection is not open!"
-        MsgBox "Database connection is not open. Attempting to reconnect.", vbCritical
-        conn.Open  ' Try to reopen
-        If conn.State <> adStateOpen Then
-            BulkInsertToStaging = False
-            Exit Function
-        End If
-    End If
 
     ' Truncate staging table first
     Application.StatusBar = "Truncating " & tableName & "..."
     Debug.Print "Truncating " & tableName & "..."
     If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
         Debug.Print "ERROR: Failed to truncate table"
+        errorDetailLog = "Failed to truncate table: " & tableName
         BulkInsertToStaging = False
-        Exit Function
+        GoTo LogError
     End If
     Debug.Print "Table truncated successfully"
 
@@ -780,95 +767,69 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
         If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
             If tableName = "tbl_pif_projects_staging" Then
-    ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
-    ' Use absolute column references with proper type conversion and formatting
-    params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
-    params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
-    params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
-    params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
-    params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
-    params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
-    params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
-    params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
-    params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
-    params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
-    params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
-    params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
-    params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
-    params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (P) - VARCHAR
-    params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (Q) - VARCHAR
-    params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
-    params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
-    params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
-    params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
-    params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
-    params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+                ' Use absolute column references with proper type conversion (columns shifted +1 due to new line_item column)
+                params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+                params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+                params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value) ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value) ' revised_fp_isd (Q) - VARCHAR
+                params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+                params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
 
-    Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
+                Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
 
-    If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
-                                "@pif_id", adVarChar, adParamInput, 16, params(0), _
-                                "@project_id", adVarChar, adParamInput, 10, params(1), _
-                                "@line_item", adInteger, adParamInput, 0, params(2), _
-                                "@status", adVarChar, adParamInput, 58, params(3), _
-                                "@change_type", adVarChar, adParamInput, 12, params(4), _
-                                "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
-                                "@category", adVarChar, adParamInput, 26, params(6), _
-                                "@seg", adInteger, adParamInput, 0, params(7), _
-                                "@opco", adVarChar, adParamInput, 4, params(8), _
-                                "@site", adVarChar, adParamInput, 4, params(9), _
-                                "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
-                                "@funding_project", adVarChar, adParamInput, 10, params(11), _
-                                "@project_name", adVarChar, adParamInput, 35, params(12), _
-                                "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
-                                "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
-                                "@moving_isd_year", adChar, adParamInput, 1, params(15), _
-                                "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
-                                "@justification", adVarChar, adParamInput, 192, params(17), _
-                                "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
-                                "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
-                                "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
-        LogDetailedError "BulkInsertToStaging", actualRow, _
-        "Failed to insert project: PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
-        Debug.Print "  ERROR: ExecuteStoredProcedureNonQuery returned False!"
-        conn.RollbackTrans
-        BulkInsertToStaging = False
-        Exit Function
-    End If
-                Debug.Print "  Row inserted successfully"
-            ElseIf tableName = "tbl_pif_cost_staging" Then
-                ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
-                ' Cost_Unpivoted sheet has columns A-H with proper type conversion
-                params(0) = SafeString(wsData.Cells(actualRow, 1).Value)  ' pif_id (A) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 2).Value)  ' project_id (B) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 3).Value) ' line_item (C) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 4).Value)  ' scenario (D) - VARCHAR
-                params(4) = SafeDate(wsData.Cells(actualRow, 5).Value)    ' year (E) - DATE
-                params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' requested_value (F) - DECIMAL
-                params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' current_value (G) - DECIMAL
-                params(7) = SafeDecimal(wsData.Cells(actualRow, 8).Value) ' variance_value (H) - DECIMAL
-
-                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_cost_staging", _
-                                            "@pif_id", 200, 1, 16, params(0), _
-                                            "@project_id", 200, 1, 10, params(1), _
-                                            "@line_item", 3, 1, 0, params(2), _
-                                            "@scenario", 200, 1, 12, params(3), _
-                                            "@year", 7, 1, 0, params(4), _
-                                            "@requested_value", 131, 1, 0, params(5), _
-                                            "@current_value", 131, 1, 0, params(6), _
-                                            "@variance_value", 131, 1, 0, params(7)) Then
+                If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+                    "@pif_id", adVarChar, adParamInput, 16, params(0), _
+                    "@project_id", adVarChar, adParamInput, 10, params(1), _
+                    "@line_item", adInteger, adParamInput, 0, params(2), _
+                    "@status", adVarChar, adParamInput, 58, params(3), _
+                    "@change_type", adVarChar, adParamInput, 12, params(4), _
+                    "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+                    "@category", adVarChar, adParamInput, 26, params(6), _
+                    "@seg", adInteger, adParamInput, 0, params(7), _
+                    "@opco", adVarChar, adParamInput, 4, params(8), _
+                    "@site", adVarChar, adParamInput, 4, params(9), _
+                    "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+                    "@funding_project", adVarChar, adParamInput, 10, params(11), _
+                    "@project_name", adVarChar, adParamInput, 35, params(12), _
+                    "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+                    "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+                    "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+                    "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+                    "@justification", adVarChar, adParamInput, 192, params(17), _
+                    "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+                    "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+                    "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+                    
+                    Debug.Print "  ERROR: Failed to insert row " & actualRow
+                    
+                    ' Capture detailed error information
+                    errorDetailLog = "Failed to insert row " & actualRow & vbCrLf & _
+                                     "PIF ID: " & params(0) & vbCrLf & _
+                                     "Project ID: " & params(1) & vbCrLf & _
+                                     "Line Item: " & params(2)
+                    
                     conn.RollbackTrans
                     BulkInsertToStaging = False
-                    Exit Function
+                    GoTo LogError
                 End If
-            End If
-            
-            rowCount = rowCount + 1
 
-            ' Progress indicator every 100 rows
-            If rowCount Mod 100 = 0 Then
-                Application.StatusBar = "Uploaded " & rowCount & " rows to " & tableName & "..."
-                Debug.Print "Progress: " & rowCount & " rows uploaded"
+                rowCount = rowCount + 1
             End If
         Else
             Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
@@ -894,52 +855,260 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
     BulkInsertToStaging = True
     Exit Function
+
+LogError:
+    ' Enhanced error logging
+    Dim finalErrorMsg As String
+    finalErrorMsg = "Bulk insert failed:" & vbCrLf & _
+                    "Table: " & tableName & vbCrLf & _
+                    "Error Details: " & errorDetailLog
+
+    MsgBox finalErrorMsg, vbCritical, "Upload Error"
     
-ErrHandler:
-    Debug.Print "=== ERROR in BulkInsertToStaging ==="
-    Debug.Print "Error Number: " & Err.Number
-    Debug.Print "Error Description: " & Err.Description
-    Debug.Print "Table: " & tableName
-    Debug.Print "Rows processed before error: " & rowCount
-
-    Application.StatusBar = False
-    Application.ScreenUpdating = True
-
     If Not conn Is Nothing Then
         If conn.State = adStateOpen Then
             On Error Resume Next
-            Debug.Print "Rolling back transaction..."
             conn.RollbackTrans
-            On Error GoTo 0
             conn.Close
+            On Error GoTo 0
         End If
         Set conn = Nothing
     End If
 
-    ' Enhanced error message with diagnostic information
-    Dim errMsg As String
-    errMsg = "Bulk insert failed:" & vbCrLf & vbCrLf & _
-             "Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
-             "Table: " & tableName & vbCrLf & _
-             "Rows processed: " & rowCount & vbCrLf & vbCrLf
-
-    ' Add specific guidance for common errors
-    If Err.Number = -2147217900 Or InStr(1, Err.Description, "Could not find stored procedure", vbTextCompare) > 0 Then
-        errMsg = errMsg & "LIKELY CAUSE: Missing stored procedures" & vbCrLf & _
-                         "ACTION: Run PIF_Database_DDL.sql to create required stored procedures" & vbCrLf & _
-                         "See VERIFY_STORED_PROC.sql to check if procedures exist"
-    ElseIf Err.Number = -2147467259 Or InStr(1, Err.Description, "Login failed", vbTextCompare) > 0 Or _
-           InStr(1, Err.Description, "connect", vbTextCompare) > 0 Then
-        errMsg = errMsg & "LIKELY CAUSE: Database connection failure" & vbCrLf & _
-                         "ACTION: Check database connection settings in mod_Database.bas" & vbCrLf & _
-                         "Server: " & SQL_SERVER & vbCrLf & _
-                         "Database: " & SQL_DATABASE
-    End If
-
-    MsgBox errMsg, vbCritical, "Upload Error"
-
     BulkInsertToStaging = False
 End Function
+
+' Public Function BulkInsertToStaging(ByVal dataRange As Range, _
+'                                     ByVal tableName As String, _
+'                                     Optional ByVal schemaName As String = "dbo") As Boolean
+'     On Error GoTo ErrHandler
+
+'     Dim conn As ADODB.Connection
+'     Dim i As Long, j As Long
+'     Dim rowCount As Long
+'     Dim startTime As Double
+'     Dim params() As Variant
+'     Dim colCount As Integer
+'     Dim wsData As Worksheet
+'     Dim actualRow As Long
+
+'     startTime = Timer
+
+'     Debug.Print "=== BulkInsertToStaging STARTED for " & tableName & " ==="
+'     Debug.Print "Data range rows: " & dataRange.Rows.Count
+
+'     ' Get the worksheet reference for absolute column access
+'     Set wsData = dataRange.Worksheet
+
+'     Set conn = GetDBConnection()
+'     If conn Is Nothing Then
+'         Debug.Print "ERROR: GetDBConnection returned Nothing!"
+'         BulkInsertToStaging = False
+'         Exit Function
+'     End If
+'     Debug.Print "Database connection established"
+'     If conn Is Nothing Then
+'         Debug.Print "CRITICAL: Database connection is NULL!"
+'         MsgBox "Failed to establish database connection. Check your connection settings.", vbCritical
+'         BulkInsertToStaging = False
+'         Exit Function
+'     End If
+
+'     If conn.State <> adStateOpen Then
+'         Debug.Print "CRITICAL: Database connection is not open!"
+'         MsgBox "Database connection is not open. Attempting to reconnect.", vbCritical
+'         conn.Open  ' Try to reopen
+'         If conn.State <> adStateOpen Then
+'             BulkInsertToStaging = False
+'             Exit Function
+'         End If
+'     End If
+
+'     ' Truncate staging table first
+'     Application.StatusBar = "Truncating " & tableName & "..."
+'     Debug.Print "Truncating " & tableName & "..."
+'     If Not ExecuteSQLSecure(conn, "TRUNCATE TABLE " & schemaName & "." & tableName) Then
+'         Debug.Print "ERROR: Failed to truncate table"
+'         BulkInsertToStaging = False
+'         Exit Function
+'     End If
+'     Debug.Print "Table truncated successfully"
+
+'     ' Loop through Excel range and add records
+'     Application.StatusBar = "Uploading to " & tableName & "..."
+'     Application.ScreenUpdating = False
+'     rowCount = 0
+
+'     conn.BeginTrans
+'     Debug.Print "Transaction started"
+
+'     For i = 1 To dataRange.Rows.Count
+'         ' Calculate actual worksheet row
+'         actualRow = dataRange.Row + i - 1
+
+'         ' Check if row has data (skip empty rows) - use PIF_ID column (H=8)
+'         If Not IsEmpty(wsData.Cells(actualRow, 8).Value) Then
+'             If tableName = "tbl_pif_projects_staging" Then
+'     ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+'     ' Use absolute column references with proper type conversion and formatting
+'     params(0) = SafeString(wsData.Cells(actualRow, 8).Value)   ' pif_id (H) - VARCHAR
+'     params(1) = SafeString(wsData.Cells(actualRow, 14).Value)  ' project_id (N) - VARCHAR
+'     params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)  ' line_item (G) - INT (NEW)
+'     params(3) = SafeString(wsData.Cells(actualRow, 19).Value)  ' status (S) - VARCHAR
+'     params(4) = SafeString(wsData.Cells(actualRow, 6).Value)   ' change_type (F) - VARCHAR
+'     params(5) = SafeString(wsData.Cells(actualRow, 5).Value)   ' accounting_treatment (E) - VARCHAR
+'     params(6) = SafeString(wsData.Cells(actualRow, 20).Value)  ' category (T) - VARCHAR
+'     params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)  ' seg (I) - INT
+'     params(8) = SafeString(wsData.Cells(actualRow, 10).Value)  ' opco (J) - VARCHAR
+'     params(9) = SafeString(wsData.Cells(actualRow, 11).Value)  ' site (K) - VARCHAR
+'     params(10) = SafeString(wsData.Cells(actualRow, 12).Value) ' strategic_rank (L) - VARCHAR
+'     params(11) = SafeString(wsData.Cells(actualRow, 14).Value) ' funding_project (N) - VARCHAR
+'     params(12) = SafeString(wsData.Cells(actualRow, 15).Value) ' project_name (O) - VARCHAR
+'     params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (P) - VARCHAR
+'     params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (Q) - VARCHAR
+'     params(15) = SafeString(wsData.Cells(actualRow, 39).Value) ' moving_isd_year (AN) - CHAR
+'     params(16) = SafeString(wsData.Cells(actualRow, 18).Value) ' lcm_issue (R) - VARCHAR
+'     params(17) = SafeString(wsData.Cells(actualRow, 21).Value) ' justification (U) - VARCHAR
+'     params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value) ' prior_year_spend (AO) - DECIMAL
+'     params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)  ' archive_flag (C) - BIT
+'     params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)  ' include_flag (D) - BIT
+
+'     Debug.Print "  Calling stored procedure with params: pif_id=" & params(0) & ", project_id=" & params(1) & ", line_item=" & params(2)
+
+'     If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
+'                                 "@pif_id", adVarChar, adParamInput, 16, params(0), _
+'                                 "@project_id", adVarChar, adParamInput, 10, params(1), _
+'                                 "@line_item", adInteger, adParamInput, 0, params(2), _
+'                                 "@status", adVarChar, adParamInput, 58, params(3), _
+'                                 "@change_type", adVarChar, adParamInput, 12, params(4), _
+'                                 "@accounting_treatment", adVarChar, adParamInput, 14, params(5), _
+'                                 "@category", adVarChar, adParamInput, 26, params(6), _
+'                                 "@seg", adInteger, adParamInput, 0, params(7), _
+'                                 "@opco", adVarChar, adParamInput, 4, params(8), _
+'                                 "@site", adVarChar, adParamInput, 4, params(9), _
+'                                 "@strategic_rank", adVarChar, adParamInput, 26, params(10), _
+'                                 "@funding_project", adVarChar, adParamInput, 10, params(11), _
+'                                 "@project_name", adVarChar, adParamInput, 35, params(12), _
+'                                 "@original_fp_isd", adVarChar, adParamInput, 20, params(13), _
+'                                 "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
+'                                 "@moving_isd_year", adChar, adParamInput, 1, params(15), _
+'                                 "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
+'                                 "@justification", adVarChar, adParamInput, 192, params(17), _
+'                                 "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
+'                                 "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
+'                                 "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+'         LogDetailedError "BulkInsertToStaging", actualRow, _
+'         "Failed to insert project: PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
+'         Debug.Print "  ERROR: ExecuteStoredProcedureNonQuery returned False!"
+'         conn.RollbackTrans
+'         BulkInsertToStaging = False
+'         Exit Function
+'     End If
+'                 Debug.Print "  Row inserted successfully"
+'             ElseIf tableName = "tbl_pif_cost_staging" Then
+'                 ReDim params(0 To 7) ' 8 parameters for usp_insert_cost_staging (added line_item)
+'                 ' Cost_Unpivoted sheet has columns A-H with proper type conversion
+'                 params(0) = SafeString(wsData.Cells(actualRow, 1).Value)  ' pif_id (A) - VARCHAR
+'                 params(1) = SafeString(wsData.Cells(actualRow, 2).Value)  ' project_id (B) - VARCHAR
+'                 params(2) = SafeInteger(wsData.Cells(actualRow, 3).Value) ' line_item (C) - INT (NEW)
+'                 params(3) = SafeString(wsData.Cells(actualRow, 4).Value)  ' scenario (D) - VARCHAR
+'                 params(4) = SafeDate(wsData.Cells(actualRow, 5).Value)    ' year (E) - DATE
+'                 params(5) = SafeDecimal(wsData.Cells(actualRow, 6).Value) ' requested_value (F) - DECIMAL
+'                 params(6) = SafeDecimal(wsData.Cells(actualRow, 7).Value) ' current_value (G) - DECIMAL
+'                 params(7) = SafeDecimal(wsData.Cells(actualRow, 8).Value) ' variance_value (H) - DECIMAL
+
+'                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_cost_staging", _
+'                                             "@pif_id", 200, 1, 16, params(0), _
+'                                             "@project_id", 200, 1, 10, params(1), _
+'                                             "@line_item", 3, 1, 0, params(2), _
+'                                             "@scenario", 200, 1, 12, params(3), _
+'                                             "@year", 7, 1, 0, params(4), _
+'                                             "@requested_value", 131, 1, 0, params(5), _
+'                                             "@current_value", 131, 1, 0, params(6), _
+'                                             "@variance_value", 131, 1, 0, params(7)) Then
+'                     conn.RollbackTrans
+'                     BulkInsertToStaging = False
+'                     Exit Function
+'                 End If
+'             End If
+            
+'             rowCount = rowCount + 1
+
+'             ' Progress indicator every 100 rows
+'             If rowCount Mod 100 = 0 Then
+'                 Application.StatusBar = "Uploaded " & rowCount & " rows to " & tableName & "..."
+'                 Debug.Print "Progress: " & rowCount & " rows uploaded"
+'             End If
+'         Else
+'             Debug.Print "Skipping row " & actualRow & " (PIF_ID is empty)"
+'         End If
+'     Next i
+
+'     Debug.Print "Loop completed. Total rows processed: " & rowCount
+'     Debug.Print "Committing transaction..."
+'     conn.CommitTrans
+'     Debug.Print "Transaction committed"
+
+'     conn.Close
+'     Set conn = Nothing
+
+'     Application.StatusBar = False
+'     Application.ScreenUpdating = True
+
+'     Dim elapsed As Double
+'     elapsed = Timer - startTime
+
+'     Debug.Print "Successfully uploaded " & rowCount & " rows to " & tableName & " in " & Format(elapsed, "0.0") & " seconds"
+'     Debug.Print "=== BulkInsertToStaging COMPLETED SUCCESSFULLY ==="
+
+'     BulkInsertToStaging = True
+'     Exit Function
+    
+' ErrHandler:
+'     Debug.Print "=== ERROR in BulkInsertToStaging ==="
+'     Debug.Print "Error Number: " & Err.Number
+'     Debug.Print "Error Description: " & Err.Description
+'     Debug.Print "Table: " & tableName
+'     Debug.Print "Rows processed before error: " & rowCount
+
+'     Application.StatusBar = False
+'     Application.ScreenUpdating = True
+
+'     If Not conn Is Nothing Then
+'         If conn.State = adStateOpen Then
+'             On Error Resume Next
+'             Debug.Print "Rolling back transaction..."
+'             conn.RollbackTrans
+'             On Error GoTo 0
+'             conn.Close
+'         End If
+'         Set conn = Nothing
+'     End If
+
+'     ' Enhanced error message with diagnostic information
+'     Dim errMsg As String
+'     errMsg = "Bulk insert failed:" & vbCrLf & vbCrLf & _
+'              "Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
+'              "Table: " & tableName & vbCrLf & _
+'              "Rows processed: " & rowCount & vbCrLf & vbCrLf
+
+'     ' Add specific guidance for common errors
+'     If Err.Number = -2147217900 Or InStr(1, Err.Description, "Could not find stored procedure", vbTextCompare) > 0 Then
+'         errMsg = errMsg & "LIKELY CAUSE: Missing stored procedures" & vbCrLf & _
+'                          "ACTION: Run PIF_Database_DDL.sql to create required stored procedures" & vbCrLf & _
+'                          "See VERIFY_STORED_PROC.sql to check if procedures exist"
+'     ElseIf Err.Number = -2147467259 Or InStr(1, Err.Description, "Login failed", vbTextCompare) > 0 Or _
+'            InStr(1, Err.Description, "connect", vbTextCompare) > 0 Then
+'         errMsg = errMsg & "LIKELY CAUSE: Database connection failure" & vbCrLf & _
+'                          "ACTION: Check database connection settings in mod_Database.bas" & vbCrLf & _
+'                          "Server: " & SQL_SERVER & vbCrLf & _
+'                          "Database: " & SQL_DATABASE
+'     End If
+
+'     MsgBox errMsg, vbCritical, "Upload Error"
+
+'     BulkInsertToStaging = False
+' End Function
 
 ' ============================================================================
 ' WRAPPER FUNCTIONS FOR SUBMIT MODULE
