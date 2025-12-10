@@ -106,7 +106,7 @@ Public Sub SaveSnapshot()
     End If
 
     Application.StatusBar = "Uploading cost data to staging..."
-    If Not UploadCostData() Then
+    If Not UploadCostDataCORRECTED() Then
         MsgBox "Failed to upload cost data to staging." & vbCrLf & vbCrLf & _
                "Please check database connection and try again.", _
                vbExclamation, "Save Snapshot Failed"
@@ -253,7 +253,7 @@ Public Sub FinalizeMonth()
     End If
 
     Application.StatusBar = "Uploading cost data to staging..."
-    If Not UploadCostData() Then
+    If Not UploadCostDataCORRECTED() Then
         MsgBox "Failed to upload cost data to staging." & vbCrLf & vbCrLf & _
                "Please check database connection and try again.", _
                vbExclamation, "Finalization Failed"
@@ -540,7 +540,7 @@ End Sub
 ' SOLUTION: Updated all cost column references to +1 offset
 ' ============================================================================
 
-Private Function UnpivotCostData() As Boolean
+Public Function UnpivotCostData() As Boolean
     On Error GoTo UnpivotCostData_Err
 
     Dim wsData As Worksheet
@@ -992,7 +992,7 @@ Private Function UploadCostDataCORRECTED() As Boolean
     End If
 
     ' Find the last row with data (check column A for pif_id)
-    lastDataRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+    lastDataRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).row
 
     ' If no data rows (only header or empty), return success (nothing to upload)
     If lastDataRow < 2 Then
@@ -1004,7 +1004,7 @@ Private Function UploadCostDataCORRECTED() As Boolean
     ' Define the data range from row 2 (first data row) to last row, columns A-H
     Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastDataRow, 8))
 
-    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.Count
+    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.count
 
     ' Upload the data using DEDICATED cost function
     ' Do NOT use BulkInsertToStaging (it's for projects only)
