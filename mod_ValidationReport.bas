@@ -162,9 +162,13 @@ End Sub
 
 ' ---------------------------------------------------------------------------
 ' Function: RunAllValidations
-' Purpose: Execute all validation checks and return 2D array of results
-' Params: selectedSite - the site being submitted
-' Returns: 2D array [RowNum, PIF_ID, Project_ID, LineItem, Field, Status, Message]
+' Purpose: Execute all validation checks for SELECTED SITE ONLY
+' Returns: 2D array of validation results
+' Params: selectedSite - the site being validated (ANO, GGN, RBS, WF3, HQN)
+' 
+' CRITICAL CHANGE: Duplicate validation now respects site filter
+' Only rows matching selectedSite are checked for duplicates
+' Rows from other sites are skipped entirely
 ' ---------------------------------------------------------------------------
 Public Function RunAllValidations(selectedSite As String) As Variant
     On Error GoTo ErrHandler
@@ -188,7 +192,8 @@ Public Function RunAllValidations(selectedSite As String) As Variant
     Set results = New Collection
     lastRow = wsPIF.Cells(wsPIF.Rows.count, COL_PIF_ID).End(xlUp).row
 
-    ' Track which PIF+Project+LineItem combinations we've seen (for duplicate detection)
+    ' Track which PIF+Project+LineItem combinations we've seen for SELECTED SITE ONLY
+    ' This collection is site-specific; other sites' data is ignored
     Dim seenCombos As Collection
     Set seenCombos = New Collection
 
@@ -210,9 +215,11 @@ Public Function RunAllValidations(selectedSite As String) As Variant
             GoTo NextRow
         End If
 
-        ' --- Validation checks for this row ---
+        ' -------------------------------------------------------------------
+        ' VALIDATION CHECKS FOR THIS ROW
+        ' -------------------------------------------------------------------
 
-        ' 1. PIF_ID is required and not empty
+        ' 1. PIF_ID is required
         ValidateRequired rowNum, pifID, "PIF_ID", results
 
         ' 2. Project_ID is required
@@ -226,8 +233,10 @@ Public Function RunAllValidations(selectedSite As String) As Variant
             lineItem = "1"
         End If
 
-        ' 5. Duplicate detection (PIF + Project + LineItem)
-        ValidateDuplicate rowNum, pifID, projectID, lineItem, seenCombos, results
+        ' 5. SITE-FILTERED DUPLICATE DETECTION (PIF + Project + LineItem)
+        '    Only checks rows from selectedSite; ignores other sites
+        '    Multiple LineItems for same PIF+Project are VALID
+        ValidateDuplicate rowNum, pifID, projectID, lineItem, site, selectedSite, seenCombos, results
 
         ' 6. Conditional validations based on Change Type
         ValidateChangeTypeRules rowNum, changeType, originalISD, revisedISD, results
@@ -236,46 +245,32 @@ Public Function RunAllValidations(selectedSite As String) As Variant
         ValidateCategoryRules rowNum, category, lcmIssue, results
 
         ' 8. Justification required if Archive_Flag is set
-'        Dim archiveFlag As String
-'        archiveFlag = Trim(wsPIF.Cells(rowNum, COL_ARCHIVE).value & "")
-'        If archiveFlag = "X" Or archiveFlag = "TRUE" Or archiveFlag = 1 Then
-'            ValidateRequired rowNum, justification, "Justification", results
-'        End If
+        Dim archiveFlag As String
+        archiveFlag = Trim(wsPIF.Cells(rowNum, COL_ARCHIVE).value & "")
+        If archiveFlag = "X" Or archiveFlag = "TRUE" Or archiveFlag = 1 Then
+            ValidateRequired rowNum, justification, "Justification", results
+        End If
 
-        ' 9. Date format validation
-        ValidateDateFormat rowNum, originalISD, "Original_ISD", results
-        If revisedISD <> "" Then
-            ValidateDateFormat rowNum, revisedISD, "Revised_ISD", results
+        ' 9. Status "Approved" requires justification
+        If UCase(status) = "APPROVED" And justification = "" Then
+            ValidateRequired rowNum, justification, "Justification", results
         End If
 
 NextRow:
     Next rowNum
 
-    ' Convert collection to 2D array for return
-    Dim resultArray() As Variant
-    If results.count > 0 Then
-        ReDim resultArray(1 To results.count, 1 To 7)
-        Dim i As Long
-        Dim item As Variant
-        For i = 1 To results.count
-            item = results(i)
-            resultArray(i, 1) = item(0) ' RowNum
-            resultArray(i, 2) = item(1) ' PIF_ID
-            resultArray(i, 3) = item(2) ' Project_ID
-            resultArray(i, 4) = item(3) ' LineItem
-            resultArray(i, 5) = item(4) ' Field
-            resultArray(i, 6) = item(5) ' Status
-            resultArray(i, 7) = item(6) ' Message
-        Next i
-    Else
-        ReDim resultArray(1 To 1, 1 To 7)
-    End If
+    ' Pass results array to caller
+    RunAllValidations = results
 
-    RunAllValidations = resultArray
     Exit Function
 
 ErrHandler:
-    MsgBox "Error in RunAllValidations: " & Err.Description, vbCritical
+    MsgBox "Validation error: " & vbCrLf & vbCrLf & _
+           "Error " & Err.Number & ": " & Err.Description & vbCrLf & vbCrLf & _
+           "Validation process halted.", _
+           vbCritical, "Validation Error"
+    Set results = Nothing
+    RunAllValidations = results
 End Function
 
 ' ============================================================================
@@ -314,24 +309,53 @@ End Sub
 
 ' ---------------------------------------------------------------------------
 ' Sub: ValidateDuplicate
-' Purpose: Detect duplicate PIF+Project+LineItem combinations
+' Purpose: Detect duplicate PIF+Project+LineItem combinations ONLY for selected site
+' 
+' Key Logic:
+' - Rows from DIFFERENT sites are skipped (don't validate cross-site)
+' - Only rows matching selectedSite are checked
+' - Multiple LineItems for same PIF+Project are VALID (they are transaction lines)
+' - Same PIF+Project+LineItem appearing twice in SAME site = FAIL
+' 
+' Example (All for ANO site):
+'   Row 4: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 4 → PASS (first occurrence)
+'   Row 5: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 5 → PASS (different LineItem)
+'   Row 6: PIF ANO-2025-PIF-038, Project F1PPM06169, LineItem 6 → PASS (different Project)
+'   Row 7: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 4 → FAIL (duplicate of row 4)
 ' ---------------------------------------------------------------------------
 Private Sub ValidateDuplicate(rowNum As Long, pifID As String, projectID As String, lineItem As String, _
+                             site As String, selectedSite As String, _
                              ByRef seenCombos As Collection, ByRef results As Collection)
+    
+    ' CRITICAL: Only validate rows that belong to the selected site
+    ' If site doesn't match, skip validation entirely (site filtered validation)
+    If UCase(site) <> UCase(selectedSite) Then
+        Exit Sub
+    End If
+    
+    ' Build composite key: PIF|Project|LineItem
+    ' This allows same PIF+Project to appear multiple times if LineItem differs
     Dim comboKey As String
     comboKey = pifID & "|" & projectID & "|" & lineItem
 
+    ' Check if we've already seen this PIF+Project+LineItem combo in THIS SITE
+    Dim keyExists As Boolean
+    keyExists = False
+    
     On Error Resume Next
     Dim dummy As Variant
     dummy = seenCombos(comboKey)
+    keyExists = (Err.Number = 0)
     On Error GoTo 0
 
-    If Err.Number = 0 Then ' Key already exists
+    If keyExists Then
+        ' This exact combo already exists in the selected site = FAIL
         AddValidationResult rowNum, pifID, projectID, lineItem, "Duplicate", VAL_FAIL, _
                            "Duplicate entry: PIF " & pifID & " + Project " & projectID & _
                            " + LineItem " & lineItem & " already submitted.", results
     Else
-        seenCombos.Add rowNum, comboKey ' Add to seen list
+        ' First time seeing this PIF+Project+LineItem combo in selected site = PASS
+        seenCombos.Add rowNum, comboKey
         AddValidationResult rowNum, pifID, projectID, lineItem, "Duplicate", VAL_PASS, "", results
     End If
 End Sub
