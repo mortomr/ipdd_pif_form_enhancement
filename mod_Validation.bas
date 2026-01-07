@@ -67,7 +67,18 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
 
     Set errors = New Collection
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
+
+    ' Create or get validation report sheet
+    On Error Resume Next
     Set wsReport = ThisWorkbook.Sheets(SHEET_VALIDATION_REPORT)
+    On Error GoTo ErrHandler
+
+    If wsReport Is Nothing Then
+        ' Create the sheet if it doesn't exist
+        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsReport.Name = SHEET_VALIDATION_REPORT
+    End If
+
     Set seenKeys = CreateObject("Scripting.Dictionary")
 
     ' Clear previous validation report
@@ -247,7 +258,19 @@ Public Function ValidateStagingData() As Boolean
     Dim wsReport As Worksheet
     Dim rowNum As Long
 
+    ' Create or get validation report sheet
+    On Error Resume Next
     Set wsReport = ThisWorkbook.Sheets(SHEET_VALIDATION_REPORT)
+    On Error GoTo ErrHandler
+
+    If wsReport Is Nothing Then
+        ' Create the sheet if it doesn't exist
+        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        wsReport.Name = SHEET_VALIDATION_REPORT
+    Else
+        ' Clear existing content
+        wsReport.Cells.Clear
+    End If
 
     Application.StatusBar = "Running SQL validation..."
 
