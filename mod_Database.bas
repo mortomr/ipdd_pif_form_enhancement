@@ -650,7 +650,9 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Next i
 
     ' Execute the command
+    On Error GoTo ExecError  ' Catch execution errors specifically
     dbCommand.Execute recordsAffected
+    On Error GoTo ErrHandler  ' Resume normal error handling
 
     ' Cleanup
     If closeConnectionAfter Then
@@ -664,6 +666,33 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     ExecuteStoredProcedureNonQuery = True
     Exit Function
 
+ExecError:
+    ' Capture execution errors with full ADO error details
+    Debug.Print "=== STORED PROCEDURE EXECUTION ERROR ==="
+    Debug.Print "Procedure: " & procedureName
+    Debug.Print "VBA Error: " & Err.Number & " - " & Err.Description
+
+    ' Print ALL ADO errors
+    If Not dbConnection Is Nothing Then
+        If dbConnection.Errors.Count > 0 Then
+            Debug.Print "ADO Error Collection (" & dbConnection.Errors.Count & " errors):"
+            Dim adoErr As ADODB.Error
+            Dim errIdx As Integer
+            errIdx = 1
+            For Each adoErr In dbConnection.Errors
+                Debug.Print "  Error " & errIdx & ":"
+                Debug.Print "    Number: " & adoErr.Number
+                Debug.Print "    Description: " & adoErr.Description
+                Debug.Print "    Source: " & adoErr.Source
+                Debug.Print "    SQLState: " & adoErr.SQLState
+                Debug.Print "    NativeError: " & adoErr.NativeError
+                errIdx = errIdx + 1
+            Next adoErr
+        End If
+    End If
+    Debug.Print "========================================"
+    GoTo ErrHandler  ' Continue to cleanup
+
 ErrHandler:
     ' Comprehensive error logging
     Dim finalErrorMsg As String
@@ -674,18 +703,6 @@ ErrHandler:
                     IIf(detailedErrorLog <> "", vbCrLf & "Parameter Details:" & vbCrLf & detailedErrorLog, "")
 
     Debug.Print finalErrorMsg
-
-    ' Additional error checking for ADO errors
-    If Not dbConnection Is Nothing Then
-        Dim adoErr As ADODB.Error
-        For Each adoErr In dbConnection.Errors
-            Debug.Print "ADO Error:"
-            Debug.Print "  Number: " & adoErr.Number
-            Debug.Print "  Description: " & adoErr.Description
-            Debug.Print "  Source: " & adoErr.Source
-            Debug.Print "  SQL State: " & adoErr.SQLState
-        Next adoErr
-    End If
 
     ' Cleanup
     If Not dbConnection Is Nothing Then
@@ -1242,21 +1259,35 @@ LogError:
 End Function
 
 Private Sub PrintParameterDetails(ByRef params() As Variant)
+    On Error Resume Next  ' Don't let debug printing crash the upload
     Dim i As Long
     Dim paramNames() As Variant
-    
+    Dim paramValue As String
+
     paramNames = Array("pif_id", "project_id", "line_item", "status", "change_type", _
                        "accounting_treatment", "category", "seg", "opco", "site", _
                        "strategic_rank", "funding_project", "project_name", _
                        "original_fp_isd", "revised_fp_isd", "moving_isd_year", _
                        "lcm_issue", "justification", "prior_year_spend", _
                        "archive_flag", "include_flag")
-    
+
     Debug.Print "PARAMETER DETAILS:"
     For i = 0 To UBound(params)
-        Debug.Print "  " & paramNames(i) & ": " & _
-                    IIf(IsNull(params(i)), "NULL", CStr(params(i)))
+        ' Safe conversion that won't crash on NULL
+        If IsNull(params(i)) Then
+            paramValue = "NULL"
+        ElseIf IsEmpty(params(i)) Then
+            paramValue = "EMPTY"
+        Else
+            paramValue = CStr(params(i))
+            If Len(paramValue) > 100 Then
+                paramValue = Left(paramValue, 97) & "..."
+            End If
+        End If
+
+        Debug.Print "  " & paramNames(i) & ": " & paramValue
     Next i
+    On Error GoTo 0
 End Sub
 
 ' Public Function BulkInsertToStaging(ByVal dataRange As Range, _
