@@ -534,6 +534,9 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     Dim totalParams As Long
     Dim detailedErrorLog As String
 
+    Debug.Print "=== ExecuteStoredProcedureNonQuery ENTRY ==="
+    Debug.Print "Procedure: " & procedureName
+
     ' Validate parameter count
     totalParams = UBound(params) - LBound(params) + 1
     If (totalParams Mod 5) <> 0 Then
@@ -562,12 +565,16 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
     dbCommand.CommandTimeout = 300  ' 5 minutes timeout
 
     ' Add parameters with extensive error checking
+    Debug.Print "Adding parameters (total groups: " & (totalParams / 5) & ")..."
     For i = LBound(params) To UBound(params) Step 5
         Dim paramName As String
         Dim paramType As ADODB.DataTypeEnum
         Dim paramDirection As ADODB.ParameterDirectionEnum
         Dim paramSize As Long
         Dim paramValue As Variant
+        Dim paramIdx As Integer
+
+        paramIdx = (i - LBound(params)) / 5 + 1
 
         ' Extract parameter details
         paramName = params(i)
@@ -576,14 +583,17 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         paramSize = params(i + 3)
         paramValue = params(i + 4)
 
-        ' Detailed parameter logging
-        Debug.Print "  Parameter Details:"
-        Debug.Print "    Name: " & paramName
-        Debug.Print "    Type: " & paramType
-        Debug.Print "    Direction: " & paramDirection
-        Debug.Print "    Size: " & paramSize
-        Debug.Print "    Value: " & IIf(IsNull(paramValue), "NULL", CStr(paramValue))
-        Debug.Print "    VarType: " & VarType(paramValue)
+        ' Detailed parameter logging (condensed)
+        On Error Resume Next
+        Dim valStr As String
+        If IsNull(paramValue) Then
+            valStr = "NULL"
+        Else
+            valStr = CStr(paramValue)
+            If Len(valStr) > 50 Then valStr = Left(valStr, 47) & "..."
+        End If
+        Debug.Print "  Param " & paramIdx & ": " & paramName & " = " & valStr & " (type=" & paramType & ", size=" & paramSize & ")"
+        On Error GoTo ErrHandler
 
         ' Create parameter
         ' Dim parameter As ADODB.Parameter
@@ -1168,8 +1178,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 
                 PrintParameterDetails params
 
-
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
+                Debug.Print "  Calling ExecuteStoredProcedureNonQuery..."
 
                 If Not ExecuteStoredProcedureNonQuery(conn, "usp_insert_project_staging", _
                     "@pif_id", adVarChar, adParamInput, 16, params(0), _
@@ -1259,10 +1269,10 @@ LogError:
 End Function
 
 Private Sub PrintParameterDetails(ByRef params() As Variant)
-    On Error Resume Next  ' Don't let debug printing crash the upload
     Dim i As Long
     Dim paramNames() As Variant
     Dim paramValue As String
+    Dim errCount As Long
 
     paramNames = Array("pif_id", "project_id", "line_item", "status", "change_type", _
                        "accounting_treatment", "category", "seg", "opco", "site", _
@@ -1271,13 +1281,18 @@ Private Sub PrintParameterDetails(ByRef params() As Variant)
                        "lcm_issue", "justification", "prior_year_spend", _
                        "archive_flag", "include_flag")
 
-    Debug.Print "PARAMETER DETAILS:"
+    Debug.Print "PARAMETER DETAILS (UBound=" & UBound(params) & ", LBound=" & LBound(params) & "):"
+
+    errCount = 0
     For i = 0 To UBound(params)
+        On Error Resume Next
         ' Safe conversion that won't crash on NULL
         If IsNull(params(i)) Then
             paramValue = "NULL"
         ElseIf IsEmpty(params(i)) Then
             paramValue = "EMPTY"
+        ElseIf IsError(params(i)) Then
+            paramValue = "ERROR"
         Else
             paramValue = CStr(params(i))
             If Len(paramValue) > 100 Then
@@ -1285,9 +1300,17 @@ Private Sub PrintParameterDetails(ByRef params() As Variant)
             End If
         End If
 
-        Debug.Print "  " & paramNames(i) & ": " & paramValue
+        If Err.Number <> 0 Then
+            Debug.Print "  " & paramNames(i) & ": [CONVERSION ERROR " & Err.Number & "]"
+            errCount = errCount + 1
+            Err.Clear
+        Else
+            Debug.Print "  " & paramNames(i) & ": " & paramValue
+        End If
+        On Error GoTo 0
     Next i
-    On Error GoTo 0
+
+    Debug.Print "PARAMETER DETAILS END (processed " & (UBound(params) + 1) & " params, " & errCount & " errors)"
 End Sub
 
 ' Public Function BulkInsertToStaging(ByVal dataRange As Range, _
