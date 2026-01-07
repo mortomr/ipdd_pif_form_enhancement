@@ -20,8 +20,8 @@ Option Explicit
 ' Sheet and table name constants
 Private Const SHEET_ARCHIVE As String = "PIF_Archive"
 Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
-Private Const TABLE_ARCHIVE As String = "ArchiveTable"
-Private Const TABLE_INFLIGHT As String = "InflightTable"
+Private Const TABLE_ARCHIVE As String = "tbl_PIF_Archive"
+Private Const TABLE_INFLIGHT As String = "tbl_PIF_Inflight"
 
 ' ============================================================================
 ' PUBLIC FUNCTIONS - TABLE REFRESH ONLY
@@ -172,7 +172,7 @@ Private Function RefreshExistingTable(ByVal sheetName As String, _
 
     ' Try to find and refresh QueryTable first (most common for data connections)
     refreshed = False
-    For i = 1 To ws.QueryTables.Count
+    For i = 1 To ws.QueryTables.count
         Set qt = ws.QueryTables(i)
         ' Refresh any QueryTable on this sheet
         qt.Refresh BackgroundQuery:=False
@@ -210,12 +210,12 @@ Private Function RefreshExistingTable(ByVal sheetName As String, _
     On Error Resume Next
     Set tbl = ws.ListObjects(tableName)
     If Not tbl Is Nothing Then
-        RefreshExistingTable = tbl.ListRows.Count
+        RefreshExistingTable = tbl.ListRows.count
     Else
         ' Fallback: count rows in QueryTable result range
-        For i = 1 To ws.QueryTables.Count
+        For i = 1 To ws.QueryTables.count
             If Not ws.QueryTables(i).ResultRange Is Nothing Then
-                RefreshExistingTable = ws.QueryTables(i).ResultRange.Rows.Count - 1 ' Subtract header
+                RefreshExistingTable = ws.QueryTables(i).ResultRange.Rows.count - 1 ' Subtract header
                 Exit For
             End If
         Next i
