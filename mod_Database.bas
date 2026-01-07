@@ -604,28 +604,38 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         Dim parameter As ADODB.Parameter
         On Error Resume Next
         Select Case paramType
-            Case adVarChar
-                ' Special handling for justification (VARCHAR(MAX))
-                If paramName = "@justification" Then
+            Case adVarChar, adChar
+                ' String parameters (VARCHAR and CHAR)
+                If IsNull(paramValue) Or IsEmpty(paramValue) Then
+                    ' NULL string - don't convert to string
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, Null)
+                ElseIf paramName = "@justification" Then
+                    ' Special handling for justification (VARCHAR(MAX))
                     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, -1, CStr(paramValue))
                 Else
                     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CStr(paramValue))
-                End If            
+                End If
             Case adInteger, adSmallInt, adTinyInt
                 ' Integer parameters
-                Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
+                If IsNull(paramValue) Or IsEmpty(paramValue) Then
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, Null)
+                Else
+                    Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, CLng(paramValue))
+                End If
             
             Case adDecimal, adNumeric
                 ' Decimal parameters with explicit precision and scale
                 Dim decValue As Variant
-                If IsNull(paramValue) Then
+                If IsNull(paramValue) Or IsEmpty(paramValue) Then
                     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, Null)
                 Else
                     decValue = CDec(paramValue)
                     Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, 18, decValue)
                 End If
-                parameter.Precision = 18
-                parameter.NumericScale = 2
+                If Not parameter Is Nothing Then
+                    parameter.Precision = 18
+                    parameter.NumericScale = 2
+                End If
 
             Case adBit
                 ' Bit (boolean) parameters
@@ -643,19 +653,35 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         ' Capture detailed error if parameter creation fails
         If Err.Number <> 0 Then
             detailedErrorLog = "Parameter Creation Error:" & vbCrLf & _
+                               "  Param Index: " & paramIdx & vbCrLf & _
                                "  Name: " & paramName & vbCrLf & _
                                "  Error: " & Err.Number & " - " & Err.Description & vbCrLf & _
                                "  Type: " & paramType & vbCrLf & _
-                               "  Value: " & IIf(IsNull(paramValue), "NULL", CStr(paramValue))
-            
+                               "  Value: " & IIf(IsNull(paramValue), "NULL", valStr)
+
             Debug.Print detailedErrorLog
             Err.Clear
             ExecuteStoredProcedureNonQuery = False
             GoTo ErrHandler
         End If
+
+        ' Check if parameter was actually created
+        If parameter Is Nothing Then
+            detailedErrorLog = "Parameter Creation Failed (Nothing):" & vbCrLf & _
+                               "  Param Index: " & paramIdx & vbCrLf & _
+                               "  Name: " & paramName & vbCrLf & _
+                               "  Type: " & paramType & vbCrLf & _
+                               "  Size: " & paramSize & vbCrLf & _
+                               "  Value: " & valStr
+            Debug.Print detailedErrorLog
+            ExecuteStoredProcedureNonQuery = False
+            GoTo ErrHandler
+        End If
+
         On Error GoTo ErrHandler
 
         ' Append parameter
+        Debug.Print "  Param " & paramIdx & " created successfully, appending..."
         dbCommand.Parameters.Append parameter
     Next i
 
