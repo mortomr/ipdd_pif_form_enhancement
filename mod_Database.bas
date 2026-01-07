@@ -2016,7 +2016,7 @@ Private Sub PrintDetailedRowData(ByVal wsData As Worksheet, ByVal actualRow As L
     Debug.Print "  Project Name: " & wsData.Cells(actualRow, 15).Value
     Debug.Print "  Original FP ISD: " & wsData.Cells(actualRow, 16).Value
     Debug.Print "  Revised FP ISD: " & wsData.Cells(actualRow, 17).Value
-    Debug.Print "  Moving ISD Year: " & wsData.Cells(actualRow, 39).Value
+    Debug.Print "  Moving ISD Year: " & wsData.Cells(actualRow, 40).Value
     Debug.Print "  LCM Issue: " & wsData.Cells(actualRow, 18).Value
     Debug.Print "  Justification: " & wsData.Cells(actualRow, 21).Value
     Debug.Print "  Prior Year Spend: " & wsData.Cells(actualRow, 41).Value
