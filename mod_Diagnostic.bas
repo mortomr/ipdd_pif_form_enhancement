@@ -341,7 +341,7 @@ Public Sub Diag_TestStoredProcedureInsertion()
         "@revised_fp_isd", adVarChar, adParamInput, 20, testParams(14), _
         "@moving_isd_year", adChar, adParamInput, 1, testParams(15), _
         "@lcm_issue", adVarChar, adParamInput, 20, testParams(16), _
-        "@justification", adVarChar, adParamInput, 192, testParams(17), _
+        "@justification", adVarChar, adParamInput, -1, testParams(17), _
         "@prior_year_spend", adNumeric, adParamInput, 0, testParams(18), _
         "@archive_flag", adTinyInt, adParamInput, 0, testParams(19), _
         "@include_flag", adTinyInt, adParamInput, 0, testParams(20))

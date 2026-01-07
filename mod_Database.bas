@@ -1172,7 +1172,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     "@revised_fp_isd", adVarChar, adParamInput, 20, params(14), _
                     "@moving_isd_year", adChar, adParamInput, 1, params(15), _
                     "@lcm_issue", adVarChar, adParamInput, 20, params(16), _
-                    "@justification", adVarChar, adParamInput, 192, params(17), _
+                    "@justification", adVarChar, adParamInput, -1, params(17), _
                     "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
                     "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
                     "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
