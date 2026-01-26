@@ -1133,7 +1133,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 End If
 
                 ' In BulkInsertToStaging function, modify parameter preparation
-                ReDim params(0 To 20) ' 21 parameters for usp_insert_project_staging (added line_item)
+                ReDim params(0 To 21) ' 21 parameters for usp_insert_project_staging (added line_item)
+                                        ' now 22 parameters - adding risk_level 1/26/26
 
                 ' Use absolute column references with proper type conversion and NULL handling
                 params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (H) - VARCHAR
@@ -1156,7 +1157,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ' Category handling
                 Dim category As Variant
-                category = SafeString(wsData.Cells(actualRow, 20).Value, 26)
+                category = SafeString(wsData.Cells(actualRow, 21).Value, 26)
                 If IsNull(category) Then
                     ' Skip rows with no category
                     Debug.Print "  SKIPPING row " & actualRow & " (No Category)"
@@ -1177,7 +1178,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ' Moving ISD Year handling
                 Dim movingIsdYear As Variant
-                movingIsdYear = wsData.Cells(actualRow, 40).Value
+                movingIsdYear = wsData.Cells(actualRow, 41).Value
                 If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Or movingIsdYear = 0 Then
                     params(15) = "N"  ' Default to "N"
                 Else
@@ -1188,7 +1189,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
                 ' Justification handling
                 Dim justification As Variant
-                justification = SafeString(wsData.Cells(actualRow, 21).Value, 192)
+                justification = SafeString(wsData.Cells(actualRow, 22).Value, 192)
                 If IsNull(justification) Then
                     ' Skip rows with no justification if archived or included
                     If SafeBoolean(wsData.Cells(actualRow, 3).Value) = 1 Or SafeBoolean(wsData.Cells(actualRow, 4).Value) = 1 Then
@@ -1198,10 +1199,11 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 End If
                 params(17) = justification
 
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 41).Value)    ' prior_year_spend (AO) - DECIMAL
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 42).Value)    ' prior_year_spend (AO) - DECIMAL
                 params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)     ' archive_flag (C) - BIT
                 params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)     ' include_flag (D) - BIT
-                
+                params(21) = SafeString(wsData.Cells(actualRow, 20).Value, 10)  ' risk_Level VARCHAR(10) added 1/26/26
+
                 PrintParameterDetails params
 
                 Debug.Print "  Attempting to insert row " & actualRow & ": PIF=" & params(0) & ", Project=" & params(1) & ", Line Item=" & params(2)
@@ -1228,7 +1230,8 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                     "@justification", adVarChar, adParamInput, -1, params(17), _
                     "@prior_year_spend", adNumeric, adParamInput, 0, params(18), _
                     "@archive_flag", adTinyInt, adParamInput, 0, params(19), _
-                    "@include_flag", adTinyInt, adParamInput, 0, params(20)) Then
+                    "@include_flag", adTinyInt, adParamInput, 0, params(20), _
+                    "@risk_level", adVarChar, adParamInput, 10, params(21)) Then
                     
                     Debug.Print "ERROR DETAILS FOR ROW " & actualRow & ":"
                     PrintDetailedRowData wsData, actualRow
