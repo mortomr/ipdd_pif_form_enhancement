@@ -89,12 +89,12 @@ Public Sub Edit_AddRow()
     ws.Rows(newRow).Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
 
     ' Copy formulas and formatting from source row (but not values)
-    ' Copy range: Columns A through BF (1 through 58)
+    ' Copy range: Columns A through BH (1 through 60)
     Dim sourceRange As Range
     Dim targetRange As Range
 
-    Set sourceRange = ws.Range(ws.Cells(sourceRow, 1), ws.Cells(sourceRow, 58))
-    Set targetRange = ws.Range(ws.Cells(newRow, 1), ws.Cells(newRow, 58))
+    Set sourceRange = ws.Range(ws.Cells(sourceRow, 1), ws.Cells(sourceRow, 60))
+    Set targetRange = ws.Range(ws.Cells(newRow, 1), ws.Cells(newRow, 60))
 
     ' Copy formulas (preserves formula structure)
     sourceRange.Copy
@@ -110,7 +110,7 @@ Public Sub Edit_AddRow()
     ' Clear columns C-T (3-20) - data entry columns
     ' Note: We don't clear calculated columns like variance columns
     Dim clearColumns As Variant
-    clearColumns = Array(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21)
+    clearColumns = Array(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
 
     Dim col As Variant
     For Each col In clearColumns
@@ -120,29 +120,29 @@ Public Sub Edit_AddRow()
         End If
     Next col
 
-    ' Clear Target Requested columns (V-AA, columns 22-27)
+    ' Clear Target Requested columns (V-AA, columns 22-27) now w-ab or 23-28
     Dim i As Integer
-    For i = 22 To 27
+    For i = 23 To 28
         If Not ws.Cells(newRow, i).HasFormula Then
             ws.Cells(newRow, i).ClearContents
         End If
     Next i
 
-    ' Clear Closings Requested columns (AP-AU, columns 42-47)
-    For i = 42 To 47
+    ' Clear Closings Requested columns (AP-AU, columns 42-47) now aq-av or 43/48
+    For i = 43 To 48
         If Not ws.Cells(newRow, i).HasFormula Then
             ws.Cells(newRow, i).ClearContents
         End If
     Next i
 
-    ' Clear Moving ISD Year (AN, column 40)
-    If Not ws.Cells(newRow, 40).HasFormula Then
-        ws.Cells(newRow, 40).ClearContents
-    End If
-
-    ' Clear Prior Year Spend (AO, column 41)
+    ' Clear Moving ISD Year (AN, column 40) now ao 41
     If Not ws.Cells(newRow, 41).HasFormula Then
         ws.Cells(newRow, 41).ClearContents
+    End If
+
+    ' Clear Prior Year Spend (AO, column 41) ap 42
+    If Not ws.Cells(newRow, 42).HasFormula Then
+        ws.Cells(newRow, 42).ClearContents
     End If
 
     ' Set default values for checkboxes (Archive and Include in columns C and D)

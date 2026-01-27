@@ -482,10 +482,11 @@ Public Function UnpivotCostData() As Boolean
                 outputArray(outputRow, 4) = "Target"
                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
                 
-                ' CORRECT MAPPINGS - Array index matches Excel column position directly
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 22 + i))  ' V-AA: cols 22-27 (array indices 22,23,24,25,26,27) Requested
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 28 + i))  ' AB-AG: cols 28-33 (array indices 28,29,30,31,32,33) Current
-                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 34 + i))  ' AH-AM: cols 34-39 (array indices 34,35,36,37,38,39) Variance
+                ' CORRECT MAPPINGS - Array index matches Excel column position directly - 
+                ' ***increment all +1 to add risk level 1/26/26***
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 23 + i))  ' V-AA: cols 22-27 (array indices 22,23,24,25,26,27) Requested
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 29 + i))  ' AB-AG: cols 28-33 (array indices 28,29,30,31,32,33) Current
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 35 + i))  ' AH-AM: cols 34-39 (array indices 34,35,36,37,38,39) Variance
                 
                 outputRow = outputRow + 1
             Next i
@@ -499,9 +500,10 @@ Public Function UnpivotCostData() As Boolean
                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
                 
                 ' CORRECT MAPPINGS - Array index matches Excel column position directly
-                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 42 + i))  ' AP-AU: cols 42-47 (array indices 42,43,44,45,46,47) Requested
-                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 48 + i))  ' AV-BA: cols 48-53 (array indices 48,49,50,51,52,53) Current
-                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 54 + i))  ' BB-BG: cols 54-59 (array indices 54,55,56,57,58,59) Variance
+                ' ***increment all +1 to add risk level 1/26/26***
+                outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 43 + i))  ' AP-AU: cols 42-47 (array indices 42,43,44,45,46,47) Requested
+                outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 49 + i))  ' AV-BA: cols 48-53 (array indices 48,49,50,51,52,53) Current
+                outputArray(outputRow, 8) = ConvertToNumeric(sourceData(dataRow, 55 + i))  ' BB-BG: cols 54-59 (array indices 54,55,56,57,58,59) Variance
                 
                 outputRow = outputRow + 1
             Next i
