@@ -17,3 +17,9 @@ UNION ALL
     SELECT COUNT(*) , '[tbl_pif_cost_approved]'
     FROM [tbl_pif_cost_approved]
 
+SELECT *
+FROM [tbl_pif_cost_inflight]
+SELECT *
+FROM [tbl_pif_cost_approved]
+SELECT *
+FROM [tbl_pif_projects_inflight]
