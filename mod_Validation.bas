@@ -1,4 +1,3 @@
-Attribute VB_Name = "mod_Validation"
 ' ============================================================================
 ' MODULE: mod_Validation (PERFORMANCE OPTIMIZED)
 ' ============================================================================
@@ -7,35 +6,36 @@ Attribute VB_Name = "mod_Validation"
 ' Date: 2025-11-13
 '
 ' PERFORMANCE: Array-based single-pass validation
-' SPEEDUP: 4 separate loops → 1 array-based pass (4x faster)
+' SPEEDUP: 4 separate loops â†’ 1 array-based pass (4x faster)
 ' ============================================================================
 
 Option Explicit
 
 ' Sheet name constants
-Private Const SHEET_DATA As String = "PIF"
+Private Const SHEET_DATA As String = "Target Adjustment"
 Private Const SHEET_VALIDATION_REPORT As String = "Validation_Report"
 
-' Column mappings (using shared constants)
-Private Const COL_ARCHIVE As Integer = 3            ' C
-Private Const COL_INCLUDE As Integer = 4            ' D
-Private Const COL_ACCOUNTING As Integer = 5         ' E
-Private Const COL_CHANGE_TYPE As Integer = 6        ' F
-Private Const COL_LINE_ITEM As Integer = 7          ' G (NEW - Line Item Number)
-Private Const COL_PIF_ID As Integer = 8             ' H
-Private Const COL_SEG As Integer = 9                ' I
-Private Const COL_OPCO As Integer = 10              ' J
-Private Const COL_SITE As Integer = 11              ' K
-Private Const COL_STRATEGIC_RANK As Integer = 12    ' L
-Private Const COL_FROM_BLANKET As Integer = 13      ' M
-Private Const COL_FUNDING_PROJECT As Integer = 14   ' N
-Private Const COL_PROJECT_NAME As Integer = 15      ' O
-Private Const COL_ORIGINAL_ISD As Integer = 16      ' P
-Private Const COL_REVISED_ISD As Integer = 17       ' Q
-Private Const COL_LCM_ISSUE As Integer = 18         ' R
-Private Const COL_STATUS As Integer = 19            ' S
-Private Const COL_CATEGORY As Integer = 20          ' T
-Private Const COL_JUSTIFICATION As Integer = 21     ' U
+' Column mappings (array indices - relative to column C start)
+Private Const COL_ARCHIVE As Integer = 1            ' Array col 1 = Excel C
+Private Const COL_INCLUDE As Integer = 2            ' Array col 2 = Excel D
+Private Const COL_ACCOUNTING As Integer = 3         ' Array col 3 = Excel E
+Private Const COL_CHANGE_TYPE As Integer = 4        ' Array col 4 = Excel F
+Private Const COL_LINE_ITEM As Integer = 5          ' Array col 5 = Excel G
+Private Const COL_PIF_ID As Integer = 6             ' Array col 6 = Excel H
+Private Const COL_SEG As Integer = 7                ' Array col 7 = Excel I
+Private Const COL_OPCO As Integer = 8               ' Array col 8 = Excel J
+Private Const COL_SITE As Integer = 9               ' Array col 9 = Excel K
+Private Const COL_STRATEGIC_RANK As Integer = 10    ' Array col 10 = Excel L
+Private Const COL_FROM_BLANKET As Integer = 11      ' Array col 11 = Excel M
+Private Const COL_FUNDING_PROJECT As Integer = 12   ' Array col 12 = Excel N
+Private Const COL_PROJECT_NAME As Integer = 13      ' Array col 13 = Excel O
+Private Const COL_ORIGINAL_ISD As Integer = 14      ' Array col 14 = Excel P
+Private Const COL_REVISED_ISD As Integer = 15       ' Array col 15 = Excel Q
+Private Const COL_LCM_ISSUE As Integer = 16         ' Array col 16 = Excel R
+Private Const COL_STATUS As Integer = 17            ' Array col 17 = Excel S
+Private Const COL_RISK_LEVEL As Integer = 18        ' Array col 18 = Excel T
+Private Const COL_BINNING As Integer = 19           ' Array col 19 = Excel U
+Private Const COL_JUSTIFICATION As Integer = 20     ' Array col 20 = Excel V
 
 ' ============================================================================
 ' PUBLIC FUNCTIONS
@@ -75,7 +75,7 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
 
     If wsReport Is Nothing Then
         ' Create the sheet if it doesn't exist
-        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
         wsReport.Name = SHEET_VALIDATION_REPORT
     End If
 
@@ -83,11 +83,11 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
 
     ' Clear previous validation report
     wsReport.Cells.Clear
-    wsReport.Range("A1").Value = "PIF Validation Report"
-    wsReport.Range("B1").Value = Format(Now, "yyyy-mm-dd hh:nn:ss")
-    wsReport.Range("A2").Value = "Row"
-    wsReport.Range("B2").Value = "Error Type"
-    wsReport.Range("C2").Value = "Error Description"
+    wsReport.Range("A1").value = "PIF Validation Report"
+    wsReport.Range("B1").value = Format(Now, "yyyy-mm-dd hh:nn:ss")
+    wsReport.Range("A2").value = "Row"
+    wsReport.Range("B2").value = "Error Type"
+    wsReport.Range("C2").value = "Error Description"
 
     ' Format headers
     With wsReport.Range("A1:C2")
@@ -98,8 +98,8 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
     Application.StatusBar = "Running validation..."
     Application.ScreenUpdating = False
 
-    ' Find last row
-    lastRow = wsData.Cells(wsData.Rows.Count, COL_PIF_ID).End(xlUp).Row
+    ' Find last row (Column H = PIF_ID)
+    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).row
     If lastRow < 4 Then
         ' No data to validate
         ValidateData = True
@@ -109,7 +109,7 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
     End If
 
     ' Read entire data range into array (ONE READ OPERATION - FAST!)
-    dataArray = wsData.Range(wsData.Cells(4, 1), wsData.Cells(lastRow, 21)).Value
+    dataArray = wsData.Range(wsData.Cells(4, 3), wsData.Cells(lastRow, 24)).value
 
     ' SINGLE-PASS VALIDATION (ALL RULES IN ONE LOOP - SUPER FAST!)
     Dim lineItem As Variant
@@ -203,17 +203,17 @@ NextRow:
     Next rowNum
 
     ' Write errors to report
-    If errors.Count > 0 Then
+    If errors.count > 0 Then
         Call WriteErrorsToReport(wsReport, errors)
 
-        MsgBox errors.Count & " validation error(s) found." & vbCrLf & vbCrLf & _
+        MsgBox errors.count & " validation error(s) found." & vbCrLf & vbCrLf & _
                "Please review the Validation_Report sheet and fix issues before submitting.", _
                vbExclamation, "Validation Failed"
 
         wsReport.Activate
         ValidateData = False
     Else
-        wsReport.Range("A4").Value = "No errors found - data is ready for submission!"
+        wsReport.Range("A4").value = "No errors found - data is ready for submission!"
         wsReport.Range("A4").Font.Color = RGB(0, 128, 0)
         wsReport.Range("A4").Font.Bold = True
 
@@ -265,7 +265,7 @@ Public Function ValidateStagingData() As Boolean
 
     If wsReport Is Nothing Then
         ' Create the sheet if it doesn't exist
-        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+        Set wsReport = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
         wsReport.Name = SHEET_VALIDATION_REPORT
     Else
         ' Clear existing content
@@ -283,7 +283,7 @@ Public Function ValidateStagingData() As Boolean
 
     If Not rs Is Nothing Then
         If Not rs.EOF Then
-            errorCount = rs.Fields("ErrorCount").Value
+            errorCount = rs.Fields("ErrorCount").value
             ' Note: WarningCount is available but not currently used
         End If
         rs.Close
@@ -297,15 +297,15 @@ Public Function ValidateStagingData() As Boolean
 
         ' Write SQL errors to validation report
         If Not rs Is Nothing Then
-            rowNum = wsReport.Cells(wsReport.Rows.Count, 1).End(xlUp).Row + 2
-            wsReport.Cells(rowNum, 1).Value = "SQL VALIDATION ERRORS:"
+            rowNum = wsReport.Cells(wsReport.Rows.count, 1).End(xlUp).row + 2
+            wsReport.Cells(rowNum, 1).value = "SQL VALIDATION ERRORS:"
             wsReport.Cells(rowNum, 1).Font.Bold = True
             rowNum = rowNum + 1
 
             Do While Not rs.EOF
-                wsReport.Cells(rowNum, 1).Value = rs.Fields("error_id").Value
-                wsReport.Cells(rowNum, 2).Value = rs.Fields("error_type").Value
-                wsReport.Cells(rowNum, 3).Value = rs.Fields("error_message").Value
+                wsReport.Cells(rowNum, 1).value = rs.Fields("error_id").value
+                wsReport.Cells(rowNum, 2).value = rs.Fields("error_type").value
+                wsReport.Cells(rowNum, 3).value = rs.Fields("error_message").value
                 rowNum = rowNum + 1
                 rs.MoveNext
             Loop
@@ -349,18 +349,18 @@ Private Sub WriteErrorsToReport(ByVal wsReport As Worksheet, ByRef errors As Col
 
     rowNum = 3  ' Start below headers
 
-    For i = 1 To errors.Count
+    For i = 1 To errors.count
         ' Error format: "Row X|ErrorType|ErrorDescription"
         errorParts = Split(errors(i), "|")
 
         If UBound(errorParts) >= 2 Then
-            wsReport.Cells(rowNum, 1).Value = errorParts(0)  ' Row number
-            wsReport.Cells(rowNum, 2).Value = errorParts(1)  ' Error type
-            wsReport.Cells(rowNum, 3).Value = errorParts(2)  ' Description
+            wsReport.Cells(rowNum, 1).value = errorParts(0)  ' Row number
+            wsReport.Cells(rowNum, 2).value = errorParts(1)  ' Error type
+            wsReport.Cells(rowNum, 3).value = errorParts(2)  ' Description
         Else
-            wsReport.Cells(rowNum, 1).Value = i
-            wsReport.Cells(rowNum, 2).Value = "Unknown"
-            wsReport.Cells(rowNum, 3).Value = errors(i)
+            wsReport.Cells(rowNum, 1).value = i
+            wsReport.Cells(rowNum, 2).value = "Unknown"
+            wsReport.Cells(rowNum, 3).value = errors(i)
         End If
 
         rowNum = rowNum + 1
@@ -370,3 +370,5 @@ Private Sub WriteErrorsToReport(ByVal wsReport As Worksheet, ByRef errors As Col
     wsReport.Columns("A:C").AutoFit
     wsReport.Range("A2:C" & rowNum - 1).AutoFilter
 End Sub
+
+

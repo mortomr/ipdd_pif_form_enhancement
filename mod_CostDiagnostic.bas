@@ -127,7 +127,7 @@ Private Function CountCostDataInPIF() As Long
     Dim j As Long
     Dim cellValue As Variant
     
-    Set wsData = ThisWorkbook.Sheets("PIF")
+    Set wsData = ThisWorkbook.sheets("Target Adjustment")
     lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
     
     ' Count non-empty cost cells in columns V-BG (columns 22-59)

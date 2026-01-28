@@ -32,140 +32,54 @@ Public Sub Edit_AddRow()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
+    Dim tbl As ListObject
     Dim lastDataRow As Long
     Dim newRow As Long
     Dim sourceRow As Long
 
     Application.ScreenUpdating = False
-
-    ' Get PIF worksheet
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
-
-    ' Find last row with data (look for PIF_ID in column G)
-    lastDataRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row  ' Column G = PIF_ID
-
-    ' Check if we're on a valid data area (should be row 4 or higher)
-    If lastDataRow < 4 Then
-        lastDataRow = 3  ' Start after header rows
-    End If
-
-    ' New row will be inserted after last data row
+    
+    ' Get the table object
+    Set tbl = ws.ListObjects(1)  ' Assumes first table on sheet
+    
+    ' Find last row with actual data (column G = Line Item)
+    lastDataRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
+    If lastDataRow < 4 Then lastDataRow = 3
+    
     newRow = lastDataRow + 1
     sourceRow = lastDataRow
 
-    ' If source row appears to be a totals/summary row (check for SUM/SUBTOTAL formulas),
-    ' use the row above it as the source
-    Dim cellFormula As String
-    Dim isTotalRow As Boolean
-    On Error Resume Next
-    cellFormula = UCase(ws.Cells(sourceRow, 21).Formula)  ' Column U (first cost column)
-    On Error GoTo ErrHandler
-
-    ' Check for total row indicators: SUM, SUBTOTAL, or AGGREGATE functions
-    isTotalRow = (InStr(1, cellFormula, "SUM(") > 0) Or _
-                 (InStr(1, cellFormula, "SUBTOTAL(") > 0) Or _
-                 (InStr(1, cellFormula, "AGGREGATE(") > 0)
-
-    ' Also check if PIF_ID column is empty (another indicator of total row)
-    If Trim(CStr(ws.Cells(sourceRow, 7).value)) = "" Then
-        isTotalRow = True
+    ' Step 1: Enter dummy value in first column to trigger table auto-expand
+    ws.Range("C" & newRow).value = ""  ' Archive column
+    
+    ' Step 2: Extend table range to include new row if not auto-expanded yet
+    If newRow > tbl.Range.Rows.count + tbl.Range.row - 1 Then
+        tbl.Resize tbl.Range.Offset(0, 0).Resize(newRow - tbl.Range.row + 1)
     End If
 
-    If isTotalRow Then
-        ' This is a totals row - insert ABOVE it and copy from row above
-        newRow = sourceRow
-        sourceRow = sourceRow - 1
+    ' Step 3: Copy formulas from source row
+    ws.Range("O" & sourceRow & ":BH" & sourceRow).Copy
+    ws.Range("O" & newRow).PasteSpecial xlPasteFormulas
+'    ws.Range("O" & sourceRow).Copy
+'    ws.Range("O" & newRow).PasteSpecial xlPasteFormulas
+    
+    ' Step 4: Copy/set static columns
+    ws.Range("C" & newRow).value = ws.Range("C" & sourceRow).value  ' Archive
+    ws.Range("D" & newRow).value = ws.Range("D" & sourceRow).value  ' Include
+    ws.Range("E" & newRow).value = ws.Range("E" & sourceRow).value  ' Accounting Treatment
+    ws.Range("F" & newRow).value = ws.Range("F" & sourceRow).value  ' Change Type
+    ws.Range("G" & newRow).Formula = "=ROW()-3"  ' Line Item
+    
+    ' Step 5: Clear user-entry columns
+    ws.Range("H" & newRow & ":N" & newRow).ClearContents
+    ' Skip around "O"
+    ws.Range("P" & newRow & ":V" & newRow).ClearContents
 
-        ' Make sure source row is valid
-        If sourceRow < 4 Then
-            MsgBox "Cannot add row - no valid data rows found to copy formatting from.", _
-                   vbExclamation, "Add Row Error"
-            Application.ScreenUpdating = True
-            Exit Sub
-        End If
-    End If
-
-    ' Insert new row
-    ws.Rows(newRow).Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
-
-    ' Copy formulas and formatting from source row (but not values)
-    ' Copy range: Columns A through BH (1 through 60)
-    Dim sourceRange As Range
-    Dim targetRange As Range
-
-    Set sourceRange = ws.Range(ws.Cells(sourceRow, 1), ws.Cells(sourceRow, 60))
-    Set targetRange = ws.Range(ws.Cells(newRow, 1), ws.Cells(newRow, 60))
-
-    ' Copy formulas (preserves formula structure)
-    sourceRange.Copy
-    targetRange.PasteSpecial Paste:=xlPasteFormulas
     Application.CutCopyMode = False
-
-    ' Copy formatting (preserves colors, borders, fonts)
-    sourceRange.Copy
-    targetRange.PasteSpecial Paste:=xlPasteFormats
-    Application.CutCopyMode = False
-
-    ' Clear data from input columns (leave formulas intact)
-    ' Clear columns C-T (3-20) - data entry columns
-    ' Note: We don't clear calculated columns like variance columns
-    Dim clearColumns As Variant
-    clearColumns = Array(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22)
-
-    Dim col As Variant
-    For Each col In clearColumns
-        ' Only clear if cell doesn't have a formula
-        If Not ws.Cells(newRow, col).HasFormula Then
-            ws.Cells(newRow, col).ClearContents
-        End If
-    Next col
-
-    ' Clear Target Requested columns (V-AA, columns 22-27) now w-ab or 23-28
-    Dim i As Integer
-    For i = 23 To 28
-        If Not ws.Cells(newRow, i).HasFormula Then
-            ws.Cells(newRow, i).ClearContents
-        End If
-    Next i
-
-    ' Clear Closings Requested columns (AP-AU, columns 42-47) now aq-av or 43/48
-    For i = 43 To 48
-        If Not ws.Cells(newRow, i).HasFormula Then
-            ws.Cells(newRow, i).ClearContents
-        End If
-    Next i
-
-    ' Clear Moving ISD Year (AN, column 40) now ao 41
-    If Not ws.Cells(newRow, 41).HasFormula Then
-        ws.Cells(newRow, 41).ClearContents
-    End If
-
-    ' Clear Prior Year Spend (AO, column 41) ap 42
-    If Not ws.Cells(newRow, 42).HasFormula Then
-        ws.Cells(newRow, 42).ClearContents
-    End If
-
-    ' Set default values for checkboxes (Archive and Include in columns C and D)
-    ws.Cells(newRow, 3).value = False  ' Archive checkbox
-    ws.Cells(newRow, 4).value = False  ' Include checkbox
-
-    ' Auto-populate site from Instructions sheet if available
-    On Error Resume Next
-    Dim selectedSite As String
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
-    If selectedSite <> "" And UCase(selectedSite) <> "FLEET" Then
-        ws.Cells(newRow, 11).value = selectedSite  ' Column K = Site
-    End If
-    On Error GoTo ErrHandler
-
-    ' Select the PIF ID cell (Column H) for user to start entering data
-    ws.Cells(newRow, 8).Select
-
     Application.ScreenUpdating = True
 
-    ' Success message (optional - remove if too intrusive)
-    ' MsgBox "New row added at row " & newRow & vbCrLf & vbCrLf & _
-    '        "Enter PIF ID to begin.", vbInformation, "Row Added"
+    MsgBox "Row " & newRow - 3 & " added. Fill in PIF ID and required fields.", vbInformation
 
     Exit Sub
 
@@ -175,6 +89,7 @@ ErrHandler:
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical, "Add Row Error"
 End Sub
+
 
 ' ----------------------------------------------------------------------------
 ' Sub: DeleteSelectedRows

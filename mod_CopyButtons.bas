@@ -83,7 +83,7 @@ Public Sub CopySiteViewPicture()
     Dim ws As Worksheet
     Dim pic As Shape
 
-    Set ws = ThisWorkbook.Worksheets("PIF")
+    Set ws = ThisWorkbook.Worksheets("Target Adjustment")
 
     ' Find the SiteView picture
     On Error Resume Next
@@ -146,7 +146,7 @@ Public Sub SetupCopyButtons()
     Dim leftPosition As Double
 
     Set wsInflight = ThisWorkbook.Worksheets("TA_Inflight")
-    Set wsPIF = ThisWorkbook.Worksheets("PIF")
+    Set wsPIF = ThisWorkbook.Worksheets("Target Adjustment")
 
     ' ===== TA_Inflight Worksheet Buttons =====
     ' Position buttons in upper right area (adjust as needed)
