@@ -114,7 +114,7 @@ Use the **[Finalize Month]** button:
 
 Two new worksheets show your data in familiar PIF format:
 
-### PIF_Inflight
+### TA_Inflight
 - Shows current working snapshot (in-progress data)
 - Filtered by your selected site
 - Read-only - refresh using [Refresh Inflight] button

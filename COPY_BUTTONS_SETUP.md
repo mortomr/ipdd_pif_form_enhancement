@@ -2,14 +2,14 @@
 
 ## Overview
 
-The copy buttons feature allows users to easily copy summary cost data from the hidden "Summary Cost Data" worksheet. Two buttons are added to each of the PIF_Inflight and PIF worksheets:
+The copy buttons feature allows users to easily copy summary cost data from the hidden "Summary Cost Data" worksheet. Two buttons are added to each of the TA_Inflight and PIF worksheets:
 
 - **Copy Picture Button** (Blue): Copies the linked image to clipboard
 - **Copy Data Button** (Green): Copies the underlying data range as values to clipboard
 
 ## Button Locations and Functionality
 
-### PIF_Inflight Worksheet
+### TA_Inflight Worksheet
 - **Copy Fleet View Picture**: Copies the "FleetView" linked picture ('Summary Cost Data'!A2:U8)
 - **Copy Fleet View Data**: Copies data range A2:U8 from Summary Cost Data as values
 
@@ -34,7 +34,7 @@ The copy buttons feature allows users to easily copy summary cost data from the 
 
 ### Step 3: Position the Buttons (Optional)
 The buttons are created at default positions (upper-right area). You can move them:
-1. Go to each worksheet (PIF_Inflight and PIF)
+1. Go to each worksheet (TA_Inflight and PIF)
 2. Click on a button to select it
 3. Drag it to your preferred location
 4. Repeat for all four buttons
@@ -44,18 +44,18 @@ The buttons are created at default positions (upper-right area). You can move th
 Before using the copy buttons, ensure:
 1. The "Summary Cost Data" worksheet exists and is properly configured
 2. Linked pictures are created on the target worksheets:
-   - **FleetView** picture on PIF_Inflight worksheet (linked to 'Summary Cost Data'!A2:U8)
+   - **FleetView** picture on TA_Inflight worksheet (linked to 'Summary Cost Data'!A2:U8)
    - **SiteView** picture on PIF worksheet (linked to 'Summary Cost Data'!A13:U15)
 
 ### Creating Linked Pictures (If Not Present)
 
 If the linked pictures don't exist yet:
 
-#### For PIF_Inflight (FleetView):
+#### For TA_Inflight (FleetView):
 1. Go to "Summary Cost Data" sheet
 2. Select range A2:U8
 3. Copy the range (Ctrl+C)
-4. Go to "PIF_Inflight" sheet
+4. Go to "TA_Inflight" sheet
 5. On the Home ribbon, click the dropdown under **Paste**
 6. Select **Linked Picture**
 7. Right-click the picture > **Edit Alt Text** > Set name to "FleetView"
@@ -93,7 +93,7 @@ If the linked pictures don't exist yet:
 1. Verify the picture exists on the worksheet
 2. Check the picture name:
    - Right-click picture > **Edit Alt Text** or use Selection Pane (Alt+F10)
-   - Should be "FleetView" for PIF_Inflight or "SiteView" for PIF
+   - Should be "FleetView" for TA_Inflight or "SiteView" for PIF
 3. If the name is different, either:
    - Rename the picture to match expected name, OR
    - Edit the constants in mod_CopyButtons.bas (lines 13-14)

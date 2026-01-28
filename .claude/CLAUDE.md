@@ -50,7 +50,7 @@ The system follows a staging → inflight → approved pattern:
   - Refreshes user-created tables with data connections (does NOT recreate tables)
   - Preserves all user formatting, filters, column widths, and customization
   - NO header text modifications or pane freezing
-  - User manually creates PIF_Archive and PIF_Inflight sheets with data connections
+  - User manually creates PIF_Archive and TA_Inflight sheets with data connections
   - Auto-refreshes Inflight table on workbook open
   - Public API: RefreshArchive(), RefreshInflight(), RefreshAll()
 
@@ -62,9 +62,9 @@ The system follows a staging → inflight → approved pattern:
   - Workflow: [Finalize Month] → [View Archive] → [Delete Archived Records] → Ready for next month
 
 - **mod_CopyButtons.bas**: Copy functionality for Summary Cost Data (USER INTERFACE HELPER)
-  - Provides copy buttons on PIF_Inflight and PIF worksheets
+  - Provides copy buttons on TA_Inflight and PIF worksheets
   - Two button types per worksheet: Copy Picture (linked image) and Copy Data (range values)
-  - Fleet View: Copies 'Summary Cost Data'!A2:U8 (PIF_Inflight worksheet)
+  - Fleet View: Copies 'Summary Cost Data'!A2:U8 (TA_Inflight worksheet)
   - Site View: Copies 'Summary Cost Data'!A13:U15 (PIF worksheet)
   - Public API: CopyFleetViewPicture(), CopyFleetViewData(), CopySiteViewPicture(), CopySiteViewData()
   - Setup utility: SetupCopyButtons() creates all buttons with one click
@@ -93,12 +93,12 @@ The system transforms wide-format Excel cost columns into a normalized structure
 **Objects Created:**
 - 6 tables (staging, inflight, approved for projects and costs)
 - 1 submission log table (`tbl_submission_log`)
-- 4 views (`vw_pif_current_working`, `vw_pif_all_history`, `vw_pif_inflight_wide`, `vw_pif_approved_wide`)
+- 4 views (`vw_pif_current_working`, `vw_pif_all_history`, `vw_TA_Inflight_wide`, `vw_pif_approved_wide`)
 - 1 validation stored procedure (`usp_validate_staging_data`)
 - 14 indexes for performance
 
 **Wide-Format Views:**
-- `vw_pif_inflight_wide` and `vw_pif_approved_wide` pivot cost data back to Excel-friendly format
+- `vw_TA_Inflight_wide` and `vw_pif_approved_wide` pivot cost data back to Excel-friendly format
 - These views power the fleet-wide Archive and Inflight Excel Tables
 - Column order matches original PIF input sheet for consistency
 

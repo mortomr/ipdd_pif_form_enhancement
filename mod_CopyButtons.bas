@@ -15,7 +15,7 @@ Private Const SITE_VIEW_RANGE As String = "'Summary Cost Data'!$A$13:$U$15"
 Private Const SUMMARY_SHEET_NAME As String = "Summary Cost Data"
 
 ' ===============================================================================
-' PUBLIC API - Fleet View (PIF_Inflight worksheet)
+' PUBLIC API - Fleet View (TA_Inflight worksheet)
 ' ===============================================================================
 
 Public Sub CopyFleetViewPicture()
@@ -25,7 +25,7 @@ Public Sub CopyFleetViewPicture()
     Dim ws As Worksheet
     Dim pic As Shape
 
-    Set ws = ThisWorkbook.Worksheets("PIF_Inflight")
+    Set ws = ThisWorkbook.Worksheets("TA_Inflight")
 
     ' Find the FleetView picture
     On Error Resume Next
@@ -33,7 +33,7 @@ Public Sub CopyFleetViewPicture()
     On Error GoTo ErrorHandler
 
     If pic Is Nothing Then
-        MsgBox "Could not find picture named '" & FLEET_VIEW_PICTURE_NAME & "' on PIF_Inflight sheet.", _
+        MsgBox "Could not find picture named '" & FLEET_VIEW_PICTURE_NAME & "' on TA_Inflight sheet.", _
                vbExclamation, "Picture Not Found"
         Exit Sub
     End If
@@ -135,7 +135,7 @@ End Sub
 ' ===============================================================================
 
 Public Sub SetupCopyButtons()
-    ' Creates the copy buttons on PIF_Inflight and PIF worksheets
+    ' Creates the copy buttons on TA_Inflight and PIF worksheets
     ' Run this macro once to set up the buttons
     On Error GoTo ErrorHandler
 
@@ -145,10 +145,10 @@ Public Sub SetupCopyButtons()
     Dim topPosition As Double
     Dim leftPosition As Double
 
-    Set wsInflight = ThisWorkbook.Worksheets("PIF_Inflight")
+    Set wsInflight = ThisWorkbook.Worksheets("TA_Inflight")
     Set wsPIF = ThisWorkbook.Worksheets("PIF")
 
-    ' ===== PIF_Inflight Worksheet Buttons =====
+    ' ===== TA_Inflight Worksheet Buttons =====
     ' Position buttons in upper right area (adjust as needed)
     leftPosition = 1000 ' Adjust based on your layout
     topPosition = 10
@@ -215,7 +215,7 @@ Public Sub SetupCopyButtons()
     End With
 
     MsgBox "Copy buttons have been created successfully!" & vbCrLf & vbCrLf & _
-           "PIF_Inflight sheet: Copy Fleet View Picture, Copy Fleet View Data" & vbCrLf & _
+           "TA_Inflight sheet: Copy Fleet View Picture, Copy Fleet View Data" & vbCrLf & _
            "PIF sheet: Copy Site View Picture, Copy Site View Data" & vbCrLf & vbCrLf & _
            "You can move these buttons to your preferred location.", _
            vbInformation, "Button Setup Complete"

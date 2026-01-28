@@ -19,7 +19,7 @@ Option Explicit
 
 ' Sheet and table name constants
 Private Const SHEET_ARCHIVE As String = "PIF_Archive"
-Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
+Private Const SHEET_INFLIGHT As String = "TA_Inflight"
 Private Const TABLE_ARCHIVE As String = "tbl_PIF_Archive"
 Private Const TABLE_INFLIGHT As String = "tbl_PIF_Inflight"
 

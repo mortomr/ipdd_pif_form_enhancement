@@ -10,7 +10,7 @@
 
 ### 1. Abandoned Database Connections (RESOLVED)
 
-**Issue**: PIF_Archive and PIF_Inflight worksheet refreshes left abandoned OLEDB connections in SQL Server.
+**Issue**: PIF_Archive and TA_Inflight worksheet refreshes left abandoned OLEDB connections in SQL Server.
 
 **Root Cause**:
 - `CreateOrRefreshQueryTable` function deleted QueryTables without closing their WorkbookConnections
@@ -46,7 +46,7 @@
 
 ### 2. QueryTable Refresh Functionality Fixed
 
-**Previous Issue**: The PIF_Archive and PIF_Inflight worksheets had non-functional native refresh capabilities (see QUERYTABLE_REFRESH_FIX_OPTIONS.md for details).
+**Previous Issue**: The PIF_Archive and TA_Inflight worksheets had non-functional native refresh capabilities (see QUERYTABLE_REFRESH_FIX_OPTIONS.md for details).
 
 **Solution Implemented**: Option 1 (QueryTable-Only Approach)
 - Uses QueryTable without ListObject conversion
@@ -98,7 +98,7 @@ The system exhibits two conflicting use cases:
 **The Disconnect**:
 - Fleet-optimized UI in a site-specific deployment **reduces utility**
 - Features designed for comparative analysis don't serve single-site users
-- PIF_Archive and PIF_Inflight sheets filter by site, but PIF_Data sheet has fleet-wide slicers
+- PIF_Archive and TA_Inflight sheets filter by site, but PIF_Data sheet has fleet-wide slicers
 
 **Current Limitations**:
 1. Site-specific users cannot see fleet data (security/intentional?)

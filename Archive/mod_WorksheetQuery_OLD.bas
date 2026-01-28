@@ -8,7 +8,7 @@ Attribute VB_Name = "mod_WorksheetQuery"
 '
 ' Features:
 '   - Populates PIF_Archive worksheet from vw_pif_approved_wide view
-'   - Populates PIF_Inflight worksheet from vw_pif_inflight_wide view
+'   - Populates TA_Inflight worksheet from vw_TA_Inflight_wide view
 '   - Filters by selected site (respects SelectedSite named range)
 '   - Displays data in original PIF table format for familiarity
 '   - Auto-refreshable with button click
@@ -17,8 +17,8 @@ Attribute VB_Name = "mod_WorksheetQuery"
 Option Explicit
 
 ' Sheet name constants
-Private Const SHEET_ARCHIVE As String = "PIF_Archive"
-Private Const SHEET_INFLIGHT As String = "PIF_Inflight"
+Private Const SHEET_ARCHIVE As String = TA_Archive
+Private Const SHEET_INFLIGHT As String = "TA_Inflight"
 
 ' ============================================================================
 ' PUBLIC FUNCTIONS - WORKSHEET CREATION AND REFRESH
@@ -142,7 +142,7 @@ Public Sub Nav_RefreshInflight()
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
 
     ' Build SQL query with site filter
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
+    sql = "SELECT * FROM dbo.vw_TA_Inflight_wide"
 
     ' Add site filter (Fleet sees all sites, others see only their site)
     If UCase(Trim(selectedSite)) <> "FLEET" Then
@@ -595,7 +595,7 @@ Private Sub RefreshInflightWorksheetSilent()
 
     Set ws = GetOrCreateWorksheet(SHEET_INFLIGHT, "Inflight (Read-Only)")
 
-    sql = "SELECT * FROM dbo.vw_pif_inflight_wide"
+    sql = "SELECT * FROM dbo.vw_TA_Inflight_wide"
     If UCase(Trim(selectedSite)) <> "FLEET" Then
         sql = sql & " WHERE UPPER(site) = '" & UCase(selectedSite) & "'"
     End If

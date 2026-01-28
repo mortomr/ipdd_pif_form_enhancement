@@ -15,7 +15,7 @@ Attribute VB_Name = "mod_DataEntry"
 Option Explicit
 
 ' Sheet name constant
-Private Const SHEET_DATA As String = "PIF"
+Private Const SHEET_DATA As String = "Target Adjustment"
 
 ' ============================================================================
 ' PUBLIC FUNCTIONS - USER INTERFACE BUTTONS

@@ -23,7 +23,7 @@ PRINT '';
 
 -- ----------------------------------------------------------------------------
 -- DROP VIEW: vw_inflight_by_site
--- Reason: Should be vw_pif_inflight_by_site for consistent grouping
+-- Reason: Should be vw_TA_Inflight_by_site for consistent grouping
 -- ----------------------------------------------------------------------------
 IF OBJECT_ID('dbo.vw_inflight_by_site', 'V') IS NOT NULL
 BEGIN
@@ -53,7 +53,7 @@ GO
 
 -- ----------------------------------------------------------------------------
 -- DROP VIEW: vw_inflight_wide
--- Reason: Should be vw_pif_inflight_wide for consistent grouping
+-- Reason: Should be vw_TA_Inflight_wide for consistent grouping
 -- ----------------------------------------------------------------------------
 IF OBJECT_ID('dbo.vw_inflight_wide', 'V') IS NOT NULL
 BEGIN
@@ -95,7 +95,7 @@ PRINT '  - vw_pif_approved_by_site';
 PRINT '  - vw_pif_approved_wide';
 PRINT '  - vw_pif_all_history';
 PRINT '  - vw_pif_current_working';
-PRINT '  - vw_pif_inflight_by_site';
-PRINT '  - vw_pif_inflight_wide';
+PRINT '  - vw_TA_Inflight_by_site';
+PRINT '  - vw_TA_Inflight_wide';
 PRINT '============================================================================';
 GO

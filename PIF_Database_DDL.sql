@@ -1120,13 +1120,13 @@ USE [IPDD];
 GO
 
 -- ============================================================================
--- VIEW 1: vw_pif_inflight_by_site
+-- VIEW 1: vw_TA_Inflight_by_site
 -- ============================================================================
-IF OBJECT_ID('dbo.vw_pif_inflight_by_site', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_pif_inflight_by_site;
+IF OBJECT_ID('dbo.vw_TA_Inflight_by_site', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_TA_Inflight_by_site;
 GO
 
-CREATE VIEW dbo.vw_pif_inflight_by_site
+CREATE VIEW dbo.vw_TA_Inflight_by_site
 AS
     SELECT
         p.pif_project_id,
@@ -1323,13 +1323,13 @@ AS
 GO
 
 -- ============================================================================
--- VIEW 5: vw_pif_inflight_wide (Cost Pivot)
+-- VIEW 5: vw_TA_Inflight_wide (Cost Pivot)
 -- ============================================================================
-IF OBJECT_ID('dbo.vw_pif_inflight_wide', 'V') IS NOT NULL
-    DROP VIEW dbo.vw_pif_inflight_wide;
+IF OBJECT_ID('dbo.vw_TA_Inflight_wide', 'V') IS NOT NULL
+    DROP VIEW dbo.vw_TA_Inflight_wide;
 GO
 
-CREATE VIEW dbo.vw_pif_inflight_wide
+CREATE VIEW dbo.vw_TA_Inflight_wide
 AS
     WITH
         cost_pivot

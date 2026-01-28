@@ -1,6 +1,6 @@
 # QueryTable Refresh Fix Options
 
-**Issue**: PIF_Archive and PIF_Inflight worksheets have broken native refresh functionality due to QueryTable/ListObject conflicts in `mod_WorksheetQuery.bas`.
+**Issue**: PIF_Archive and TA_Inflight worksheets have broken native refresh functionality due to QueryTable/ListObject conflicts in `mod_WorksheetQuery.bas`.
 
 **Affected Code**: `CreateOrRefreshQueryTable` function (lines 238-369)
 
