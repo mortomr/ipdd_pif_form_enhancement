@@ -1,3 +1,4 @@
+Attribute VB_Name = "mod_Validation"
 ' ============================================================================
 ' MODULE: mod_Validation (PERFORMANCE OPTIMIZED)
 ' ============================================================================
@@ -6,7 +7,7 @@
 ' Date: 2025-11-13
 '
 ' PERFORMANCE: Array-based single-pass validation
-' SPEEDUP: 4 separate loops â†’ 1 array-based pass (4x faster)
+' SPEEDUP: 4 separate loops → 1 array-based pass (4x faster)
 ' ============================================================================
 
 Option Explicit
@@ -99,7 +100,7 @@ Public Function ValidateData(Optional ByVal showSuccessMessage As Boolean = True
     Application.ScreenUpdating = False
 
     ' Find last row (Column H = PIF_ID)
-    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).row
+    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).Row
     If lastRow < 4 Then
         ' No data to validate
         ValidateData = True
@@ -297,7 +298,7 @@ Public Function ValidateStagingData() As Boolean
 
         ' Write SQL errors to validation report
         If Not rs Is Nothing Then
-            rowNum = wsReport.Cells(wsReport.Rows.count, 1).End(xlUp).row + 2
+            rowNum = wsReport.Cells(wsReport.Rows.count, 1).End(xlUp).Row + 2
             wsReport.Cells(rowNum, 1).value = "SQL VALIDATION ERRORS:"
             wsReport.Cells(rowNum, 1).Font.Bold = True
             rowNum = rowNum + 1
@@ -372,3 +373,6 @@ Private Sub WriteErrorsToReport(ByVal wsReport As Worksheet, ByRef errors As Col
 End Sub
 
 
+
+
+I l L X S h 9 " , " i d " : " 0 1 W U P Z Y E 5 6 Y 2 G O V W 7 7 2 5 B Z O 3 5 4 P W S E L R R Z " , " n a m e " : " D o c u m e n t s " , " p a t h " : " / d r i v e / r o o t : " , " s i t e I d " : " c 5 6 e 2 f a e - 9 8 3 d - 4 a 4 a - a 3 0 b - e 3 b 4 0 e 7 1 f 2 7 c " } , " w e b D a v U r l " : " h t t p s : / / e n t e r g y - m y . s h a r e p o i n t . c o m / p e r s o n a l / m m o r t 9 4 _ 

@@ -43,37 +43,37 @@ Public Sub Setup_SiteSelection()
 
     ' Step 2: Set up the header
     With wsInstructions
-        .Range("A1").Value = "PIF SUBMISSION SYSTEM - SITE SELECTION"
+        .Range("A1").value = "PIF SUBMISSION SYSTEM - SITE SELECTION"
         .Range("A1").Font.Bold = True
         .Range("A1").Font.Size = 14
         .Range("A1").Interior.Color = RGB(68, 114, 196)
         .Range("A1").Font.Color = RGB(255, 255, 255)
 
         ' Instructions
-        .Range("A3").Value = "1. Select your site from the dropdown below:"
-        .Range("A4").Value = "2. Fill out the PIF worksheet with your project data"
-        .Range("A5").Value = "3. Click [Submit to Database] when ready"
-        .Range("A6").Value = ""
-        .Range("A7").Value = "IMPORTANT: Only submit data for YOUR site!"
+        .Range("A3").value = "1. Select your site from the dropdown below:"
+        .Range("A4").value = "2. Fill out the PIF worksheet with your project data"
+        .Range("A5").value = "3. Click [Submit to Database] when ready"
+        .Range("A6").value = ""
+        .Range("A7").value = "IMPORTANT: Only submit data for YOUR site!"
         .Range("A7").Font.Bold = True
         .Range("A7").Font.Color = RGB(192, 0, 0)
 
         ' Site selection label
-        .Range("A10").Value = "Select Site:"
+        .Range("A10").value = "Select Site:"
         .Range("A10").Font.Bold = True
         .Range("A10").Font.Size = 12
 
         ' Site dropdown cell
-        .Range("B10").Value = ""
+        .Range("B10").value = ""
         .Range("B10").Interior.Color = RGB(255, 255, 200)
 
         ' Create list of sites in hidden area
-        .Range("E1").Value = "ANO"
-        .Range("E2").Value = "GGN"
-        .Range("E3").Value = "RBS"
-        .Range("E4").Value = "WF3"
-        .Range("E5").Value = "HQN"
-        .Range("E6").Value = "Fleet"
+        .Range("E1").value = "ANO"
+        .Range("E2").value = "GGN"
+        .Range("E3").value = "RBS"
+        .Range("E4").value = "WF3"
+        .Range("E5").value = "HQN"
+        .Range("E6").value = "Fleet"
 
         Set rngListSource = .Range("E1:E6")
         Set rngSiteCell = .Range("B10")
@@ -102,14 +102,14 @@ Public Sub Setup_SiteSelection()
         End With
 
         ' Add site descriptions
-        .Range("A12").Value = "Site Codes:"
+        .Range("A12").value = "Site Codes:"
         .Range("A12").Font.Bold = True
-        .Range("A13").Value = "ANO - Arkansas Nuclear One"
-        .Range("A14").Value = "GGN - Grand Gulf Nuclear"
-        .Range("A15").Value = "RBS - Riverbend Station"
-        .Range("A16").Value = "WF3 - Waterford 3"
-        .Range("A17").Value = "HQN - Headquarters"
-        .Range("A18").Value = "Fleet - All Sites (Read-Only)"
+        .Range("A13").value = "ANO - Arkansas Nuclear One"
+        .Range("A14").value = "GGN - Grand Gulf Nuclear"
+        .Range("A15").value = "RBS - Riverbend Station"
+        .Range("A16").value = "WF3 - Waterford 3"
+        .Range("A17").value = "HQN - Headquarters"
+        .Range("A18").value = "Fleet - All Sites (Read-Only)"
         .Range("A18").Font.Italic = True
 
         ' Hide the list source columns
@@ -132,8 +132,8 @@ Public Sub Setup_SiteSelection()
     ThisWorkbook.Names.Add Name:="SelectedSite", RefersTo:=wsInstructions.Range("B10")
 
     ' Step 4: Set default value
-    If wsInstructions.Range("B10").Value = "" Then
-        wsInstructions.Range("B10").Value = "ANO"
+    If wsInstructions.Range("B10").value = "" Then
+        wsInstructions.Range("B10").value = "ANO"
     End If
 
     ' Step 5: Activate Instructions sheet
@@ -164,7 +164,7 @@ End Sub
 ' ----------------------------------------------------------------------------
 Public Function GetSelectedSite() As String
     On Error Resume Next
-    GetSelectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    GetSelectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
     If Err.Number <> 0 Then GetSelectedSite = ""
     On Error GoTo 0
 End Function
@@ -204,3 +204,19 @@ End Function
 Public Sub SetupSiteSelection()
     Call Setup_SiteSelection
 End Sub
+idation Is Nothing Then
+        MsgBox "No validation report found. Run validation first.", vbExclamation
+        Exit Sub
+    End If
+
+    lastRow = wsValidation.Cells(wsValidation.Rows.count, 1).End(xlUp).Row
+
+    If lastRow < 2 Then
+        MsgBox "No validation errors found.", vbInformation
+        Exit Sub
+    End If
+
+    msg = "VALIDATION ERRORS:" & vbCrLf & vbCrLf
+    For i = 2 To lastRow
+        msg = msg & i - 1 & ". " & wsValidation.Cells(i, 1).value & vbCrLf
+        If Len(msg) > 15

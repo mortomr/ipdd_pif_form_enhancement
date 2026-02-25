@@ -44,7 +44,7 @@ Public Sub Edit_AddRow()
     Set tbl = ws.ListObjects(1)  ' Assumes first table on sheet
     
     ' Find last row with actual data (column G = Line Item)
-    lastDataRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
+    lastDataRow = ws.Cells(ws.Rows.count, 7).End(xlUp).Row
     If lastDataRow < 4 Then lastDataRow = 3
     
     newRow = lastDataRow + 1
@@ -54,8 +54,8 @@ Public Sub Edit_AddRow()
     ws.Range("C" & newRow).value = ""  ' Archive column
     
     ' Step 2: Extend table range to include new row if not auto-expanded yet
-    If newRow > tbl.Range.Rows.count + tbl.Range.row - 1 Then
-        tbl.Resize tbl.Range.Offset(0, 0).Resize(newRow - tbl.Range.row + 1)
+    If newRow > tbl.Range.Rows.count + tbl.Range.Row - 1 Then
+        tbl.Resize tbl.Range.Offset(0, 0).Resize(newRow - tbl.Range.Row + 1)
     End If
 
     ' Step 3: Copy formulas from source row
@@ -79,7 +79,7 @@ Public Sub Edit_AddRow()
     Application.CutCopyMode = False
     Application.ScreenUpdating = True
 
-    MsgBox "Row " & newRow - 3 & " added. Fill in PIF ID and required fields.", vbInformation
+    ' MsgBox "Row " & newRow - 3 & " added. Fill in PIF ID and required fields.", vbInformation
 
     Exit Sub
 
@@ -102,149 +102,208 @@ Public Sub Edit_DeleteRows()
     On Error GoTo ErrHandler
 
     Dim ws As Worksheet
-    Dim selectedRows As Range
+    Dim tbl As ListObject
     Dim response As VbMsgBoxResult
     Dim rowCount As Long
-    Dim tbl As ListObject
-    Dim firstRow As Long
-    Dim lastRow As Long
     Dim i As Long
 
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
+    Set tbl = ws.ListObjects(1)
 
     ' Get selected rows
-    On Error Resume Next
-    Set selectedRows = Intersect(Selection.EntireRow, ws.UsedRange)
-    On Error GoTo ErrHandler
-
-    If selectedRows Is Nothing Then
-        MsgBox "Please select one or more rows to delete.", _
-               vbExclamation, "No Rows Selected"
+    If Selection.Rows.count = 0 Then
+        MsgBox "Please select one or more rows to delete.", vbExclamation
         Exit Sub
     End If
 
-    ' Count rows
-    rowCount = selectedRows.Rows.count
-    firstRow = selectedRows.row
-    lastRow = firstRow + rowCount - 1
-
+    rowCount = Selection.Rows.count
+    
     ' Prevent deletion of header rows (rows 1-3)
-    If firstRow <= 3 Then
-        MsgBox "Cannot delete header rows (rows 1-3).", _
-               vbExclamation, "Invalid Selection"
+    If Selection.Row <= 3 Then
+        MsgBox "Cannot delete header rows.", vbExclamation
         Exit Sub
     End If
 
-    ' Confirmation prompt
-    If rowCount = 1 Then
-        response = MsgBox("Delete selected row?", _
-                         vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Delete")
-    Else
-        response = MsgBox("Delete " & rowCount & " selected rows?", _
-                         vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Delete")
-    End If
-
-    If response = vbNo Then
-        Exit Sub
-    End If
+    ' Confirmation
+    response = MsgBox("Delete " & rowCount & " row(s)?", _
+                     vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Delete")
+    If response = vbNo Then Exit Sub
 
     Application.ScreenUpdating = False
 
-    ' Check if selection is within an Excel Table (ListObject)
-    On Error Resume Next
-    Set tbl = selectedRows.Cells(1, 1).ListObject
-    On Error GoTo ErrHandler
-
-    If Not tbl Is Nothing Then
-        ' ========================================================================
-        ' EXCEL TABLE DELETION (ListObject)
-        ' ========================================================================
-        ' When working with Excel Tables, we must use the ListRows collection
-        ' to delete rows. Standard row deletion causes Error 1004.
-
-        ' Handle filtered tables: temporarily disable AutoFilter to allow deletion
-        Dim filterWasOn As Boolean
-        filterWasOn = False
-
-        If tbl.ShowAutoFilter Then
-            If tbl.AutoFilter.FilterMode Then
-                ' Filters are active - need to clear them temporarily
-                filterWasOn = True
-                tbl.AutoFilter.ShowAllData  ' Clear filters
-            End If
-        End If
-
-        ' Build array of ListRow indices to delete
-        Dim indicesToDelete() As Long
-        Dim indexCount As Long
-        Dim lr As ListRow
-        Dim j As Long
-        Dim temp As Long
-
-        indexCount = 0
-
-        ' First pass: count how many rows to delete
-        For Each lr In tbl.ListRows
-            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
-                indexCount = indexCount + 1
-            End If
-        Next lr
-
-        ' If no rows to delete, exit
-        If indexCount = 0 Then
-            Application.ScreenUpdating = True
-            Exit Sub
-        End If
-
-        ' Size the array
-        ReDim indicesToDelete(1 To indexCount)
-
-        ' Second pass: collect indices
-        j = 1
-        For Each lr In tbl.ListRows
-            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
-                indicesToDelete(j) = lr.Index
-                j = j + 1
-            End If
-        Next lr
-
-        ' Sort indices in descending order (bubble sort - simple and reliable)
-        For i = 1 To indexCount - 1
-            For j = i + 1 To indexCount
-                If indicesToDelete(i) < indicesToDelete(j) Then
-                    temp = indicesToDelete(i)
-                    indicesToDelete(i) = indicesToDelete(j)
-                    indicesToDelete(j) = temp
-                End If
-            Next j
-        Next i
-
-        ' Delete rows from highest index to lowest to maintain correct indices
-        For i = 1 To indexCount
-            tbl.ListRows(indicesToDelete(i)).Delete
-        Next i
-
-        ' Note: AutoFilter is automatically reapplied by Excel after row deletion
-        ' No need to manually re-enable it
-
-    Else
-        ' ========================================================================
-        ' REGULAR RANGE DELETION (Non-Table)
-        ' ========================================================================
-        ' Standard row deletion for non-table ranges
-        selectedRows.Delete Shift:=xlUp
-    End If
+    ' Delete from bottom to top to preserve indices
+    For i = Selection.Rows.count To 1 Step -1
+        tbl.ListRows(Selection.Rows(i).Row - tbl.Range.Row).Delete
+    Next i
 
     Application.ScreenUpdating = True
-
     Exit Sub
 
 ErrHandler:
     Application.ScreenUpdating = True
-    MsgBox "Error deleting rows:" & vbCrLf & vbCrLf & _
-           "Error " & Err.Number & ": " & Err.Description, _
-           vbCritical, "Delete Error"
+    MsgBox "Error: " & Err.Number & " - " & Err.Description, vbCritical
 End Sub
+
+'Public Sub Edit_DeleteRows()
+'    On Error GoTo ErrHandler
+'
+'    Dim ws As Worksheet
+'    Dim selectedRows As Range
+'    Dim response As VbMsgBoxResult
+'    Dim rowCount As Long
+'    Dim tbl As ListObject
+'    Dim firstRow As Long
+'    Dim lastRow As Long
+'    Dim i As Long
+'
+'    Set ws = ThisWorkbook.Sheets(SHEET_DATA)
+'
+'    ' Get selected rows
+'    On Error Resume Next
+'    Set selectedRows = Intersect(Selection.EntireRow, ws.UsedRange)
+'    On Error GoTo ErrHandler
+'
+'    If selectedRows Is Nothing Then
+'        MsgBox "Please select one or more rows to delete.", _
+'               vbExclamation, "No Rows Selected"
+'        Exit Sub
+'    End If
+'
+'    ' Count rows
+'    rowCount = selectedRows.Rows.count
+'    firstRow = selectedRows.Row
+'    lastRow = firstRow + rowCount - 1
+'
+'    ' Prevent deletion of header rows (rows 1-3)
+'    If firstRow <= 3 Then
+'        MsgBox "Cannot delete header rows (rows 1-3).", _
+'               vbExclamation, "Invalid Selection"
+'        Exit Sub
+'    End If
+'    ' Check selection inside table bounds?:
+'    If lastRow > tbl.Range.Rows.count + tbl.Range.Row - 1 Then
+'        MsgBox "Selection extends beyond table range.", vbExclamation
+'        Exit Sub
+'    End If
+'
+'    ' Check is Total Row?:
+'    If tbl.ShowTotals Then
+'        If lastRow >= tbl.Range.Row + tbl.Range.Rows.count - 1 Then
+'            MsgBox "Cannot delete the totals row.", vbExclamation
+'            Exit Sub
+'        End If
+'    End If
+'
+'    ' Confirmation prompt
+'    If rowCount = 1 Then
+'        response = MsgBox("Delete selected row?", _
+'                         vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Delete")
+'    Else
+'        response = MsgBox("Delete " & rowCount & " selected rows?", _
+'                         vbQuestion + vbYesNo + vbDefaultButton2, "Confirm Delete")
+'    End If
+'
+'    If response = vbNo Then
+'        Exit Sub
+'    End If
+'
+'    Application.ScreenUpdating = False
+'
+'    ' Check if selection is within an Excel Table (ListObject)
+'    On Error Resume Next
+'    Set tbl = selectedRows.Cells(1, 1).ListObject
+'    On Error GoTo ErrHandler
+'
+'    If Not tbl Is Nothing Then
+'        ' ========================================================================
+'        ' EXCEL TABLE DELETION (ListObject)
+'        ' ========================================================================
+'        ' When working with Excel Tables, we must use the ListRows collection
+'        ' to delete rows. Standard row deletion causes Error 1004.
+'
+'        ' Handle filtered tables: temporarily disable AutoFilter to allow deletion
+'        Dim filterWasOn As Boolean
+'        filterWasOn = False
+'
+'        If tbl.ShowAutoFilter Then
+'            If tbl.AutoFilter.FilterMode Then
+'                ' Filters are active - need to clear them temporarily
+'                filterWasOn = True
+'                tbl.AutoFilter.ShowAllData  ' Clear filters
+'            End If
+'        End If
+'
+'        ' Build array of ListRow indices to delete
+'        Dim indicesToDelete() As Long
+'        Dim indexCount As Long
+'        Dim lr As ListRow
+'        Dim j As Long
+'        Dim temp As Long
+'
+'        indexCount = 0
+'
+'        ' First pass: count how many rows to delete
+'        For Each lr In tbl.ListRows
+'            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
+'                indexCount = indexCount + 1
+'            End If
+'        Next lr
+'
+'        ' If no rows to delete, exit
+'        If indexCount = 0 Then
+'            Application.ScreenUpdating = True
+'            Exit Sub
+'        End If
+'
+'        ' Size the array
+'        ReDim indicesToDelete(1 To indexCount)
+'
+'        ' Second pass: collect indices
+'        j = 1
+'        For Each lr In tbl.ListRows
+'            If Not Intersect(lr.Range, selectedRows) Is Nothing Then
+'                indicesToDelete(j) = lr.Index
+'                j = j + 1
+'            End If
+'        Next lr
+'
+'        ' Sort indices in descending order (bubble sort - simple and reliable)
+'        For i = 1 To indexCount - 1
+'            For j = i + 1 To indexCount
+'                If indicesToDelete(i) < indicesToDelete(j) Then
+'                    temp = indicesToDelete(i)
+'                    indicesToDelete(i) = indicesToDelete(j)
+'                    indicesToDelete(j) = temp
+'                End If
+'            Next j
+'        Next i
+'
+'        ' Delete rows from highest index to lowest to maintain correct indices
+'        For i = 1 To indexCount
+'            tbl.ListRows(indicesToDelete(i)).Delete
+'        Next i
+'
+'        ' Note: AutoFilter is automatically reapplied by Excel after row deletion
+'        ' No need to manually re-enable it
+'
+'    Else
+'        ' ========================================================================
+'        ' REGULAR RANGE DELETION (Non-Table)
+'        ' ========================================================================
+'        ' Standard row deletion for non-table ranges
+'        selectedRows.Delete Shift:=xlUp
+'    End If
+'
+'    Application.ScreenUpdating = True
+'
+'    Exit Sub
+'
+'ErrHandler:
+'    Application.ScreenUpdating = True
+'    MsgBox "Error deleting rows:" & vbCrLf & vbCrLf & _
+'           "Error " & Err.Number & ": " & Err.Description, _
+'           vbCritical, "Delete Error"
+'End Sub
 
 ' ----------------------------------------------------------------------------
 ' Function: ValidateDataRow
@@ -301,7 +360,7 @@ Public Sub Tool_HighlightIncomplete()
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
 
     ' Find last row with data
-    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
+    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).Row
 
     highlightCount = 0
 
@@ -360,7 +419,7 @@ Public Sub Tool_ClearHighlights()
     Application.ScreenUpdating = False
 
     Set ws = ThisWorkbook.Sheets(SHEET_DATA)
-    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).row
+    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).Row
 
     ' Clear highlighting from all data rows (start at row 4)
     If lastRow >= 4 Then
@@ -397,3 +456,6 @@ End Sub
 Public Sub ClearRowHighlights()
     Call Tool_ClearHighlights
 End Sub
+ ,      ,      +      ,      ,      ,      ,      , Åc+ (   P+ –≥∞+ £jP     
+  
+Ë+ 

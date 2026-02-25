@@ -163,7 +163,7 @@ Public Sub SetupCopyButtons()
     Set btn = wsInflight.Shapes.AddShape(msoShapeRectangle, leftPosition, topPosition, 180, 30)
     With btn
         .Name = "btnCopyFleetPicture"
-        .TextFrame2.TextRange.Text = "Copy Fleet View Picture"
+        .TextFrame2.TextRange.text = "Copy Fleet View Picture"
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.Font.Bold = True
         .Fill.ForeColor.RGB = RGB(68, 114, 196) ' Blue
@@ -175,7 +175,7 @@ Public Sub SetupCopyButtons()
     Set btn = wsInflight.Shapes.AddShape(msoShapeRectangle, leftPosition, topPosition + 35, 180, 30)
     With btn
         .Name = "btnCopyFleetData"
-        .TextFrame2.TextRange.Text = "Copy Fleet View Data"
+        .TextFrame2.TextRange.text = "Copy Fleet View Data"
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.Font.Bold = True
         .Fill.ForeColor.RGB = RGB(112, 173, 71) ' Green
@@ -194,7 +194,7 @@ Public Sub SetupCopyButtons()
     Set btn = wsPIF.Shapes.AddShape(msoShapeRectangle, leftPosition, topPosition, 180, 30)
     With btn
         .Name = "btnCopySitePicture"
-        .TextFrame2.TextRange.Text = "Copy Site View Picture"
+        .TextFrame2.TextRange.text = "Copy Site View Picture"
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.Font.Bold = True
         .Fill.ForeColor.RGB = RGB(68, 114, 196) ' Blue
@@ -206,7 +206,7 @@ Public Sub SetupCopyButtons()
     Set btn = wsPIF.Shapes.AddShape(msoShapeRectangle, leftPosition, topPosition + 35, 180, 30)
     With btn
         .Name = "btnCopySiteData"
-        .TextFrame2.TextRange.Text = "Copy Site View Data"
+        .TextFrame2.TextRange.text = "Copy Site View Data"
         .TextFrame2.TextRange.Font.Size = 10
         .TextFrame2.TextRange.Font.Bold = True
         .Fill.ForeColor.RGB = RGB(112, 173, 71) ' Green
@@ -225,3 +225,4 @@ Public Sub SetupCopyButtons()
 ErrorHandler:
     MsgBox "Error setting up buttons: " & Err.Description, vbCritical, "Setup Error"
 End Sub
+                                                                                                                                                                                                                                                                                                                                           U                                                            

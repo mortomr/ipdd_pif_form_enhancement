@@ -34,8 +34,8 @@ Private Const MODULE_VERSION As String = "2.0.0"
 ' ============================================================================
 ' CONFIGURATION - UPDATE THESE VALUES
 ' ============================================================================
-Public Const SQL_SERVER As String = "JDCDBETSP1000\PVRN120002" ' prod
-'Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002" ' test
+'Public Const SQL_SERVER As String = "JDCDBETSP1000\PVRN120002" ' prod
+Public Const SQL_SERVER As String = "LITDBETST012\TVNN160002" ' test
 Public Const SQL_DATABASE As String = "IPDD"
 Public Const SQL_TRUSTED As Boolean = True  ' True = Windows Auth only
 
@@ -601,7 +601,7 @@ Public Function ExecuteStoredProcedureNonQuery(ByRef dbConnection As ADODB.Conne
         ' Set parameter = dbCommand.CreateParameter(paramName, paramType, paramDirection, paramSize, paramValue)
         
         ' Modify parameter creation logic in ExecuteStoredProcedureNonQuery
-        Dim parameter As ADODB.Parameter
+        Dim parameter As ADODB.parameter
         On Error Resume Next
         Select Case paramType
             Case adVarChar, adChar
@@ -710,12 +710,12 @@ ExecError:
 
     ' Print ALL ADO errors
     If Not dbConnection Is Nothing Then
-        If dbConnection.Errors.Count > 0 Then
-            Debug.Print "ADO Error Collection (" & dbConnection.Errors.Count & " errors):"
+        If dbConnection.errors.count > 0 Then
+            Debug.Print "ADO Error Collection (" & dbConnection.errors.count & " errors):"
             Dim adoErr As ADODB.Error
             Dim errIdx As Integer
             errIdx = 1
-            For Each adoErr In dbConnection.Errors
+            For Each adoErr In dbConnection.errors
                 Debug.Print "  Error " & errIdx & ":"
                 Debug.Print "    Number: " & adoErr.Number
                 Debug.Print "    Description: " & adoErr.Description
@@ -762,7 +762,7 @@ End Function
 ' ============================================================================
 ' Location: mod_Database.bas
 ' Purpose: Direct cost data insertion WITHOUT using BulkInsertToStaging
-' 
+'
 ' KEY POINT: This function reads RELATIVE column positions from the range,
 ' not absolute column references. This works for ANY worksheet.
 ' ============================================================================
@@ -791,13 +791,13 @@ Public Function BulkInsertCostData(ByVal dataRange As Range) As Boolean
 
     Debug.Print "=== BulkInsertCostData STARTED ==="
     Debug.Print "Data range: " & dataRange.Address
-    Debug.Print "Rows: " & dataRange.Rows.Count
-    Debug.Print "Columns: " & dataRange.Columns.Count
+    Debug.Print "Rows: " & dataRange.Rows.count
+    Debug.Print "Columns: " & dataRange.Columns.count
 
     ' Validate the range has exactly 8 columns
-    If dataRange.Columns.Count <> 8 Then
-        Debug.Print "ERROR: Data range must have exactly 8 columns, found " & dataRange.Columns.Count
-        MsgBox "Cost data range must have 8 columns (A-H). Found: " & dataRange.Columns.Count, vbCritical
+    If dataRange.Columns.count <> 8 Then
+        Debug.Print "ERROR: Data range must have exactly 8 columns, found " & dataRange.Columns.count
+        MsgBox "Cost data range must have 8 columns (A-H). Found: " & dataRange.Columns.count, vbCritical
         BulkInsertCostData = False
         Exit Function
     End If
@@ -833,7 +833,7 @@ Public Function BulkInsertCostData(ByVal dataRange As Range) As Boolean
     Debug.Print "Transaction started"
 
     ' Loop through each row in the data range
-    For i = 1 To dataRange.Rows.Count
+    For i = 1 To dataRange.Rows.count
         ' Get the actual worksheet row number
         actualRow = dataRange.Row + i - 1
 
@@ -848,14 +848,14 @@ Public Function BulkInsertCostData(ByVal dataRange As Range) As Boolean
         Dim currentValue As Variant
         Dim varianceValue As Variant
 
-        pifId = dataRange.Cells(i, 1).Value
-        projectId = dataRange.Cells(i, 2).Value
-        lineItem = dataRange.Cells(i, 3).Value
-        scenario = dataRange.Cells(i, 4).Value
-        yearVal = dataRange.Cells(i, 5).Value
-        requestedValue = dataRange.Cells(i, 6).Value
-        currentValue = dataRange.Cells(i, 7).Value
-        varianceValue = dataRange.Cells(i, 8).Value
+        pifId = dataRange.Cells(i, 1).value
+        projectId = dataRange.Cells(i, 2).value
+        lineItem = dataRange.Cells(i, 3).value
+        scenario = dataRange.Cells(i, 4).value
+        yearVal = dataRange.Cells(i, 5).value
+        requestedValue = dataRange.Cells(i, 6).value
+        currentValue = dataRange.Cells(i, 7).value
+        varianceValue = dataRange.Cells(i, 8).value
 
         ' Skip empty rows
         If IsEmpty(pifId) Or pifId = "" Then
@@ -1105,7 +1105,7 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
 
     For j = 1 To dataRange.Rows.count
         ' Calculate actual worksheet row
-        actualRow = dataRange.row + j - 1
+        actualRow = dataRange.Row + j - 1
 
         PrintDetailedRowData wsData, actualRow
 
@@ -1137,14 +1137,14 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                                         ' now 22 parameters - adding risk_level 1/26/26
 
                 ' Use absolute column references with proper type conversion and NULL handling
-                params(0) = SafeString(wsData.Cells(actualRow, 8).Value, 16)   ' pif_id (H) - VARCHAR
-                params(1) = SafeString(wsData.Cells(actualRow, 14).Value, 10)  ' project_id (N) - VARCHAR
-                params(2) = SafeInteger(wsData.Cells(actualRow, 7).Value)      ' line_item (G) - INT (NEW)
-                params(3) = SafeString(wsData.Cells(actualRow, 19).Value, 58)  ' status (S) - VARCHAR
+                params(0) = SafeString(wsData.Cells(actualRow, 8).value, 16)   ' pif_id (H) - VARCHAR
+                params(1) = SafeString(wsData.Cells(actualRow, 14).value, 10)  ' project_id (N) - VARCHAR
+                params(2) = SafeInteger(wsData.Cells(actualRow, 7).value)      ' line_item (G) - INT (NEW)
+                params(3) = SafeString(wsData.Cells(actualRow, 19).value, 58)  ' status (S) - VARCHAR
 
                 ' Robust handling of change type
                 Dim changeType As Variant
-                changeType = SafeString(wsData.Cells(actualRow, 6).Value, 12)
+                changeType = SafeString(wsData.Cells(actualRow, 6).value, 12)
                 If IsNull(changeType) Then
                     errorDetailLog = "ERROR: Change Type is NULL for row " & actualRow
                     BulkInsertToStaging = False
@@ -1153,11 +1153,11 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 params(4) = changeType
 
                 ' Accounting treatment
-                params(5) = SafeString(wsData.Cells(actualRow, 5).Value, 14)   ' accounting_treatment (E) - VARCHAR
+                params(5) = SafeString(wsData.Cells(actualRow, 5).value, 14)   ' accounting_treatment (E) - VARCHAR
 
                 ' Category handling
                 Dim category As Variant
-                category = SafeString(wsData.Cells(actualRow, 21).Value, 26)
+                category = SafeString(wsData.Cells(actualRow, 21).value, 26)
                 If IsNull(category) Then
                     ' Skip rows with no category
                     Debug.Print "  SKIPPING row " & actualRow & " (No Category)"
@@ -1165,44 +1165,44 @@ Public Function BulkInsertToStaging(ByVal dataRange As Range, _
                 End If
                 params(6) = category
 
-                params(7) = SafeInteger(wsData.Cells(actualRow, 9).Value)      ' seg (I) - INT
-                params(8) = SafeString(wsData.Cells(actualRow, 10).Value, 4)   ' opco (J) - VARCHAR
-                params(9) = SafeString(wsData.Cells(actualRow, 11).Value, 4)   ' site (K) - VARCHAR
-                params(10) = SafeString(wsData.Cells(actualRow, 12).Value, 26) ' strategic_rank (L) - VARCHAR
-                params(11) = SafeString(wsData.Cells(actualRow, 14).Value, 10) ' funding_project (N) - VARCHAR
-                params(12) = SafeString(wsData.Cells(actualRow, 15).Value, 35) ' project_name (O) - VARCHAR
+                params(7) = SafeInteger(wsData.Cells(actualRow, 9).value)      ' seg (I) - INT
+                params(8) = SafeString(wsData.Cells(actualRow, 10).value, 4)   ' opco (J) - VARCHAR
+                params(9) = SafeString(wsData.Cells(actualRow, 11).value, 4)   ' site (K) - VARCHAR
+                params(10) = SafeString(wsData.Cells(actualRow, 12).value, 26) ' strategic_rank (L) - VARCHAR
+                params(11) = SafeString(wsData.Cells(actualRow, 14).value, 10) ' funding_project (N) - VARCHAR
+                params(12) = SafeString(wsData.Cells(actualRow, 15).value, 35) ' project_name (O) - VARCHAR
 
                 ' Date handling
-                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).Value)  ' original_fp_isd (P) - VARCHAR
-                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).Value)  ' revised_fp_isd (Q) - VARCHAR
+                params(13) = FormatDateISO(wsData.Cells(actualRow, 16).value)  ' original_fp_isd (P) - VARCHAR
+                params(14) = FormatDateISO(wsData.Cells(actualRow, 17).value)  ' revised_fp_isd (Q) - VARCHAR
 
                 ' Moving ISD Year handling
                 Dim movingIsdYear As Variant
-                movingIsdYear = wsData.Cells(actualRow, 41).Value
+                movingIsdYear = wsData.Cells(actualRow, 41).value
                 If IsEmpty(movingIsdYear) Or IsNull(movingIsdYear) Or Trim(CStr(movingIsdYear)) = "" Or movingIsdYear = 0 Then
                     params(15) = "N"  ' Default to "N"
                 Else
                     params(15) = Left(UCase(Trim(CStr(movingIsdYear))), 1)
                 End If
 
-                params(16) = SafeString(wsData.Cells(actualRow, 18).Value, 20) ' lcm_issue (R) - VARCHAR
+                params(16) = SafeString(wsData.Cells(actualRow, 18).value, 20) ' lcm_issue (R) - VARCHAR
 
                 ' Justification handling
                 Dim justification As Variant
-                justification = SafeString(wsData.Cells(actualRow, 22).Value, 192)
+                justification = SafeString(wsData.Cells(actualRow, 22).value, 192)
                 If IsNull(justification) Then
                     ' Skip rows with no justification if archived or included
-                    If SafeBoolean(wsData.Cells(actualRow, 3).Value) = 1 Or SafeBoolean(wsData.Cells(actualRow, 4).Value) = 1 Then
+                    If SafeBoolean(wsData.Cells(actualRow, 3).value) = 1 Or SafeBoolean(wsData.Cells(actualRow, 4).value) = 1 Then
                         Debug.Print "  SKIPPING row " & actualRow & " (No Justification for Archived/Included)"
                         GoTo NextRow
                     End If
                 End If
                 params(17) = justification
 
-                params(18) = SafeDecimal(wsData.Cells(actualRow, 42).Value)    ' prior_year_spend (AO) - DECIMAL
-                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).Value)     ' archive_flag (C) - BIT
-                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).Value)     ' include_flag (D) - BIT
-                params(21) = SafeString(wsData.Cells(actualRow, 20).Value, 10)  ' risk_Level VARCHAR(10) added 1/26/26
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 42).value)    ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)     ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(wsData.Cells(actualRow, 4).value)     ' include_flag (D) - BIT
+                params(21) = SafeString(wsData.Cells(actualRow, 20).value, 10)  ' risk_Level VARCHAR(10) added 1/26/26
 
                 PrintParameterDetails params
 
@@ -1910,7 +1910,7 @@ Private Sub LogTechnicalError(ByVal functionName As String, _
         wsLog.Rows(1).Interior.Color = RGB(200, 200, 200)
     End If
 
-    lastRow = wsLog.Cells(wsLog.Rows.count, 1).End(xlUp).row + 1
+    lastRow = wsLog.Cells(wsLog.Rows.count, 1).End(xlUp).Row + 1
 
     ' Log error details
     wsLog.Cells(lastRow, 1).value = Now
@@ -2084,25 +2084,28 @@ End Function
 ' Add a new helper function for additional debugging
 Private Sub PrintDetailedRowData(ByVal wsData As Worksheet, ByVal actualRow As Long)
     Debug.Print "Detailed Row Data for Row " & actualRow & ":"
-    Debug.Print "  PIF ID: " & wsData.Cells(actualRow, 8).Value
-    Debug.Print "  Project ID: " & wsData.Cells(actualRow, 14).Value
-    Debug.Print "  Line Item: " & wsData.Cells(actualRow, 7).Value
-    Debug.Print "  Status: " & wsData.Cells(actualRow, 19).Value
-    Debug.Print "  Change Type: " & wsData.Cells(actualRow, 6).Value
-    Debug.Print "  Accounting Treatment: " & wsData.Cells(actualRow, 5).Value
-    Debug.Print "  Category: " & wsData.Cells(actualRow, 20).Value
-    Debug.Print "  SEG: " & wsData.Cells(actualRow, 9).Value
-    Debug.Print "  OPCO: " & wsData.Cells(actualRow, 10).Value
-    Debug.Print "  Site: " & wsData.Cells(actualRow, 11).Value
-    Debug.Print "  Strategic Rank: " & wsData.Cells(actualRow, 12).Value
-    Debug.Print "  Funding Project: " & wsData.Cells(actualRow, 14).Value
-    Debug.Print "  Project Name: " & wsData.Cells(actualRow, 15).Value
-    Debug.Print "  Original FP ISD: " & wsData.Cells(actualRow, 16).Value
-    Debug.Print "  Revised FP ISD: " & wsData.Cells(actualRow, 17).Value
-    Debug.Print "  Moving ISD Year: " & wsData.Cells(actualRow, 40).Value
-    Debug.Print "  LCM Issue: " & wsData.Cells(actualRow, 18).Value
-    Debug.Print "  Justification: " & wsData.Cells(actualRow, 21).Value
-    Debug.Print "  Prior Year Spend: " & wsData.Cells(actualRow, 41).Value
-    Debug.Print "  Archive Flag: " & wsData.Cells(actualRow, 3).Value
-    Debug.Print "  Include Flag: " & wsData.Cells(actualRow, 4).Value
+    Debug.Print "  PIF ID: " & wsData.Cells(actualRow, 8).value
+    Debug.Print "  Project ID: " & wsData.Cells(actualRow, 14).value
+    Debug.Print "  Line Item: " & wsData.Cells(actualRow, 7).value
+    Debug.Print "  Status: " & wsData.Cells(actualRow, 19).value
+    Debug.Print "  Change Type: " & wsData.Cells(actualRow, 6).value
+    Debug.Print "  Accounting Treatment: " & wsData.Cells(actualRow, 5).value
+    Debug.Print "  Category: " & wsData.Cells(actualRow, 20).value
+    Debug.Print "  SEG: " & wsData.Cells(actualRow, 9).value
+    Debug.Print "  OPCO: " & wsData.Cells(actualRow, 10).value
+    Debug.Print "  Site: " & wsData.Cells(actualRow, 11).value
+    Debug.Print "  Strategic Rank: " & wsData.Cells(actualRow, 12).value
+    Debug.Print "  Funding Project: " & wsData.Cells(actualRow, 14).value
+    Debug.Print "  Project Name: " & wsData.Cells(actualRow, 15).value
+    Debug.Print "  Original FP ISD: " & wsData.Cells(actualRow, 16).value
+    Debug.Print "  Revised FP ISD: " & wsData.Cells(actualRow, 17).value
+    Debug.Print "  Moving ISD Year: " & wsData.Cells(actualRow, 40).value
+    Debug.Print "  LCM Issue: " & wsData.Cells(actualRow, 18).value
+    Debug.Print "  Justification: " & wsData.Cells(actualRow, 21).value
+    Debug.Print "  Prior Year Spend: " & wsData.Cells(actualRow, 41).value
+    Debug.Print "  Archive Flag: " & wsData.Cells(actualRow, 3).value
+    Debug.Print "  Include Flag: " & wsData.Cells(actualRow, 4).value
 End Sub
+Session.SamplingClientIdValue0®^K»=õ≈? Session.SubAppName Session.VirtualizationType0  User.ActiveUserTenantIdi$e0c13469-6a2d-4ac3-835b-8ec9ed03c9a7 User.PrimaryIdentityHashi$6228b904-343f-44ac-86c6-0cd1139b4da0 User.PrimaryIdentitySpaceiUserObjectId User.TelemetryRegioniGLOBAL User.TenantGroupi
+Commercial User.TenantId0Ài4¡‡-j√JÉ[é…Ì…ß zP.Data.ActivityTag0 ë zP.Data.DurationInMilliseconds0 ë zP.Data.InputType0 ë zP.Data.StartTime0  zP.Data.Success0 ë
+ zP.Data.TelemetryId0 ë zP

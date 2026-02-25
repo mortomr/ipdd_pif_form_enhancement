@@ -165,7 +165,7 @@ End Sub
 ' Purpose: Execute all validation checks for SELECTED SITE ONLY
 ' Returns: 2D array of validation results
 ' Params: selectedSite - the site being validated (ANO, GGN, RBS, WF3, HQN)
-' 
+'
 ' CRITICAL CHANGE: Duplicate validation now respects site filter
 ' Only rows matching selectedSite are checked for duplicates
 ' Rows from other sites are skipped entirely
@@ -177,8 +177,8 @@ Public Function RunAllValidations(selectedSite As String) As Variant
     Dim results As Collection
     Dim rowNum As Long
     Dim lastRow As Long
-    Dim pifID As String
-    Dim projectID As String
+    Dim pifId As String
+    Dim projectId As String
     Dim lineItem As String
     Dim changeType As String
     Dim category As String
@@ -190,7 +190,7 @@ Public Function RunAllValidations(selectedSite As String) As Variant
 
     Set wsPIF = ThisWorkbook.Sheets(WS_PIF)
     Set results = New Collection
-    lastRow = wsPIF.Cells(wsPIF.Rows.count, COL_PIF_ID).End(xlUp).row
+    lastRow = wsPIF.Cells(wsPIF.Rows.count, COL_PIF_ID).End(xlUp).Row
 
     ' Track which PIF+Project+LineItem combinations we've seen for SELECTED SITE ONLY
     ' This collection is site-specific; other sites' data is ignored
@@ -199,8 +199,8 @@ Public Function RunAllValidations(selectedSite As String) As Variant
 
     ' Loop through all data rows
     For rowNum = FIRST_DATA_ROW To lastRow
-        pifID = Trim(wsPIF.Cells(rowNum, COL_PIF_ID).value & "")
-        projectID = Trim(wsPIF.Cells(rowNum, COL_FUNDING_PROJECT).value & "")
+        pifId = Trim(wsPIF.Cells(rowNum, COL_PIF_ID).value & "")
+        projectId = Trim(wsPIF.Cells(rowNum, COL_FUNDING_PROJECT).value & "")
         lineItem = Trim(wsPIF.Cells(rowNum, COL_LINE_ITEM).value & "")
         changeType = Trim(wsPIF.Cells(rowNum, COL_CHANGE_TYPE).value & "")
         category = Trim(wsPIF.Cells(rowNum, COL_CATEGORY).value & "")
@@ -211,7 +211,7 @@ Public Function RunAllValidations(selectedSite As String) As Variant
         justification = Trim(wsPIF.Cells(rowNum, COL_JUSTIFICATION).value & "")
 
         ' Skip empty rows
-        If pifID = "" And projectID = "" Then
+        If pifId = "" And projectId = "" Then
             GoTo NextRow
         End If
 
@@ -220,10 +220,10 @@ Public Function RunAllValidations(selectedSite As String) As Variant
         ' -------------------------------------------------------------------
 
         ' 1. PIF_ID is required
-        ValidateRequired rowNum, pifID, "PIF_ID", results
+        ValidateRequired rowNum, pifId, "PIF_ID", results
 
         ' 2. Project_ID is required
-        ValidateRequired rowNum, projectID, "Project_ID", results
+        ValidateRequired rowNum, projectId, "Project_ID", results
 
         ' 3. Site matches selected site
         ValidateSiteMatch rowNum, site, selectedSite, results
@@ -236,7 +236,7 @@ Public Function RunAllValidations(selectedSite As String) As Variant
         ' 5. SITE-FILTERED DUPLICATE DETECTION (PIF + Project + LineItem)
         '    Only checks rows from selectedSite; ignores other sites
         '    Multiple LineItems for same PIF+Project are VALID
-        ValidateDuplicate rowNum, pifID, projectID, lineItem, site, selectedSite, seenCombos, results
+        ValidateDuplicate rowNum, pifId, projectId, lineItem, site, selectedSite, seenCombos, results
 
         ' 6. Conditional validations based on Change Type
         ValidateChangeTypeRules rowNum, changeType, originalISD, revisedISD, results
@@ -252,6 +252,8 @@ Public Function RunAllValidations(selectedSite As String) As Variant
         End If
 
         ' 9. Status "Approved" requires justification
+        Dim status As String
+
         If UCase(status) = "APPROVED" And justification = "" Then
             ValidateRequired rowNum, justification, "Justification", results
         End If
@@ -310,20 +312,20 @@ End Sub
 ' ---------------------------------------------------------------------------
 ' Sub: ValidateDuplicate
 ' Purpose: Detect duplicate PIF+Project+LineItem combinations ONLY for selected site
-' 
+'
 ' Key Logic:
 ' - Rows from DIFFERENT sites are skipped (don't validate cross-site)
 ' - Only rows matching selectedSite are checked
 ' - Multiple LineItems for same PIF+Project are VALID (they are transaction lines)
 ' - Same PIF+Project+LineItem appearing twice in SAME site = FAIL
-' 
+'
 ' Example (All for ANO site):
 '   Row 4: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 4 → PASS (first occurrence)
 '   Row 5: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 5 → PASS (different LineItem)
 '   Row 6: PIF ANO-2025-PIF-038, Project F1PPM06169, LineItem 6 → PASS (different Project)
 '   Row 7: PIF ANO-2025-PIF-038, Project F1PPM56061, LineItem 4 → FAIL (duplicate of row 4)
 ' ---------------------------------------------------------------------------
-Private Sub ValidateDuplicate(rowNum As Long, pifID As String, projectID As String, lineItem As String, _
+Private Sub ValidateDuplicate(rowNum As Long, pifId As String, projectId As String, lineItem As String, _
                              site As String, selectedSite As String, _
                              ByRef seenCombos As Collection, ByRef results As Collection)
     
@@ -336,7 +338,7 @@ Private Sub ValidateDuplicate(rowNum As Long, pifID As String, projectID As Stri
     ' Build composite key: PIF|Project|LineItem
     ' This allows same PIF+Project to appear multiple times if LineItem differs
     Dim comboKey As String
-    comboKey = pifID & "|" & projectID & "|" & lineItem
+    comboKey = pifId & "|" & projectId & "|" & lineItem
 
     ' Check if we've already seen this PIF+Project+LineItem combo in THIS SITE
     Dim keyExists As Boolean
@@ -350,13 +352,13 @@ Private Sub ValidateDuplicate(rowNum As Long, pifID As String, projectID As Stri
 
     If keyExists Then
         ' This exact combo already exists in the selected site = FAIL
-        AddValidationResult rowNum, pifID, projectID, lineItem, "Duplicate", VAL_FAIL, _
-                           "Duplicate entry: PIF " & pifID & " + Project " & projectID & _
+        AddValidationResult rowNum, pifId, projectId, lineItem, "Duplicate", VAL_FAIL, _
+                           "Duplicate entry: PIF " & pifId & " + Project " & projectId & _
                            " + LineItem " & lineItem & " already submitted.", results
     Else
         ' First time seeing this PIF+Project+LineItem combo in selected site = PASS
         seenCombos.Add rowNum, comboKey
-        AddValidationResult rowNum, pifID, projectID, lineItem, "Duplicate", VAL_PASS, "", results
+        AddValidationResult rowNum, pifId, projectId, lineItem, "Duplicate", VAL_PASS, "", results
     End If
 End Sub
 
@@ -437,14 +439,14 @@ End Sub
 ' Sub: AddValidationResult
 ' Purpose: Add a single validation result to the collection
 ' ---------------------------------------------------------------------------
-Private Sub AddValidationResult(rowNum As Long, pifID As String, projectID As String, lineItem As String, _
+Private Sub AddValidationResult(rowNum As Long, pifId As String, projectId As String, lineItem As String, _
                                fieldName As String, status As String, message As String, ByRef results As Collection)
     Dim resultItem As Variant
     ReDim resultItem(0 To 6)
 
     resultItem(0) = rowNum
-    resultItem(1) = pifID
-    resultItem(2) = projectID
+    resultItem(1) = pifId
+    resultItem(2) = projectId
     resultItem(3) = lineItem
     resultItem(4) = fieldName
     resultItem(5) = status
@@ -462,7 +464,7 @@ End Sub
 ' Purpose: Create/update Validation_Report worksheet with results
 ' Params: validationResults - 2D array of validation results
 ' ---------------------------------------------------------------------------
-Private Sub PopulateValidationReport(validationResults As Variant)
+Public Sub PopulateValidationReport(validationResults As Variant)
     On Error GoTo ErrHandler
 
     Dim wsReport As Worksheet
@@ -574,3 +576,11 @@ Private Sub CountValidationResults(validationResults As Variant, ByRef failCount
         End Select
     Next i
 End Sub
+ts(SHEET_DATA)
+
+     ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
+     lastDataRow = wsData.Cells(wsData.Rows.count, "H").End(xlUp).Row
+     Debug.Print "Last data row found: " & lastDataRow
+
+     ' Ensure we don't include header rows or start before the actual data
+     If lastDataRow < 4 Then lastDataRow

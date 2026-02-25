@@ -1,3 +1,4 @@
+Attribute VB_Name = "mod_CostDiagnostic"
 ' ============================================================================
 ' MODULE: mod_CostDiagnostic
 ' ============================================================================
@@ -6,6 +7,13 @@
 ' ============================================================================
 
 Option Explicit
+
+
+
+
+
+
+
 
 Public Sub DiagnoseFullCostFlow()
     On Error GoTo ErrHandler
@@ -127,14 +135,14 @@ Private Function CountCostDataInPIF() As Long
     Dim j As Long
     Dim cellValue As Variant
     
-    Set wsData = ThisWorkbook.sheets("Target Adjustment")
-    lastRow = wsData.Cells(wsData.Rows.Count, 8).End(xlUp).Row
+    Set wsData = ThisWorkbook.Sheets("PIF")
+    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).Row
     
     ' Count non-empty cost cells in columns V-BG (columns 22-59)
     costCount = 0
     For i = 4 To lastRow
         For j = 22 To 59  ' Columns V through BG
-            cellValue = wsData.Cells(i, j).Value
+            cellValue = wsData.Cells(i, j).value
             If Not IsEmpty(cellValue) And cellValue <> 0 Then
                 costCount = costCount + 1
             End If
@@ -155,7 +163,7 @@ Private Function CountRowsInSheet(ByVal sheetName As String, Optional ByVal star
     Dim lastRow As Long
     
     Set ws = ThisWorkbook.Sheets(sheetName)
-    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.count, 1).End(xlUp).Row
     
     If lastRow >= startRow Then
         CountRowsInSheet = lastRow - startRow + 1
@@ -182,11 +190,11 @@ Private Sub ValidateCostUnpivotedData(ByRef validCount As Long, ByRef nullCount 
     zeroCount = 0
     
     Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).Row
     
     ' Check column F (requested_value)
     For i = 2 To lastRow
-        cellValue = wsCost.Cells(i, 6).Value
+        cellValue = wsCost.Cells(i, 6).value
         
         If IsEmpty(cellValue) Or IsNull(cellValue) Then
             nullCount = nullCount + 1
@@ -211,7 +219,7 @@ Private Function TestCostUploadToStaging() As Boolean
     Dim lastRow As Long
     
     Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).Row
     
     If lastRow < 2 Then
         TestCostUploadToStaging = False
@@ -266,7 +274,7 @@ Public Sub DetailedCostUnpivotAnalysis()
     Dim requested As Variant, current As Variant, variance As Variant
     
     Set wsCost = ThisWorkbook.Sheets("Cost_Unpivoted")
-    lastRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).Row
     
     msg = "COST_UNPIVOTED SHEET ANALYSIS" & vbCrLf & _
           String(50, "=") & vbCrLf & vbCrLf
@@ -275,14 +283,14 @@ Public Sub DetailedCostUnpivotAnalysis()
     msg = msg & "First 20 records from Cost_Unpivoted:" & vbCrLf & vbCrLf
     
     For i = 2 To Application.Min(21, lastRow)
-        pifId = wsCost.Cells(i, 1).Value
-        projectId = wsCost.Cells(i, 2).Value
-        lineItem = wsCost.Cells(i, 3).Value
-        scenario = wsCost.Cells(i, 4).Value
-        year = wsCost.Cells(i, 5).Value
-        requested = wsCost.Cells(i, 6).Value
-        current = wsCost.Cells(i, 7).Value
-        variance = wsCost.Cells(i, 8).Value
+        pifId = wsCost.Cells(i, 1).value
+        projectId = wsCost.Cells(i, 2).value
+        lineItem = wsCost.Cells(i, 3).value
+        scenario = wsCost.Cells(i, 4).value
+        year = wsCost.Cells(i, 5).value
+        requested = wsCost.Cells(i, 6).value
+        current = wsCost.Cells(i, 7).value
+        variance = wsCost.Cells(i, 8).value
         
         msg = msg & i - 1 & ". PIF=" & pifId & " Proj=" & projectId & " Line=" & lineItem & vbCrLf & _
                       "    Scenario=" & scenario & " Year=" & Format(year, "yyyy") & vbCrLf & _
@@ -318,7 +326,7 @@ Public Sub DetailedStagingAnalysis()
     sql = "SELECT COUNT(*) AS RowCount FROM dbo.tbl_pif_cost_staging"
     Set rs = New ADODB.Recordset
     rs.Open sql, conn
-    count = rs.Fields("RowCount").Value
+    count = rs.Fields("RowCount").value
     rs.Close
     
     msg = "STAGING TABLE ANALYSIS" & vbCrLf & _
@@ -344,9 +352,9 @@ Public Sub DetailedStagingAnalysis()
         Dim rowNum As Long
         rowNum = 1
         Do While Not rs.EOF
-            msg = msg & rowNum & ". PIF=" & rs("pif_id").Value & " Proj=" & rs("project_id").Value & _
-                        " Line=" & rs("line_item").Value & " Scenario=" & rs("scenario").Value & _
-                        " Year=" & rs("FiscalYear").Value & " Requested=" & rs("requested_value").Value & vbCrLf
+            msg = msg & rowNum & ". PIF=" & rs("pif_id").value & " Proj=" & rs("project_id").value & _
+                        " Line=" & rs("line_item").value & " Scenario=" & rs("scenario").value & _
+                        " Year=" & rs("FiscalYear").value & " Requested=" & rs("requested_value").value & vbCrLf
             rs.MoveNext
             rowNum = rowNum + 1
         Loop
@@ -404,7 +412,7 @@ Private Function UploadCostData() As Boolean
     End If
 
     ' Find the last row with data (check column A for pif_id)
-    lastDataRow = wsCost.Cells(wsCost.Rows.Count, 1).End(xlUp).Row
+    lastDataRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).Row
 
     ' If no data rows (only header or empty), return success (nothing to upload)
     If lastDataRow < 2 Then
@@ -416,7 +424,7 @@ Private Function UploadCostData() As Boolean
     ' Define the data range from row 2 (first data row) to last row, columns A-H
     Set dataRange = wsCost.Range(wsCost.Cells(2, 1), wsCost.Cells(lastDataRow, 8))
 
-    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.Count
+    Debug.Print "UploadCostData: Range=" & dataRange.Address & " Rows=" & dataRange.Rows.count
 
     ' Upload the data
     success = BulkInsertCosts(dataRange)
@@ -449,10 +457,10 @@ Public Function BulkInsertCosts(ByVal dataRange As Range) As Boolean
 
     Debug.Print "=== BulkInsertCosts STARTED ==="
     Debug.Print "Data range: " & dataRange.Address
-    Debug.Print "Rows: " & dataRange.Rows.Count
+    Debug.Print "Rows: " & dataRange.Rows.count
 
     ' Validate the range
-    If dataRange.Rows.Count = 0 Then
+    If dataRange.Rows.count = 0 Then
         Debug.Print "ERROR: Data range is empty"
         BulkInsertCosts = True  ' Not an error - just nothing to insert
         Exit Function
@@ -493,7 +501,7 @@ Private Function GetSelectedSiteForCosts() As String
     On Error Resume Next
 
     Dim selectedSite As String
-    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.Value)
+    selectedSite = Trim(ThisWorkbook.Names("SelectedSite").RefersToRange.value)
 
     If selectedSite = "" Then
         GetSelectedSiteForCosts = ""
@@ -505,7 +513,7 @@ End Function
 ' ============================================================================
 ' IMPORTANT NOTES
 ' ============================================================================
-' 
+'
 ' 1. The Cost_Unpivoted sheet MUST have data in columns A-H:
 '    Column A: pif_id
 '    Column B: project_id
@@ -527,3 +535,31 @@ End Function
 '
 ' 4. Testing: Use mod_CostDiagnostic.DiagnoseFullCostFlow() to trace the flow
 '
+Public Sub DiagnoseTableAutoExpand()
+    Dim ws As Worksheet
+    Dim tbl As ListObject
+    Dim lastRow As Long
+    
+    Set ws = ThisWorkbook.Sheets(SHEET_DATA)
+    
+    ' Try to find the table object
+    On Error Resume Next
+    Set tbl = ws.ListObjects(1)
+    On Error GoTo 0
+    
+    If tbl Is Nothing Then
+        MsgBox "No table found on this sheet!", vbCritical
+        Exit Sub
+    End If
+    
+    lastRow = ws.Cells(ws.Rows.count, 7).End(xlUp).Row
+    
+    MsgBox "Table Name: " & tbl.Name & vbCrLf & _
+           "Table Range: " & tbl.Range.Address & vbCrLf & _
+           "Last Data Row: " & lastRow & vbCrLf & _
+           "Total Row: " & tbl.ShowTotals & vbCrLf & _
+           "Table End Row: " & tbl.Range.Rows.count, vbInformation
+    
+End Sub
+
+ D e f a u l t D r i v e " :   f a l s e ,   " I s T e a m C h a n n e l " :   f a l s e ,   " I s P r i v a t e C h a n n e l " :   f a l s e ,   " I s S h a r e d C h a n n e l " :   f a l s e ,   " c h a n n e l I n f o " :   { " C h a n n e l I d " :   " " ,   " C h a n n e l D i s p l a y N a m e " :   " " ,   " c h a n n e l T y p e " :   0 ,   " O w n e r s C o u n t " :   0 ,   " M e m b e r 

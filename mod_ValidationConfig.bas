@@ -215,3 +215,18 @@ Private Function IsNumeric(val As String) As Boolean
     IsNumeric = Not IsError(val + 0)
     On Error GoTo 0
 End Function
+Row & "|Duplicate Entry|PIF " & pifId & " + Project " & projectId & _
+                          " + Line " & lineItem & " appears multiple times (first occurrence: Row " & seenKeys(key) & ")"
+            Else
+                seenKeys.Add key, actualRow
+            End If
+        End If
+
+NextRow:
+    Next rowNum
+
+    ' Write errors to report
+    If errors.count > 0 Then
+        Call WriteErrorsToReport(wsReport, errors)
+
+        MsgBox errors.count & " validation error(s) found." & vbCrLf & vbC

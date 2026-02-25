@@ -84,7 +84,7 @@ Public Sub Archive_DeleteArchivedRecords()
     ' Step 3: Query database for archived records
     Set archivedRecords = GetArchivedRecordsForSite(selectedSite)
 
-    If archivedRecords Is Nothing Or archivedRecords.Count = 0 Then
+    If archivedRecords Is Nothing Or archivedRecords.count = 0 Then
         Application.StatusBar = False
         Application.Cursor = xlDefault
 
@@ -105,9 +105,9 @@ Public Sub Archive_DeleteArchivedRecords()
     Application.StatusBar = False
     Application.Cursor = xlDefault
 
-    If recordsToDelete Is Nothing Or recordsToDelete.Count = 0 Then
+    If recordsToDelete Is Nothing Or recordsToDelete.count = 0 Then
         MsgBox "No matching archived records found in the PIF worksheet." & vbCrLf & vbCrLf & _
-               "Database has " & archivedRecords.Count & " archived record(s) for site " & selectedSite & ", " & _
+               "Database has " & archivedRecords.count & " archived record(s) for site " & selectedSite & ", " & _
                "but none of them are currently in the PIF worksheet." & vbCrLf & vbCrLf & _
                "This is normal if you've already cleaned up this month's data.", _
                vbInformation, "No Records to Delete"
@@ -115,7 +115,7 @@ Public Sub Archive_DeleteArchivedRecords()
     End If
 
     ' Step 5: Confirmation prompt with detailed information
-    deleteCount = recordsToDelete.Count
+    deleteCount = recordsToDelete.count
 
     Dim confirmMsg As String
     confirmMsg = "DELETE ARCHIVED RECORDS FROM PIF WORKSHEET" & vbCrLf & _
@@ -240,7 +240,7 @@ Private Function GetArchivedRecordsForSite(ByVal siteName As String) As Collecti
     ' Build collection of record keys
     Do While Not rs.EOF
         ' Create composite key: "PIF_ID|Project_ID"
-        recordKey = Trim(CStr(rs("pif_id").Value)) & "|" & Trim(CStr(rs("project_id").Value))
+        recordKey = Trim(CStr(rs("pif_id").value)) & "|" & Trim(CStr(rs("project_id").value))
 
         ' Add to collection (use key as both item and key to prevent duplicates)
         On Error Resume Next
@@ -300,14 +300,14 @@ Private Function FindMatchingRecordsInWorksheet(ByVal ws As Worksheet, _
     Set results = New Collection
 
     ' Find last row with data in PIF_ID column (Column G = 7)
-    lastRow = ws.Cells(ws.Rows.Count, PIFDataColumns.colPIFID).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.count, PIFDataColumns.colPIFID).End(xlUp).Row
 
     ' Loop through data rows (start at row 4, skip headers in rows 1-3)
     For i = 4 To lastRow
         ' Get PIF_ID, Project_ID, and Site from row
-        pifId = Trim(CStr(ws.Cells(i, PIFDataColumns.colPIFID).Value))
-        projectId = Trim(CStr(ws.Cells(i, PIFDataColumns.colFundingProject).Value))
-        rowSite = Trim(CStr(ws.Cells(i, PIFDataColumns.colSite).Value))
+        pifId = Trim(CStr(ws.Cells(i, PIFDataColumns.colPIFID).value))
+        projectId = Trim(CStr(ws.Cells(i, PIFDataColumns.colFundingProject).value))
+        rowSite = Trim(CStr(ws.Cells(i, PIFDataColumns.colSite).value))
 
         ' Skip empty rows or rows without PIF_ID
         If pifId = "" Then GoTo NextRow
@@ -365,8 +365,8 @@ Private Sub DeleteRecordsFromWorksheet(ByVal ws As Worksheet, _
     On Error GoTo ErrHandler
 
     ' Copy collection to array for sorting
-    ReDim sortedRows(1 To rowNumbers.Count)
-    For i = 1 To rowNumbers.Count
+    ReDim sortedRows(1 To rowNumbers.count)
+    For i = 1 To rowNumbers.count
         sortedRows(i) = rowNumbers(i)
     Next i
 
@@ -409,7 +409,7 @@ Private Sub DeleteRecordsFromWorksheet(ByVal ws As Worksheet, _
             listRowIndex = rowNum - tbl.HeaderRowRange.Row
 
             ' Validate index is within table bounds
-            If listRowIndex >= 1 And listRowIndex <= tbl.ListRows.Count Then
+            If listRowIndex >= 1 And listRowIndex <= tbl.ListRows.count Then
                 tbl.ListRows(listRowIndex).Delete
             End If
         Next i
@@ -443,3 +443,4 @@ End Sub
 Public Sub DeleteArchivedRecords()
     Call Archive_DeleteArchivedRecords
 End Sub
+n t e r g y _ c o m / D o c u m e n t s / N e w % 2 0 P r o j e c t % 2 0 S t a t u s . p p t x " ,   " D i s p l a y N a m e " :   " N e w   P r o j e c t   S t a t u s . p p t x " ,   " A u t h o r " :   " " ,   " R e s o u r c e I d " :   " 0 1 W U P Z Y E Z F C Y S J Q 3 4 N 3 B D Z G N Q K T E G H H 2 Q 2 " ,   " R o o t R e s o u r c e I d " :   " 0 1 W U P Z Y E Z F C Y S J Q 3 4 N 3 B D Z G N Q K T E G H H 2 Q 2 " ,   " L a s t M o d i f i e d " :   1 3 4 0 5 5 5 4 7 0 6 0 

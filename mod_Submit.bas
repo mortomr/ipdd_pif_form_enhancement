@@ -136,8 +136,8 @@ Public Sub SaveSnapshot()
     Call LogSubmission    ' Non-critical, don't fail on logging errors
 
     ' STEP 7: Refresh query worksheets (silently - final message will report success)
-    Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
+    ' Application.StatusBar = "Refreshing query worksheets..."
+    ' Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
@@ -293,8 +293,8 @@ Public Sub FinalizeMonth()
     Call LogSubmission    ' Non-critical, don't fail on logging errors
 
     ' STEP 8: Refresh query worksheets (silently - final message will report success)
-    Application.StatusBar = "Refreshing query worksheets..."
-    Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
+'    Application.StatusBar = "Refreshing query worksheets..."
+'    Call mod_WorksheetQuery.RefreshAll(showSuccessMessage:=False)
 
     success = True  ' Mark as successful
 
@@ -444,7 +444,7 @@ Public Function UnpivotCostData() As Boolean
     Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
 
     ' Find last row with data (PIF_ID in column H)
-    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).row
+    lastRow = wsData.Cells(wsData.Rows.count, 8).End(xlUp).Row
     If lastRow < 4 Then
         UnpivotCostData = True
         Exit Function
@@ -482,7 +482,7 @@ Public Function UnpivotCostData() As Boolean
                 outputArray(outputRow, 4) = "Target"
                 outputArray(outputRow, 5) = DateSerial(currentYear + i, 12, 31)
                 
-                ' CORRECT MAPPINGS - Array index matches Excel column position directly - 
+                ' CORRECT MAPPINGS - Array index matches Excel column position directly -
                 ' ***increment all +1 to add risk level 1/26/26***
                 outputArray(outputRow, 6) = ConvertToNumeric(sourceData(dataRow, 23 + i))  ' V-AA: cols 22-27 (array indices 22,23,24,25,26,27) Requested
                 outputArray(outputRow, 7) = ConvertToNumeric(sourceData(dataRow, 29 + i))  ' AB-AG: cols 28-33 (array indices 28,29,30,31,32,33) Current
@@ -617,7 +617,7 @@ End Function
      Set wsData = ThisWorkbook.Sheets(SHEET_DATA)
 
      ' Find the last row with data in Column H (PIF_ID) to define the extent of project data
-     lastDataRow = wsData.Cells(wsData.Rows.count, "H").End(xlUp).row
+     lastDataRow = wsData.Cells(wsData.Rows.count, "H").End(xlUp).Row
      Debug.Print "Last data row found: " & lastDataRow
 
      ' Ensure we don't include header rows or start before the actual data
@@ -886,7 +886,7 @@ Private Function UploadCostDataCORRECTED() As Boolean
     End If
 
     ' Find the last row with data (check column A for pif_id)
-    lastDataRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).row
+    lastDataRow = wsCost.Cells(wsCost.Rows.count, 1).End(xlUp).Row
 
     ' If no data rows (only header or empty), return success (nothing to upload)
     If lastDataRow < 2 Then
@@ -1090,7 +1090,7 @@ Private Sub ClearArchivedCheckboxes()
     includeCol = PIFDataColumns.colInclude  ' Column D
 
     ' Find last row with data
-    lastRow = wsData.Cells(wsData.Rows.count, PIFDataColumns.colPIFID).End(xlUp).row
+    lastRow = wsData.Cells(wsData.Rows.count, PIFDataColumns.colPIFID).End(xlUp).Row
 
     clearedCount = 0
 
@@ -1191,3 +1191,13 @@ ErrHandler:
            vbCritical, "Archive Error"
 End Sub
 
+
+                        Debug.Print "  SKIPPING row " & actualRow & " (No Justification for Archived/Included)"
+                        GoTo NextRow
+                    End If
+                End If
+                params(17) = justification
+
+                params(18) = SafeDecimal(wsData.Cells(actualRow, 42).value)    ' prior_year_spend (AO) - DECIMAL
+                params(19) = SafeBoolean(wsData.Cells(actualRow, 3).value)     ' archive_flag (C) - BIT
+                params(20) = SafeBoolean(ws

@@ -31,50 +31,50 @@ Public Sub Diag_TestInsert()
     msg = "DIAGNOSTIC: Reading data from row " & testRow & vbCrLf & vbCrLf
 
     ' Read and display each parameter
-    msg = msg & "Column G (pif_id): " & wsData.Cells(testRow, 7).Value & vbCrLf
-    msg = msg & "Column M (project_id): " & wsData.Cells(testRow, 13).Value & vbCrLf
-    msg = msg & "Column R (status): " & wsData.Cells(testRow, 18).Value & vbCrLf
-    msg = msg & "Column F (change_type): " & wsData.Cells(testRow, 6).Value & vbCrLf
-    msg = msg & "Column E (accounting_treatment): " & wsData.Cells(testRow, 5).Value & vbCrLf
-    msg = msg & "Column S (category): " & wsData.Cells(testRow, 19).Value & vbCrLf
-    msg = msg & "Column H (seg): [" & wsData.Cells(testRow, 8).Value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 8).Value) & vbCrLf
-    msg = msg & "Column I (opco): " & wsData.Cells(testRow, 9).Value & vbCrLf
-    msg = msg & "Column J (site): " & wsData.Cells(testRow, 10).Value & vbCrLf
-    msg = msg & "Column K (strategic_rank): " & wsData.Cells(testRow, 11).Value & vbCrLf
-    msg = msg & "Column M (funding_project): " & wsData.Cells(testRow, 13).Value & vbCrLf
-    msg = msg & "Column N (project_name): " & wsData.Cells(testRow, 14).Value & vbCrLf
-    msg = msg & "Column O (original_fp_isd): " & wsData.Cells(testRow, 15).Value & vbCrLf
-    msg = msg & "Column P (revised_fp_isd): " & wsData.Cells(testRow, 16).Value & vbCrLf
-    msg = msg & "Column AM (moving_isd_year): " & wsData.Cells(testRow, 39).Value & vbCrLf
-    msg = msg & "Column Q (lcm_issue): " & wsData.Cells(testRow, 17).Value & vbCrLf
-    msg = msg & "Column T (justification): " & wsData.Cells(testRow, 20).Value & vbCrLf
-    msg = msg & "Column AN (prior_year_spend): [" & wsData.Cells(testRow, 40).Value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 40).Value) & vbCrLf
-    msg = msg & "Column C (archive_flag): " & wsData.Cells(testRow, 3).Value & vbCrLf
-    msg = msg & "Column D (include_flag): " & wsData.Cells(testRow, 4).Value & vbCrLf
+    msg = msg & "Column G (pif_id): " & wsData.Cells(testRow, 7).value & vbCrLf
+    msg = msg & "Column M (project_id): " & wsData.Cells(testRow, 13).value & vbCrLf
+    msg = msg & "Column R (status): " & wsData.Cells(testRow, 18).value & vbCrLf
+    msg = msg & "Column F (change_type): " & wsData.Cells(testRow, 6).value & vbCrLf
+    msg = msg & "Column E (accounting_treatment): " & wsData.Cells(testRow, 5).value & vbCrLf
+    msg = msg & "Column S (category): " & wsData.Cells(testRow, 19).value & vbCrLf
+    msg = msg & "Column H (seg): [" & wsData.Cells(testRow, 8).value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 8).value) & vbCrLf
+    msg = msg & "Column I (opco): " & wsData.Cells(testRow, 9).value & vbCrLf
+    msg = msg & "Column J (site): " & wsData.Cells(testRow, 10).value & vbCrLf
+    msg = msg & "Column K (strategic_rank): " & wsData.Cells(testRow, 11).value & vbCrLf
+    msg = msg & "Column M (funding_project): " & wsData.Cells(testRow, 13).value & vbCrLf
+    msg = msg & "Column N (project_name): " & wsData.Cells(testRow, 14).value & vbCrLf
+    msg = msg & "Column O (original_fp_isd): " & wsData.Cells(testRow, 15).value & vbCrLf
+    msg = msg & "Column P (revised_fp_isd): " & wsData.Cells(testRow, 16).value & vbCrLf
+    msg = msg & "Column AM (moving_isd_year): " & wsData.Cells(testRow, 39).value & vbCrLf
+    msg = msg & "Column Q (lcm_issue): " & wsData.Cells(testRow, 17).value & vbCrLf
+    msg = msg & "Column T (justification): " & wsData.Cells(testRow, 20).value & vbCrLf
+    msg = msg & "Column AN (prior_year_spend): [" & wsData.Cells(testRow, 40).value & "] IsNumeric=" & IsNumeric(wsData.Cells(testRow, 40).value) & vbCrLf
+    msg = msg & "Column C (archive_flag): " & wsData.Cells(testRow, 3).value & vbCrLf
+    msg = msg & "Column D (include_flag): " & wsData.Cells(testRow, 4).value & vbCrLf
 
     MsgBox msg, vbInformation, "Raw Excel Values"
 
     ' Now convert using Safe functions and show results
-    params(0) = SafeString(wsData.Cells(testRow, 7).Value)
-    params(1) = SafeString(wsData.Cells(testRow, 13).Value)
-    params(2) = SafeString(wsData.Cells(testRow, 18).Value)
-    params(3) = SafeString(wsData.Cells(testRow, 6).Value)
-    params(4) = SafeString(wsData.Cells(testRow, 5).Value)
-    params(5) = SafeString(wsData.Cells(testRow, 19).Value)
-    params(6) = SafeInteger(wsData.Cells(testRow, 8).Value)
-    params(7) = SafeString(wsData.Cells(testRow, 9).Value)
-    params(8) = SafeString(wsData.Cells(testRow, 10).Value)
-    params(9) = SafeString(wsData.Cells(testRow, 11).Value)
-    params(10) = SafeString(wsData.Cells(testRow, 13).Value)
-    params(11) = SafeString(wsData.Cells(testRow, 14).Value)
-    params(12) = SafeString(wsData.Cells(testRow, 15).Value)
-    params(13) = SafeString(wsData.Cells(testRow, 16).Value)
-    params(14) = SafeString(wsData.Cells(testRow, 39).Value)
-    params(15) = SafeString(wsData.Cells(testRow, 17).Value)
-    params(16) = SafeString(wsData.Cells(testRow, 20).Value)
-    params(17) = SafeDecimal(wsData.Cells(testRow, 40).Value)
-    params(18) = SafeBoolean(wsData.Cells(testRow, 3).Value)
-    params(19) = SafeBoolean(wsData.Cells(testRow, 4).Value)
+    params(0) = SafeString(wsData.Cells(testRow, 7).value)
+    params(1) = SafeString(wsData.Cells(testRow, 13).value)
+    params(2) = SafeString(wsData.Cells(testRow, 18).value)
+    params(3) = SafeString(wsData.Cells(testRow, 6).value)
+    params(4) = SafeString(wsData.Cells(testRow, 5).value)
+    params(5) = SafeString(wsData.Cells(testRow, 19).value)
+    params(6) = SafeInteger(wsData.Cells(testRow, 8).value)
+    params(7) = SafeString(wsData.Cells(testRow, 9).value)
+    params(8) = SafeString(wsData.Cells(testRow, 10).value)
+    params(9) = SafeString(wsData.Cells(testRow, 11).value)
+    params(10) = SafeString(wsData.Cells(testRow, 13).value)
+    params(11) = SafeString(wsData.Cells(testRow, 14).value)
+    params(12) = SafeString(wsData.Cells(testRow, 15).value)
+    params(13) = SafeString(wsData.Cells(testRow, 16).value)
+    params(14) = SafeString(wsData.Cells(testRow, 39).value)
+    params(15) = SafeString(wsData.Cells(testRow, 17).value)
+    params(16) = SafeString(wsData.Cells(testRow, 20).value)
+    params(17) = SafeDecimal(wsData.Cells(testRow, 40).value)
+    params(18) = SafeBoolean(wsData.Cells(testRow, 3).value)
+    params(19) = SafeBoolean(wsData.Cells(testRow, 4).value)
 
     ' Show converted values
     msg = "CONVERTED VALUES:" & vbCrLf & vbCrLf
@@ -170,7 +170,7 @@ Public Sub Diag_ShowErrors()
         Exit Sub
     End If
 
-    lastRow = wsValidation.Cells(wsValidation.Rows.Count, 1).End(xlUp).Row
+    lastRow = wsValidation.Cells(wsValidation.Rows.count, 1).End(xlUp).Row
 
     If lastRow < 2 Then
         MsgBox "No validation errors found.", vbInformation
@@ -179,7 +179,7 @@ Public Sub Diag_ShowErrors()
 
     msg = "VALIDATION ERRORS:" & vbCrLf & vbCrLf
     For i = 2 To lastRow
-        msg = msg & i - 1 & ". " & wsValidation.Cells(i, 1).Value & vbCrLf
+        msg = msg & i - 1 & ". " & wsValidation.Cells(i, 1).value & vbCrLf
         If Len(msg) > 1500 Then
             MsgBox msg, vbExclamation, "Validation Errors (Part 1)"
             msg = ""
@@ -269,7 +269,7 @@ Public Sub Diag_DatabaseConnectionTest()
     
     MsgBox "Database Connection Test:" & vbCrLf & _
            "Status: Successful" & vbCrLf & _
-           "Current Server Time: " & rs.Fields("CurrentTime").Value & vbCrLf & _
+           "Current Server Time: " & rs.Fields("CurrentTime").value & vbCrLf & _
            "Connection Time: " & Format(elapsed, "0.00") & " seconds", _
            vbInformation, "Connection Test"
     
@@ -358,3 +358,6 @@ ErrHandler:
            "Error: " & Err.Number & " - " & Err.Description, _
            vbCritical
 End Sub
+ u V s B   p 3 l C  Cv
+˝ @¥,∞8ˆW K o v + o b v D 7 Z r 1 o v L l i N 8 Y t 3 Y / L q F j n o m u 0 T C 5 X U 1 q 8 h S + y k X H n w C n Z B g l x Q S X p I H 5 1 i 4 0 9 k s T N I 9 / b 7 r m p r n F A A A A E y m W B J i k / 4 l C G L F v H F / Q / V T z o D 0         #  #V
+˝ 8´ß¯Ëç                                                                                                                                                                
